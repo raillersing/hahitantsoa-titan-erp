@@ -10,6 +10,8 @@ export interface ExistingPaymentItem {
   amount: number;
   note?: string;
   reference?: string;
+  bank_name?: string;
+  check_number?: string;
   receipt_document?: DocumentInstance | null;
   payment_status?: string;
   payment_kind?: string;
@@ -155,15 +157,23 @@ export function numberToFrenchWords(num: number): string {
 export function getPaymentMethodLabel(method: string): string {
   switch (method) {
     case "cash":
-      return "Espèces (Caisse)";
+      return "Espèces";
     case "mobile_money":
-      return "Mobile Money (MVola / Orange / Airtel)";
+    case "mvola":
+      return "Mvola";
+    case "orange_money":
+      return "Orange Money";
+    case "taptap_send":
+      return "TapTap Send";
+    case "versement":
+      return "Versement";
     case "bank_transfer":
-      return "Virement Bancaire (BMOI / BNI / BOA)";
+    case "virement":
+      return "Virement";
     case "cheque":
       return "Chèque";
     default:
-      return "Autre mode";
+      return "Autre";
   }
 }
 
@@ -197,7 +207,10 @@ export function generateThermalReceiptHtml(params: {
   amount: number;
   amountInWords: string;
   paymentMethodLabel: string;
+  bankName?: string;
+  checkNumber?: string;
   transactionReference?: string;
+  paymentKind?: string;
   paymentKindLabel: string;
   historyPayments: ExistingPaymentItem[];
   currentPaymentItem?: {
@@ -218,6 +231,11 @@ export function generateThermalReceiptHtml(params: {
   const brandSubtitle = isTitan
     ? "Location Matériels Événementiels · Titan ERP"
     : "Espace Événementiel & Réception · Hahitantsoa ERP";
+  const datePrestationLabel = isTitan ? "Date Location" : "Date Evénement";
+  const isCaution =
+    params.paymentKind === "caution" ||
+    params.receiptTitle.toLowerCase().includes("caution") ||
+    params.paymentKindLabel.toLowerCase().includes("caution");
 
   const allHistory = [...params.historyPayments];
 
@@ -236,7 +254,7 @@ export function generateThermalReceiptHtml(params: {
       background: #ffffff;
     }
     body {
-      color: #111827;
+      color: #000000;
       font-family: Arial, Helvetica, sans-serif;
       font-size: 10px;
       line-height: 1.25;
@@ -251,7 +269,7 @@ export function generateThermalReceiptHtml(params: {
     .header {
       text-align: center;
       margin-bottom: 3.5mm;
-      border-bottom: 1.5px dashed #374151;
+      border-bottom: 1.5px dashed #000000;
       padding-bottom: 3mm;
     }
     .brand-logo {
@@ -260,18 +278,19 @@ export function generateThermalReceiptHtml(params: {
       max-height: 18mm;
       object-fit: contain;
       margin: 0 auto 2mm;
+      filter: grayscale(100%) contrast(200%);
     }
     .brand-title {
       font-size: 11px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: #111827;
+      color: #000000;
       margin: 0;
     }
     .brand-sub {
       font-size: 7.5px;
-      color: #6b7280;
+      color: #000000;
       margin-top: 1px;
     }
     .doc-title {
@@ -281,10 +300,10 @@ export function generateThermalReceiptHtml(params: {
       font-weight: 900;
       letter-spacing: 0.4px;
       text-transform: uppercase;
-      color: #1e1b4b;
-      background: #f1f5f9;
+      color: #000000;
+      background: #ffffff;
+      border: 1.5px solid #000000;
       padding: 1.5mm 1mm;
-      border-radius: 3px;
     }
     .field {
       display: grid;
@@ -295,10 +314,10 @@ export function generateThermalReceiptHtml(params: {
     }
     .label {
       font-weight: 700;
-      color: #4b5563;
+      color: #000000;
     }
     .value {
-      color: #111827;
+      color: #000000;
       font-weight: 500;
     }
     .value-bold {
@@ -307,28 +326,27 @@ export function generateThermalReceiptHtml(params: {
     .amount-highlight-box {
       margin: 2.5mm 0;
       padding: 2.5mm 2mm;
-      background: #f8fafc;
-      border: 1.5px solid #0f172a;
-      border-radius: 4px;
+      background: #ffffff;
+      border: 2px solid #000000;
       text-align: center;
     }
     .amount-highlight-label {
       font-size: 8px;
       font-weight: 800;
       text-transform: uppercase;
-      color: #475569;
+      color: #000000;
       letter-spacing: 0.5px;
     }
     .amount-highlight-value {
       font-size: 14px;
       font-weight: 900;
-      color: #047857;
+      color: #000000;
       margin: 1mm 0 0.5mm;
     }
     .amount-in-words {
       font-size: 8px;
       font-style: italic;
-      color: #334155;
+      color: #000000;
       line-height: 1.2;
     }
     .section-title {
@@ -337,8 +355,8 @@ export function generateThermalReceiptHtml(params: {
       font-size: 9px;
       text-transform: uppercase;
       letter-spacing: 0.3px;
-      color: #1f2937;
-      border-bottom: 1px solid #e2e8f0;
+      color: #000000;
+      border-bottom: 1px solid #000000;
       padding-bottom: 0.8mm;
     }
     .history-table {
@@ -353,23 +371,24 @@ export function generateThermalReceiptHtml(params: {
       padding: 1mm 0.5mm;
       vertical-align: top;
       text-align: left;
+      color: #000000;
     }
     .history-table th {
       font-weight: 700;
-      border-bottom: 1px solid #cbd5e1;
-      color: #475569;
+      border-bottom: 1px solid #000000;
+      color: #000000;
     }
     .history-table th:nth-child(1), .history-table td:nth-child(1) { width: 22mm; }
     .history-table th:nth-child(2), .history-table td:nth-child(2) { width: 22mm; text-align: right; }
     .history-table th:nth-child(3), .history-table td:nth-child(3) { padding-left: 2mm; font-size: 8px; }
     .row-current {
-      background-color: #ecfdf5;
+      background-color: #ffffff;
       font-weight: 700;
     }
     .summary-box {
       margin-top: 2.5mm;
       padding-top: 1.5mm;
-      border-top: 1.5px solid #111827;
+      border-top: 1.5px solid #000000;
       font-size: 9px;
     }
     .summary-row {
@@ -377,52 +396,19 @@ export function generateThermalReceiptHtml(params: {
       justify-content: space-between;
       gap: 2mm;
       margin: 1mm 0;
+      color: #000000;
     }
     .summary-row.total-paid {
       font-weight: 800;
       font-size: 9.5px;
-      color: #065f46;
+      color: #000000;
     }
     .summary-row.remaining {
       font-weight: 800;
       font-size: 10px;
-      color: #b91c1c;
+      color: #000000;
       padding-top: 1mm;
-      border-top: 1px dashed #cbd5e1;
-    }
-    .signature-area {
-      margin-top: 4mm;
-      padding-top: 2mm;
-      border-top: 1px dotted #94a3b8;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2mm;
-      font-size: 7.5px;
-      text-align: center;
-    }
-    .signature-title {
-      font-weight: 700;
-      color: #475569;
-      margin-bottom: 6mm;
-    }
-    .footer {
-      margin-top: 3.5mm;
-      text-align: center;
-      font-size: 7px;
-      color: #94a3b8;
-      line-height: 1.3;
-      border-top: 1px dashed #e2e8f0;
-      padding-top: 2mm;
-    }
-    .live-badge {
-      display: inline-block;
-      font-size: 7.5px;
-      background: #e0e7ff;
-      color: #3730a3;
-      padding: 0.5mm 1.5mm;
-      border-radius: 2px;
-      font-weight: 800;
-      margin-left: 1mm;
+      border-top: 1px dashed #000000;
     }
   </style>
 </head>
@@ -436,7 +422,6 @@ export function generateThermalReceiptHtml(params: {
 
     <div class="doc-title">
       ${params.receiptTitle}
-      <span class="live-badge">OFFICIEL</span>
     </div>
 
     <div class="field"><span class="label">N° Reçu</span><span class="value value-bold font-mono">${params.receiptNumber}</span></div>
@@ -444,17 +429,38 @@ export function generateThermalReceiptHtml(params: {
     <div class="field"><span class="label">Date & Heure</span><span class="value">${params.paymentDate}</span></div>
     <div class="field"><span class="label">Nom Client</span><span class="value value-bold">${params.customerName || "—"}</span></div>
     ${params.customerPhone ? `<div class="field"><span class="label">Téléphone</span><span class="value">${params.customerPhone}</span></div>` : ""}
-    ${params.eventDateLabel ? `<div class="field"><span class="label">Date Prestation</span><span class="value">${params.eventDateLabel}</span></div>` : ""}
-    <div class="field"><span class="label">Objet / Tranche</span><span class="value">${params.paymentKindLabel}</span></div>
+    ${params.eventDateLabel ? `<div class="field"><span class="label">${datePrestationLabel}</span><span class="value">${params.eventDateLabel}</span></div>` : ""}
+    <div class="field"><span class="label">Objet</span><span class="value">${params.paymentKindLabel}</span></div>
     <div class="field"><span class="label">Mode de règlement</span><span class="value value-bold">${params.paymentMethodLabel}</span></div>
-    <div class="field"><span class="label">Réf. Transaction</span><span class="value font-mono">${params.transactionReference || "—"}</span></div>
+    ${params.bankName ? `<div class="field"><span class="label">Nom de la banque</span><span class="value value-bold">${params.bankName}</span></div>` : ""}
+    ${params.checkNumber ? `<div class="field"><span class="label">N° Chèque</span><span class="value font-mono value-bold">${params.checkNumber}</span></div>` : ""}
+    ${params.transactionReference && !params.checkNumber ? `<div class="field"><span class="label">${params.paymentMethodLabel === "Virement" ? "Référence" : "Réf. Paiement"}</span><span class="value font-mono">${params.transactionReference}</span></div>` : ""}
 
     <div class="amount-highlight-box">
-      <div class="amount-highlight-label">Montant Réglé Ce Jour</div>
+      <div class="amount-highlight-label">${isCaution ? "Montant Caution" : "Montant Réglé Ce Jour"}</div>
       <div class="amount-highlight-value">${formatMoney(params.amount)}</div>
       <div class="amount-in-words">${params.amountInWords ? params.amountInWords : "—"}</div>
     </div>
 
+    ${
+      isCaution
+        ? `
+    <div class="summary-box" style="border: 2px solid #000000; padding: 2mm; margin-top: 2.5mm;">
+      <div style="font-weight: 800; text-align: center; text-transform: uppercase; margin-bottom: 1.5mm;">Dépôt de garantie (Caution)</div>
+      <div class="summary-row">
+        <span>N° Dossier</span>
+        <span class="value-bold font-mono">${params.proformaReference || params.draftReference || "—"}</span>
+      </div>
+      <div class="summary-row total-paid">
+        <span>MONTANT CAUTION VERSÉ</span>
+        <span class="value-bold">${formatMoney(params.amount)}</span>
+      </div>
+      <div class="summary-row" style="margin-top: 1mm;">
+        <span>Statut :</span>
+        <span class="value-bold">Caution versée</span>
+      </div>
+    </div>`
+        : `
     <div class="section-title">Historique des règlements</div>
     <table class="history-table">
       <thead>
@@ -467,7 +473,7 @@ export function generateThermalReceiptHtml(params: {
       <tbody>
         ${
           allHistory.length === 0 && !params.currentPaymentItem
-            ? `<tr><td colspan="3" style="text-align:center; color:#9ca3af; padding: 2mm 0;">Premier versement sur ce dossier.</td></tr>`
+            ? `<tr><td colspan="3" style="text-align:center; padding: 2mm 0;">Premier versement sur ce dossier.</td></tr>`
             : allHistory
                 .map(
                   (item) => `
@@ -492,27 +498,6 @@ export function generateThermalReceiptHtml(params: {
       </tbody>
     </table>
 
-    ${
-      params.receiptTitle.toLowerCase().includes("caution")
-        ? `
-    <div class="summary-box">
-      <div class="summary-row">
-        <span>N° Dossier</span>
-        <span class="value-bold font-mono">${params.proformaReference || params.draftReference || "—"}</span>
-      </div>
-      <div class="summary-row">
-        <span>Type d'encaissement</span>
-        <span class="value-bold" style="color: #b45309;">DÉPÔT DE GARANTIE / CAUTION</span>
-      </div>
-      <div class="summary-row total-paid">
-        <span>MONTANT CAUTION VERSÉ</span>
-        <span>${formatMoney(params.amount)}</span>
-      </div>
-      <div class="summary-row" style="margin-top: 1.5mm; font-size: 7.5px; color: #4b5563; font-style: italic; line-height: 1.2;">
-        <span>Nature : Somme séquestrée (hors devis prestation), restituable en fin de contrat conformément à l'article 7 après contrôle de retour sans dommage.</span>
-      </div>
-    </div>`
-        : `
     <div class="summary-box">
       <div class="summary-row">
         <span>N° Dossier Proforma</span>
@@ -528,28 +513,10 @@ export function generateThermalReceiptHtml(params: {
       </div>
       <div class="summary-row remaining">
         <span>SOLDE RESTANT À PAYER</span>
-        <span>${formatMoney(params.remainingBalance)}</span>
+        <span>${params.remainingBalance <= 0 ? "0 Ar - Dossier soldé" : formatMoney(params.remainingBalance)}</span>
       </div>
     </div>`
     }
-
-    <div class="signature-area">
-      <div>
-        <div class="signature-title">Signature / Visa Caisse</div>
-        <div style="height: 5mm;"></div>
-        <div style="font-size: 7px; color:#94a3b8;">Pour l'Établissement</div>
-      </div>
-      <div>
-        <div class="signature-title">Signature Client</div>
-        <div style="height: 5mm;"></div>
-        <div style="font-size: 7px; color:#94a3b8;">Pour acquit</div>
-      </div>
-    </div>
-
-    <div class="footer">
-      Document officiel généré par ${brandName} · Reçu libératoire sous réserve d'encaissement.<br>
-      Titan ERP / Hahitantsoa Platform
-    </div>
   </main>
 </body>
 </html>`;
@@ -586,6 +553,8 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
   const [paymentKind, setPaymentKind] = useState<string>(initialPaymentKind);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [externalReference, setExternalReference] = useState<string>("");
+  const [bankName, setBankName] = useState<string>("");
+  const [checkNumber, setCheckNumber] = useState<string>("");
   const [paymentNotes, setPaymentNotes] = useState<string>("");
   const [paidAt, setPaidAt] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [activeCashboxSession, setActiveCashboxSession] = useState<CashboxSession | null>(null);
@@ -629,6 +598,8 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
   const methodSelectId = useId();
   const paidAtInputId = useId();
   const externalRefId = useId();
+  const bankNameInputId = useId();
+  const checkNumberInputId = useId();
   const notesInputId = useId();
 
   // ── Financial Calculations ─────────────────────────────────────────────────
@@ -689,7 +660,10 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
       amount: numericAmount,
       amountInWords,
       paymentMethodLabel: getPaymentMethodLabel(paymentMethod),
+      bankName: bankName.trim() || undefined,
+      checkNumber: checkNumber.trim() || undefined,
       transactionReference: externalReference.trim() || undefined,
+      paymentKind,
       paymentKindLabel: getPaymentKindLabel(paymentKind, domain),
       historyPayments: existingPayments,
       currentPaymentItem:
@@ -719,6 +693,8 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
     numericAmount,
     amountInWords,
     paymentMethod,
+    bankName,
+    checkNumber,
     externalReference,
     paidAt,
     projectedPaid,
@@ -731,7 +707,10 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
     const receiptNum = `REC-${(proformaReference || draftReference).replace(/[^a-zA-Z0-9-]/g, "")}-${selectedPastPayment.id?.slice(0, 4) || "HIST"}`;
     return generateThermalReceiptHtml({
       domain,
-      receiptTitle: "Reçu de Paiement Confirmé",
+      receiptTitle:
+        selectedPastPayment.payment_kind === "caution"
+          ? "Reçu de Dépôt de Caution"
+          : "Reçu de Paiement Confirmé",
       receiptNumber: receiptNum,
       paymentDate: selectedPastPayment.date.slice(0, 10),
       customerName,
@@ -740,7 +719,10 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
       amount: selectedPastPayment.amount,
       amountInWords: numberToFrenchWords(selectedPastPayment.amount),
       paymentMethodLabel: getPaymentMethodLabel(selectedPastPayment.method),
+      bankName: selectedPastPayment.bank_name,
+      checkNumber: selectedPastPayment.check_number,
       transactionReference: selectedPastPayment.reference,
+      paymentKind: selectedPastPayment.payment_kind,
       paymentKindLabel: getPaymentKindLabel(selectedPastPayment.payment_kind || "deposit", domain),
       historyPayments: existingPayments.filter((p) => p.id !== selectedPastPayment.id),
       currentPaymentItem: {
@@ -813,9 +795,15 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
         reservation_draft: isTitan ? draftId : null,
         hahitantsoa_event_draft: !isTitan ? draftId : null,
         payment_method: paymentMethod,
+        payment_kind: paymentKind as any,
         amount: numericAmount.toFixed(2),
         paid_at: paidAt ? new Date(paidAt).toISOString() : undefined,
-        external_reference: externalReference.trim() || undefined,
+        external_reference:
+          paymentMethod === "cheque"
+            ? (checkNumber.trim() || undefined)
+            : (externalReference.trim() || undefined),
+        bank_name: bankName.trim() || undefined,
+        check_number: checkNumber.trim() || undefined,
         notes:
           paymentNotes.trim() ||
           `Versement ${getPaymentKindLabel(paymentKind, domain)} enregistré depuis le dossier ${draftReference}.`,
@@ -1197,9 +1185,13 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                       className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-600"
                     >
                       <option value="cash">💵 Espèces (Caisse)</option>
-                      <option value="mobile_money">📱 Mobile Money (MVola / Orange / Airtel)</option>
-                      <option value="bank_transfer">🏦 Virement Bancaire (BMOI / BNI / BOA)</option>
-                      <option value="cheque">📝 Chèque de banque</option>
+                      <option value="cheque">📝 Chèque</option>
+                      <option value="mvola">📱 MVola</option>
+                      <option value="orange_money">📱 Orange Money</option>
+                      <option value="taptap_send">📱 TapTap Send</option>
+                      <option value="versement">🏦 Versement</option>
+                      <option value="virement">🏦 Virement</option>
+                      <option value="mobile_money">📱 Mobile Money (Autre)</option>
                       <option value="other">Autre</option>
                     </select>
                   </div>
@@ -1248,35 +1240,154 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                   </div>
                 )}
 
-                {/* Référence transaction & Notes */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
+                {/* Dynamic Fields according to payment method */}
+                {paymentMethod === "cheque" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-2xl bg-amber-50/60 border border-amber-200">
+                    <div>
+                      <label htmlFor={bankNameInputId} className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Nom de la banque *
+                      </label>
+                      <input
+                        id={bankNameInputId}
+                        type="text"
+                        required
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        placeholder="Ex: BNI, BMOI, BOA, Société Générale..."
+                        className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-600 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor={checkNumberInputId} className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Numéro de chèque *
+                      </label>
+                      <input
+                        id={checkNumberInputId}
+                        type="text"
+                        required
+                        value={checkNumber}
+                        onChange={(e) => setCheckNumber(e.target.value)}
+                        placeholder="Ex: 0041289"
+                        className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-600 bg-white font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {paymentMethod === "virement" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-2xl bg-blue-50/60 border border-blue-200">
+                    <div>
+                      <label htmlFor={bankNameInputId} className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Nom de la banque *
+                      </label>
+                      <input
+                        id={bankNameInputId}
+                        type="text"
+                        required
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        placeholder="Ex: BNI, BMOI, BOA..."
+                        className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-600 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor={externalRefId} className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Référence de virement *
+                      </label>
+                      <input
+                        id={externalRefId}
+                        type="text"
+                        required
+                        value={externalReference}
+                        onChange={(e) => setExternalReference(e.target.value)}
+                        placeholder="Ex: VIR-2026-9812"
+                        className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-600 bg-white font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {paymentMethod === "versement" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                    <div>
+                      <label htmlFor={bankNameInputId} className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Nom de la banque (facultatif)
+                      </label>
+                      <input
+                        id={bankNameInputId}
+                        type="text"
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        placeholder="Ex: BOA, BNI..."
+                        className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-600 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor={externalRefId} className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Référence de versement *
+                      </label>
+                      <input
+                        id={externalRefId}
+                        type="text"
+                        required
+                        value={externalReference}
+                        onChange={(e) => setExternalReference(e.target.value)}
+                        placeholder="Ex: VER-884912"
+                        className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-600 bg-white font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {(paymentMethod === "mvola" ||
+                  paymentMethod === "orange_money" ||
+                  paymentMethod === "taptap_send" ||
+                  paymentMethod === "mobile_money") && (
+                  <div className="p-3 rounded-2xl bg-amber-50/60 border border-amber-200">
                     <label htmlFor={externalRefId} className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                      Référence transaction / N° Chèque
+                      Référence de transaction {getPaymentMethodLabel(paymentMethod)} *
+                    </label>
+                    <input
+                      id={externalRefId}
+                      type="text"
+                      required
+                      value={externalReference}
+                      onChange={(e) => setExternalReference(e.target.value)}
+                      placeholder="Ex: 4485796407 ou ID Transaction"
+                      className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-600 bg-white font-mono"
+                    />
+                  </div>
+                )}
+
+                {paymentMethod === "other" && (
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                    <label htmlFor={externalRefId} className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                      Référence de paiement (facultatif)
                     </label>
                     <input
                       id={externalRefId}
                       type="text"
                       value={externalReference}
                       onChange={(e) => setExternalReference(e.target.value)}
-                      placeholder="Ex: MVOLA-98234 ou N° Chèque 00412"
-                      className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-600"
+                      placeholder="Ex: Réf autre"
+                      className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-600 bg-white"
                     />
                   </div>
+                )}
 
-                  <div>
-                    <label htmlFor={notesInputId} className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                      Note interne (facultatif)
-                    </label>
-                    <input
-                      id={notesInputId}
-                      type="text"
-                      value={paymentNotes}
-                      onChange={(e) => setPaymentNotes(e.target.value)}
-                      placeholder="Ex: Remis en main propre à l'agence"
-                      className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-600"
-                    />
-                  </div>
+                {/* Note interne */}
+                <div>
+                  <label htmlFor={notesInputId} className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Note interne (facultatif)
+                  </label>
+                  <input
+                    id={notesInputId}
+                    type="text"
+                    value={paymentNotes}
+                    onChange={(e) => setPaymentNotes(e.target.value)}
+                    placeholder="Ex: Remis en main propre à l'agence"
+                    className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-600"
+                  />
                 </div>
 
                 {/* Messages d'erreur ou succès */}

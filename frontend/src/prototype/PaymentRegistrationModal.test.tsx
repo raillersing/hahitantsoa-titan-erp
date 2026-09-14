@@ -56,7 +56,7 @@ describe("PaymentRegistrationModal", () => {
   });
 
   describe("generateThermalReceiptHtml", () => {
-    it("generates a distinct caution escrow receipt with escrow guarantee legal notice", () => {
+    it("generates a distinct caution receipt isolated from rental balance, without signatures or legal mentions", () => {
       const html = generateThermalReceiptHtml({
         domain: "hahitantsoa",
         receiptTitle: "Reçu de Dépôt de Caution",
@@ -67,9 +67,9 @@ describe("PaymentRegistrationModal", () => {
         eventDateLabel: "20/09/2026",
         amount: 500000,
         amountInWords: "Cinq cent mille Ariary",
-        paymentMethodLabel: "Espèces (Caisse POS)",
-        transactionReference: "POS-CASH-99",
-        paymentKindLabel: "Dépôt de Garantie (Caution)",
+        paymentMethodLabel: "Espèces",
+        paymentKind: "caution",
+        paymentKindLabel: "Caution",
         historyPayments: [],
         totalDepositAmount: 500000,
         draftReference: "H-012/2026",
@@ -79,10 +79,16 @@ describe("PaymentRegistrationModal", () => {
       });
 
       expect(html).toContain("Reçu de Dépôt de Caution");
-      expect(html).toContain("DÉPÔT DE GARANTIE / CAUTION");
+      expect(html).toContain("Dépôt de garantie (Caution)");
       expect(html).toContain("MONTANT CAUTION VERSÉ");
       expect(html).toContain(formatMoney(500000));
-      expect(html).toContain("Somme séquestrée (hors devis prestation)");
+      expect(html).toContain("Caution versée");
+      expect(html).toContain("Date Evénement");
+      expect(html).not.toContain("Historique des règlements");
+      expect(html).not.toContain("SOLDE RESTANT À PAYER");
+      expect(html).not.toContain("Signature");
+      expect(html).not.toContain("Document officiel");
+      expect(html).not.toContain("Somme séquestrée");
     });
 
     it("generates thermal receipt with distinct dossier reference, event date, and accounting summary", () => {
@@ -96,8 +102,8 @@ describe("PaymentRegistrationModal", () => {
         eventDateLabel: "20/09/2026",
         amount: 500000,
         amountInWords: "Cinq cent mille Ariary",
-        paymentMethodLabel: "Espèces (Caisse POS)",
-        transactionReference: "POS-CASH-001",
+        paymentMethodLabel: "Mvola",
+        transactionReference: "4485796407",
         paymentKindLabel: "Acompte (50%)",
         historyPayments: [],
         totalDepositAmount: 500000,
@@ -115,7 +121,7 @@ describe("PaymentRegistrationModal", () => {
       expect(html).toContain("07/09/2026 14:30");
       expect(html).toContain("Nom Client");
       expect(html).toContain("Marie Rasoa");
-      expect(html).toContain("Date Prestation");
+      expect(html).toContain("Date Evénement");
       expect(html).toContain("20/09/2026");
       expect(html).toContain("Montant Réglé Ce Jour");
       expect(html).toContain(formatMoney(500000));
@@ -127,6 +133,65 @@ describe("PaymentRegistrationModal", () => {
       expect(html).toContain("TOTAL CUMULÉ RÉGLÉ");
       expect(html).toContain("SOLDE RESTANT À PAYER");
       expect(html).toContain(formatMoney(2500000));
+      expect(html).toContain("Réf. Paiement");
+      expect(html).toContain("4485796407");
+      expect(html).not.toContain("Signature");
+      expect(html).not.toContain("Document officiel");
+    });
+
+    it("generates Titan receipt with Date Location, Chèque details and Virement details", () => {
+      const chequeHtml = generateThermalReceiptHtml({
+        domain: "titan",
+        receiptTitle: "Reçu de Paiement d'Acompte",
+        receiptNumber: "REC-TITAN-001",
+        paymentDate: "10/09/2026 11:00",
+        customerName: "Société XYZ",
+        eventDateLabel: "18/09/2026",
+        amount: 800000,
+        amountInWords: "Huit cent mille Ariary",
+        paymentMethodLabel: "Chèque",
+        bankName: "BNI Madagascar",
+        checkNumber: "CHQ-123456",
+        paymentKindLabel: "Acompte (25%)",
+        historyPayments: [],
+        totalDepositAmount: 800000,
+        draftReference: "RES-2026-01",
+        proformaAmount: 3200000,
+        remainingBalance: 2400000,
+      });
+
+      expect(chequeHtml).toContain("Date Location");
+      expect(chequeHtml).toContain("18/09/2026");
+      expect(chequeHtml).toContain("Nom de la banque");
+      expect(chequeHtml).toContain("BNI Madagascar");
+      expect(chequeHtml).toContain("N° Chèque");
+      expect(chequeHtml).toContain("CHQ-123456");
+
+      const virementHtml = generateThermalReceiptHtml({
+        domain: "titan",
+        receiptTitle: "Reçu de Règlement du Solde",
+        receiptNumber: "REC-TITAN-002",
+        paymentDate: "12/09/2026 15:00",
+        customerName: "Société XYZ",
+        eventDateLabel: "18/09/2026",
+        amount: 2400000,
+        amountInWords: "Deux millions quatre cent mille Ariary",
+        paymentMethodLabel: "Virement",
+        bankName: "BMOI",
+        transactionReference: "VIR-998877",
+        paymentKindLabel: "Solde final",
+        historyPayments: [],
+        totalDepositAmount: 3200000,
+        draftReference: "RES-2026-01",
+        proformaAmount: 3200000,
+        remainingBalance: 0,
+      });
+
+      expect(virementHtml).toContain("Nom de la banque");
+      expect(virementHtml).toContain("BMOI");
+      expect(virementHtml).toContain("Référence");
+      expect(virementHtml).toContain("VIR-998877");
+      expect(virementHtml).toContain("0 Ar - Dossier soldé");
     });
   });
 
@@ -264,7 +329,7 @@ describe("PaymentRegistrationModal", () => {
     const methodSelect = screen.getByLabelText("Mode de règlement");
     fireEvent.change(methodSelect, { target: { value: "mobile_money" } });
 
-    const refInput = screen.getByPlaceholderText(/Ex: MVOLA/);
+    const refInput = screen.getByPlaceholderText(/4485796407|ID Transaction/);
     fireEvent.change(refInput, { target: { value: "MVOLA-889911" } });
 
     const notesInput = screen.getByPlaceholderText(/Ex: Remis en main propre/);
@@ -287,6 +352,65 @@ describe("PaymentRegistrationModal", () => {
         }),
       );
       expect(mockOnPaymentRecorded).toHaveBeenCalled();
+    });
+  });
+
+  it("submits payment with cheque bank name and check number", async () => {
+    vi.mocked(api.recordConfirmedDeposit).mockResolvedValueOnce({
+      payment: {
+        id: "pay-chq-1",
+        reservation_draft: "draft-titan-123",
+        hahitantsoa_event_draft: null,
+        receipt_document: null,
+        refund_obligation: null,
+        billing_refund_obligation: null,
+        payment_kind: "deposit",
+        payment_method: "cheque",
+        payment_status: "confirmed",
+        amount: "500000.00",
+        paid_at: "2026-09-07T12:00:00Z",
+        external_reference: "CHQ-778899",
+        bank_name: "BNI Madagascar",
+        check_number: "CHQ-778899",
+        source_label: "",
+        notes: "Acompte par chèque",
+        confirmed_at: "2026-09-07T12:00:00Z",
+        confirmed_by: null,
+        created_at: "2026-09-07T12:00:00Z",
+        updated_at: "2026-09-07T12:00:00Z",
+      },
+      replayed: false,
+      reservation_draft_id: "draft-titan-123",
+      reservation_draft_status: "deposit_received",
+    });
+
+    render(<PaymentRegistrationModal {...defaultProps} />);
+
+    const amountInput = screen.getByPlaceholderText("Ex: 500000");
+    fireEvent.change(amountInput, { target: { value: "500000" } });
+
+    const methodSelect = screen.getByLabelText("Mode de règlement");
+    fireEvent.change(methodSelect, { target: { value: "cheque" } });
+
+    const bankInput = screen.getByPlaceholderText(/Ex: BNI, BMOI/);
+    fireEvent.change(bankInput, { target: { value: "BNI Madagascar" } });
+
+    const checkNumInput = screen.getByPlaceholderText("Ex: 0041289");
+    fireEvent.change(checkNumInput, { target: { value: "CHQ-778899" } });
+
+    const submitBtn = screen.getByText("Enregistrer & Valider le versement");
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(api.recordConfirmedDeposit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reservation_draft: "draft-titan-123",
+          payment_method: "cheque",
+          bank_name: "BNI Madagascar",
+          check_number: "CHQ-778899",
+          external_reference: "CHQ-778899",
+        }),
+      );
     });
   });
 
