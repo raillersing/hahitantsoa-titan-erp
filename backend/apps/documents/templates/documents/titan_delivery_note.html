@@ -174,7 +174,7 @@
         <div class="header-box">
           <div class="number">
             <span>BON DE LIVRAISON N° :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.number {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:".........." }}{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.number {% templatetag closevariable %}</span>{% else %}{{ document.reference|default:context.reservation_draft.public_reference|default:".........." }}{% endif %}</span>
           </div>
           <div class="title">BON DE LIVRAISON</div>
           <div class="document-date">
@@ -191,7 +191,7 @@
         </div>
         <div class="identity-row">
           <strong>FACTURE :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.invoiceNumber {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.proforma_reference|default:".........." }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.invoiceNumber {% templatetag closevariable %}</span>{% else %}{{ document.invoice_reference|default:document.proforma_reference|default:context.reservation_draft.proforma_reference|default:".........." }}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>LOCATION DU :</strong>

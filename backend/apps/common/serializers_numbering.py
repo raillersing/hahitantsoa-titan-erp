@@ -1,7 +1,11 @@
 from rest_framework import serializers
 
 from apps.common.sequences import peek_next_public_reference
-from apps.documents.models import NumberingSequence, NumberingSequenceBrand
+from apps.documents.models import (
+    NumberingSequence,
+    NumberingSequenceBrand,
+    NumberingSequenceType,
+)
 
 
 class NumberingSequenceSerializer(serializers.ModelSerializer):
@@ -12,6 +16,7 @@ class NumberingSequenceSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "brand",
+            "sequence_type",
             "year",
             "prefix",
             "next_number",
@@ -25,13 +30,22 @@ class NumberingSequenceSerializer(serializers.ModelSerializer):
 
     def get_preview_next(self, obj: NumberingSequence) -> str:
         try:
-            return peek_next_public_reference(brand=obj.brand, year=obj.year)
+            return peek_next_public_reference(
+                brand=obj.brand,
+                sequence_type=obj.sequence_type,
+                year=obj.year,
+            )
         except Exception:
             return obj.format_reference(obj.next_number)
 
 
 class NumberingSequenceConfigureSerializer(serializers.Serializer):
     brand = serializers.ChoiceField(choices=NumberingSequenceBrand.choices)
+    sequence_type = serializers.ChoiceField(
+        choices=NumberingSequenceType.choices,
+        required=False,
+        default=NumberingSequenceType.PROFORMA,
+    )
     year = serializers.IntegerField(min_value=2020, max_value=2100)
     next_number = serializers.IntegerField(min_value=1)
     prefix = serializers.CharField(max_length=16, required=False, allow_blank=True)
@@ -41,6 +55,7 @@ class NumberingSequenceConfigureSerializer(serializers.Serializer):
 
 class NumberingSequencePreviewSerializer(serializers.Serializer):
     brand = serializers.CharField()
+    sequence_type = serializers.CharField(required=False, default=NumberingSequenceType.PROFORMA)
     year = serializers.IntegerField()
     next_reference = serializers.CharField()
     next_number = serializers.IntegerField()
