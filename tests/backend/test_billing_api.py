@@ -220,10 +220,8 @@ def test_inventory_excess_receivable_generate_invoice_hahitantsoa_event(
             {
                 "inventory_item": item,
                 "expected_quantity": 5,
-                "returned_quantity": 3,
-                "damaged_quantity": 2,
-                "missing_quantity": 0,
-                "condition_status": "mixed",
+                "conforming_quantity": 3,
+                "breakage_quantity": 2,
                 "notes": "Deux assiettes fêlées",
             }
         ],

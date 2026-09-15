@@ -126,6 +126,55 @@ def test_create_return_operation_persists_lines_without_stock_movements(
     ).exists()
 
 
+def test_create_return_operation_rejects_duplicate_inventory_item(django_user_model) -> None:
+    actor = django_user_model.objects.create_user(
+        username="return-duplicate-item", password="test-pass"
+    )
+    item = _inventory_item("Duplicate return item")
+
+    with pytest.raises(InventoryStockMovementError) as error_info:
+        create_inventory_return_operation(
+            actor=actor,
+            reservation_draft=_reservation_draft(),
+            lines=[
+                {
+                    "inventory_item": item,
+                    "expected_quantity": 1,
+                    "conforming_quantity": 1,
+                    "breakage_quantity": 0,
+                },
+                {
+                    "inventory_item": item,
+                    "expected_quantity": 1,
+                    "conforming_quantity": 1,
+                    "breakage_quantity": 0,
+                },
+            ],
+        )
+
+    assert error_info.value.code == "invalid_return_operation"
+
+
+def test_create_return_operation_accepts_inventory_item_id(django_user_model) -> None:
+    actor = django_user_model.objects.create_user(username="return-item-id", password="test-pass")
+    item = _inventory_item("Return item identifier")
+
+    return_operation = create_inventory_return_operation(
+        actor=actor,
+        reservation_draft=_reservation_draft(),
+        lines=[
+            {
+                "inventory_item_id": item.id,
+                "expected_quantity": 2,
+                "conforming_quantity": 2,
+                "breakage_quantity": 0,
+            }
+        ],
+    )
+
+    assert return_operation.lines.get().inventory_item_id == item.id
+
+
 def test_validate_return_operation_creates_expected_stock_movements(
     django_user_model,
     django_capture_on_commit_callbacks,
@@ -177,12 +226,10 @@ def test_validate_return_operation_creates_expected_stock_movements(
 
     assert return_operation.status == InventoryReturnOperationStatus.VALIDATED
     assert return_operation.validated_by_id == actor.id
-    assert len(result.stock_movements) == 4
+    assert len(result.stock_movements) == 2
     assert movement_types == [
-        (InventoryStockMovementType.DAMAGE, 1),
         (InventoryStockMovementType.INBOUND_RETURN, 1),
         (InventoryStockMovementType.INBOUND_RETURN, 2),
-        (InventoryStockMovementType.LOSS, 1),
     ]
     assert AuditEvent.objects.filter(
         action="inventory.return_operation_validated",
@@ -221,7 +268,7 @@ def test_validate_return_operation_rolls_back_if_stock_movement_creation_fails(
 
     def _failing_create_inventory_stock_movement(*args, **kwargs):
         call_count["value"] += 1
-        if call_count["value"] == 2:
+        if call_count["value"] == 1:
             raise InventoryStockMovementError(
                 "Synthetic rollback failure.",
                 code="synthetic_return_stock_movement_failure",

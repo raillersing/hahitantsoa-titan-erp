@@ -10,7 +10,6 @@ from apps.inventory.models import (
     InventoryAvailability,
     InventoryItem,
     InventoryReturnOperation,
-    InventoryReturnOperationLineConditionStatus,
 )
 from apps.inventory.scope import InventoryItemKind
 from apps.inventory.services import (
@@ -62,7 +61,6 @@ def get_return_operation_classification_breakdown(
     breakdown: list[dict] = []
     for line in lines:
         item = line.inventory_item
-        condition = InventoryReturnOperationLineConditionStatus(line.condition_status)
         intact_quantity = line.intact_quantity
         entry = {
             "return_operation_line_id": str(line.id),
@@ -70,31 +68,20 @@ def get_return_operation_classification_breakdown(
             "inventory_item_name": item.name,
             "condition_status": line.condition_status,
             "expected_quantity": line.expected_quantity,
+            "conforming_quantity": line.effective_conforming_quantity,
+            "breakage_quantity": line.effective_breakage_quantity,
             "returned_quantity": line.returned_quantity,
             "damaged_quantity": line.damaged_quantity,
             "missing_quantity": line.missing_quantity,
             "intact_quantity": intact_quantity,
             "classification_suggestions": [],
         }
-        if condition == InventoryReturnOperationLineConditionStatus.INTACT:
-            entry["classification_suggestions"] = []
-        elif condition == InventoryReturnOperationLineConditionStatus.DAMAGED:
-            entry["classification_suggestions"] = [
-                {"kind": "damage", "quantity": line.damaged_quantity},
-            ]
-        elif condition == InventoryReturnOperationLineConditionStatus.MISSING:
-            entry["classification_suggestions"] = [
-                {"kind": "loss", "quantity": line.missing_quantity},
-            ]
-        elif condition == InventoryReturnOperationLineConditionStatus.MIXED:
-            suggestions = []
-            if intact_quantity > 0:
-                suggestions.append({"kind": "intact", "quantity": intact_quantity})
-            if line.damaged_quantity > 0:
-                suggestions.append({"kind": "damage", "quantity": line.damaged_quantity})
-            if line.missing_quantity > 0:
-                suggestions.append({"kind": "loss", "quantity": line.missing_quantity})
-            entry["classification_suggestions"] = suggestions
+        suggestions = []
+        if line.effective_breakage_quantity > 0:
+            # ``damage`` remains the API-compatible settlement kind until the
+            # settlement contract is migrated. It represents all casse.
+            suggestions.append({"kind": "damage", "quantity": line.effective_breakage_quantity})
+        entry["classification_suggestions"] = suggestions
 
         breakdown.append(entry)
     return breakdown

@@ -42,7 +42,7 @@ def _reservation_draft() -> ReservationDraft:
     )
 
 
-def test_return_operation_line_accepts_mixed_classification() -> None:
+def test_return_operation_line_normalizes_legacy_damage_and_missing_into_casse() -> None:
     return_operation = InventoryReturnOperation.objects.create(
         reservation_draft=_reservation_draft(),
     )
@@ -59,42 +59,61 @@ def test_return_operation_line_accepts_mixed_classification() -> None:
     line.full_clean()
 
     assert line.intact_quantity == 3
+    assert line.conforming_quantity == 3
+    assert line.breakage_quantity == 2
+    assert line.casse_quantity == 2
 
 
-def test_return_operation_line_rejects_damaged_quantity_greater_than_returned() -> None:
+def test_return_operation_line_rejects_incomplete_return() -> None:
     return_operation = InventoryReturnOperation.objects.create()
     line = InventoryReturnOperationLine(
         return_operation=return_operation,
         inventory_item=_inventory_item(),
         expected_quantity=2,
-        returned_quantity=1,
-        damaged_quantity=2,
-        missing_quantity=0,
-        condition_status=InventoryReturnOperationLineConditionStatus.DAMAGED,
-    )
-
-    with pytest.raises(ValidationError) as error_info:
-        line.full_clean()
-
-    assert "damaged_quantity" in error_info.value.message_dict
-
-
-def test_return_operation_line_rejects_non_mixed_single_category_marked_as_mixed() -> None:
-    return_operation = InventoryReturnOperation.objects.create()
-    line = InventoryReturnOperationLine(
-        return_operation=return_operation,
-        inventory_item=_inventory_item(),
-        expected_quantity=2,
-        returned_quantity=2,
+        conforming_quantity=1,
+        breakage_quantity=0,
+        returned_quantity=0,
         damaged_quantity=0,
         missing_quantity=0,
-        condition_status=InventoryReturnOperationLineConditionStatus.MIXED,
+        condition_status=InventoryReturnOperationLineConditionStatus.INTACT,
     )
 
     with pytest.raises(ValidationError) as error_info:
         line.full_clean()
 
-    assert "condition_status" in error_info.value.message_dict
+    assert "breakage_quantity" in error_info.value.message_dict
+
+
+def test_return_operation_line_accepts_canonical_casse_without_legacy_categories() -> None:
+    return_operation = InventoryReturnOperation.objects.create()
+    line = InventoryReturnOperationLine(
+        return_operation=return_operation,
+        inventory_item=_inventory_item(),
+        expected_quantity=2,
+        conforming_quantity=0,
+        breakage_quantity=2,
+        condition_status=InventoryReturnOperationLineConditionStatus.BREAKAGE,
+    )
+
+    line.full_clean()
+
+    assert line.casse_quantity == 2
+    assert line.intact_quantity == 0
+
+
+def test_return_operation_line_derives_compatibility_status_when_omitted() -> None:
+    return_operation = InventoryReturnOperation.objects.create()
+    line = InventoryReturnOperationLine(
+        return_operation=return_operation,
+        inventory_item=_inventory_item(),
+        expected_quantity=2,
+        conforming_quantity=0,
+        breakage_quantity=2,
+    )
+
+    line.full_clean()
+
+    assert line.condition_status == InventoryReturnOperationLineConditionStatus.DAMAGED
 
 
 def test_validated_return_operation_requires_validated_by(django_user_model) -> None:

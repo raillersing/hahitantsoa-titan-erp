@@ -49,6 +49,9 @@ class InventoryReturnOperationStatus(models.TextChoices):
 
 class InventoryReturnOperationLineConditionStatus(models.TextChoices):
     INTACT = "intact", "intact"
+    # ``breakage`` is the canonical business term.  The older values stay
+    # readable during the frontend compatibility window.
+    BREAKAGE = "breakage", "breakage"
     DAMAGED = "damaged", "damaged"
     MISSING = "missing", "missing"
     MIXED = "mixed", "mixed"
@@ -507,12 +510,17 @@ class InventoryReturnOperationLine(UUIDModel, TimestampedModel, AuditableModel):
         related_name="return_operation_lines",
     )
     expected_quantity = models.PositiveIntegerField()
+    conforming_quantity = models.PositiveIntegerField(default=0)
+    breakage_quantity = models.PositiveIntegerField(default=0)
+    # Legacy transport fields.  New writes are normalized to the canonical
+    # conforming/breakage pair until the frontend compatibility window closes.
     returned_quantity = models.PositiveIntegerField(default=0)
     damaged_quantity = models.PositiveIntegerField(default=0)
     missing_quantity = models.PositiveIntegerField(default=0)
     condition_status = models.CharField(
         max_length=32,
         choices=InventoryReturnOperationLineConditionStatus.choices,
+        default=InventoryReturnOperationLineConditionStatus.INTACT,
     )
     notes = models.TextField(blank=True)
 
@@ -524,6 +532,14 @@ class InventoryReturnOperationLine(UUIDModel, TimestampedModel, AuditableModel):
             models.CheckConstraint(
                 condition=models.Q(expected_quantity__gt=0),
                 name="inventory_return_operation_line_expected_quantity_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(conforming_quantity__gte=0),
+                name="inventory_return_operation_line_conforming_quantity_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(breakage_quantity__gte=0),
+                name="inventory_return_operation_line_breakage_quantity_non_negative",
             ),
             models.CheckConstraint(
                 condition=models.Q(returned_quantity__gte=0),
@@ -545,65 +561,69 @@ class InventoryReturnOperationLine(UUIDModel, TimestampedModel, AuditableModel):
                 {"expected_quantity": "Expected quantity must be greater than zero."}
             )
 
-        if self.damaged_quantity > self.returned_quantity:
-            raise ValidationError(
-                {"damaged_quantity": "Damaged quantity cannot exceed returned quantity."}
+        legacy_quantities_present = any(
+            (
+                self.returned_quantity,
+                self.damaged_quantity,
+                self.missing_quantity,
             )
+        )
+        if (
+            self.conforming_quantity == 0
+            and self.breakage_quantity == 0
+            and legacy_quantities_present
+        ):
+            # Compatibility for existing direct service callers and historical
+            # records.  Missing and damaged quantities now share one business
+            # outcome: casse.
+            self.conforming_quantity = self.returned_quantity - self.damaged_quantity
+            self.breakage_quantity = self.damaged_quantity + self.missing_quantity
 
-        if self.returned_quantity + self.missing_quantity > self.expected_quantity:
+        if self.conforming_quantity + self.breakage_quantity != self.expected_quantity:
             raise ValidationError(
                 {
-                    "missing_quantity": (
-                        "Returned quantity plus missing quantity cannot exceed expected quantity."
+                    "breakage_quantity": (
+                        "A complete return requires conforming quantity plus breakage quantity "
+                        "to equal expected quantity."
                     )
                 }
             )
 
-        intact_quantity = self.returned_quantity - self.damaged_quantity
-        condition_status = InventoryReturnOperationLineConditionStatus(self.condition_status)
-
-        if condition_status == InventoryReturnOperationLineConditionStatus.INTACT:
-            if intact_quantity <= 0 or self.damaged_quantity != 0 or self.missing_quantity != 0:
-                raise ValidationError(
-                    {"condition_status": ("Intact lines require returned intact quantity only.")}
-                )
-        elif condition_status == InventoryReturnOperationLineConditionStatus.DAMAGED:
-            if self.damaged_quantity <= 0 or intact_quantity != 0 or self.missing_quantity != 0:
-                raise ValidationError(
-                    {"condition_status": ("Damaged lines require damaged returned quantity only.")}
-                )
-        elif condition_status == InventoryReturnOperationLineConditionStatus.MISSING:
-            if self.returned_quantity != 0 or self.missing_quantity <= 0:
-                raise ValidationError(
-                    {
-                        "condition_status": (
-                            "Missing lines require missing quantity and no returned quantity."
-                        )
-                    }
-                )
-        elif condition_status == InventoryReturnOperationLineConditionStatus.MIXED:
-            categories = sum(
-                [
-                    intact_quantity > 0,
-                    self.damaged_quantity > 0,
-                    self.missing_quantity > 0,
-                ]
-            )
-            if categories < 2:
-                raise ValidationError(
-                    {
-                        "condition_status": (
-                            "Mixed lines require at least two non-zero result categories."
-                        )
-                    }
-                )
+        # Keep the existing API shape readable until the dedicated frontend
+        # migration lands.  These fields are derived compatibility data only.
+        self.returned_quantity = self.conforming_quantity + self.breakage_quantity
+        self.damaged_quantity = self.breakage_quantity
+        self.missing_quantity = 0
+        if self.breakage_quantity == 0:
+            self.condition_status = InventoryReturnOperationLineConditionStatus.INTACT
+        elif self.conforming_quantity == 0:
+            self.condition_status = InventoryReturnOperationLineConditionStatus.DAMAGED
+        else:
+            self.condition_status = InventoryReturnOperationLineConditionStatus.MIXED
 
         if not self.inventory_item.is_active or self.inventory_item.is_deleted:
             raise ValidationError({"inventory_item": "Return operation item must be active."})
 
     @property
     def intact_quantity(self) -> int:
+        return self.effective_conforming_quantity
+
+    @property
+    def effective_conforming_quantity(self) -> int:
+        if self.conforming_quantity + self.breakage_quantity == self.expected_quantity:
+            return self.conforming_quantity
         return self.returned_quantity - self.damaged_quantity
+
+    @property
+    def effective_breakage_quantity(self) -> int:
+        if self.conforming_quantity + self.breakage_quantity == self.expected_quantity:
+            return self.breakage_quantity
+        return self.damaged_quantity + self.missing_quantity
+
+    @property
+    def casse_quantity(self) -> int:
+        """French business alias used by return, settlement and document contexts."""
+        return self.effective_breakage_quantity
 
     def __str__(self) -> str:
         return f"{self.return_operation} - {self.inventory_item} x {self.expected_quantity}"
