@@ -290,10 +290,8 @@ def test_summary_validated_return_full(django_user_model) -> None:
             {
                 "inventory_item": item,
                 "expected_quantity": 4,
-                "returned_quantity": 3,
-                "damaged_quantity": 2,
-                "missing_quantity": 1,
-                "condition_status": "mixed",
+                "conforming_quantity": 1,
+                "breakage_quantity": 3,
                 "notes": "",
             },
         ],
@@ -305,7 +303,7 @@ def test_summary_validated_return_full(django_user_model) -> None:
     assert summary["has_return_operation"]
     assert summary["return_operation"]["validated"]
     assert summary["return_operation"]["validated_at"] is not None
-    assert summary["classification"]["proposal_count"] == 2
+    assert summary["classification"]["proposal_count"] == 1
     assert summary["classification"]["intact_line_count"] == 1
     assert summary["completeness"]["is_complete"]
     assert summary["completeness"]["has_classification_proposals"]

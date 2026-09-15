@@ -24,7 +24,6 @@ from apps.inventory.models import (
     InventoryItem,
     InventoryReturnOperation,
     InventoryReturnOperationLine,
-    InventoryReturnOperationLineConditionStatus,
     InventoryReturnOperationStatus,
     InventoryStockMovement,
     InventoryStockMovementDirection,
@@ -251,9 +250,7 @@ def propose_damage_loss_classification_lines(
 
     for line in lines:
         item = line.inventory_item
-        condition = InventoryReturnOperationLineConditionStatus(line.condition_status)
-
-        if condition == InventoryReturnOperationLineConditionStatus.INTACT:
+        if line.effective_conforming_quantity > 0:
             intact_summary.append(
                 {
                     "return_operation_line_id": str(line.id),
@@ -262,60 +259,17 @@ def propose_damage_loss_classification_lines(
                     "intact_quantity": line.intact_quantity,
                 }
             )
-        elif condition == InventoryReturnOperationLineConditionStatus.DAMAGED:
+        if line.effective_breakage_quantity > 0:
             proposals.append(
                 DamageLossClassificationLineProposal(
                     return_operation_line_id=str(line.id),
                     inventory_item_id=str(item.id),
                     inventory_item_name=item.name,
                     settlement_line_kind="damage",
-                    quantity=line.damaged_quantity,
+                    quantity=line.effective_breakage_quantity,
                     notes=line.notes or "",
                 )
             )
-        elif condition == InventoryReturnOperationLineConditionStatus.MISSING:
-            proposals.append(
-                DamageLossClassificationLineProposal(
-                    return_operation_line_id=str(line.id),
-                    inventory_item_id=str(item.id),
-                    inventory_item_name=item.name,
-                    settlement_line_kind="loss",
-                    quantity=line.missing_quantity,
-                    notes=line.notes or "",
-                )
-            )
-        elif condition == InventoryReturnOperationLineConditionStatus.MIXED:
-            if line.damaged_quantity > 0:
-                proposals.append(
-                    DamageLossClassificationLineProposal(
-                        return_operation_line_id=str(line.id),
-                        inventory_item_id=str(item.id),
-                        inventory_item_name=item.name,
-                        settlement_line_kind="damage",
-                        quantity=line.damaged_quantity,
-                        notes=line.notes or "",
-                    )
-                )
-            if line.missing_quantity > 0:
-                proposals.append(
-                    DamageLossClassificationLineProposal(
-                        return_operation_line_id=str(line.id),
-                        inventory_item_id=str(item.id),
-                        inventory_item_name=item.name,
-                        settlement_line_kind="loss",
-                        quantity=line.missing_quantity,
-                        notes=line.notes or "",
-                    )
-                )
-            if line.intact_quantity > 0:
-                intact_summary.append(
-                    {
-                        "return_operation_line_id": str(line.id),
-                        "inventory_item_id": str(item.id),
-                        "inventory_item_name": item.name,
-                        "intact_quantity": line.intact_quantity,
-                    }
-                )
 
     return DamageLossClassificationResult(
         return_operation_id=str(return_operation.id),
@@ -700,7 +654,46 @@ def create_inventory_return_operation(
                     return existing
             raise
         line_models = []
-        for line_data in lines:
+        inventory_item_ids: set[object] = set()
+        for raw_line_data in lines:
+            line_data = dict(raw_line_data)
+            inventory_item = line_data.get("inventory_item")
+            inventory_item_id = (
+                inventory_item.pk
+                if inventory_item is not None
+                else line_data.get("inventory_item_id")
+            )
+            if inventory_item_id is None:
+                raise InventoryStockMovementError(
+                    "Chaque ligne de retour doit désigner un article.",
+                    code=INVALID_RETURN_OPERATION,
+                )
+            if (
+                inventory_item is not None
+                and line_data.get("inventory_item_id") is not None
+                and line_data["inventory_item_id"] != inventory_item_id
+            ):
+                raise InventoryStockMovementError(
+                    "L'article du retour est incohérent.",
+                    code=INVALID_RETURN_OPERATION,
+                )
+            if inventory_item_id in inventory_item_ids:
+                raise InventoryStockMovementError(
+                    "Un article ne peut apparaître qu'une fois dans un retour.",
+                    code=INVALID_RETURN_OPERATION,
+                )
+            inventory_item_ids.add(inventory_item_id)
+            if "conforming_quantity" not in line_data and "breakage_quantity" not in line_data:
+                returned_quantity = line_data.get("returned_quantity", 0)
+                damaged_quantity = line_data.get("damaged_quantity", 0)
+                missing_quantity = line_data.get("missing_quantity", 0)
+                line_data["conforming_quantity"] = returned_quantity - damaged_quantity
+                line_data["breakage_quantity"] = damaged_quantity + missing_quantity
+            line_data["returned_quantity"] = (
+                line_data["conforming_quantity"] + line_data["breakage_quantity"]
+            )
+            line_data["damaged_quantity"] = line_data["breakage_quantity"]
+            line_data["missing_quantity"] = 0
             line = InventoryReturnOperationLine(
                 return_operation=return_operation,
                 created_by_id=actor_id,
@@ -841,10 +834,14 @@ def _validate_return_operation_delivery_scope(
         .annotate(quantity=Sum("quantity"))
         .values_list("inventory_item_id", "quantity")
     }
-    prior_returns = InventoryReturnOperationLine.objects.filter(
-        return_operation__status=InventoryReturnOperationStatus.VALIDATED,
-        inventory_item_id__in=outbound_by_item,
-    ).exclude(return_operation=return_operation)
+    prior_returns = (
+        InventoryReturnOperationLine.objects.select_for_update()
+        .filter(
+            return_operation__status=InventoryReturnOperationStatus.VALIDATED,
+            inventory_item_id__in=outbound_by_item,
+        )
+        .exclude(return_operation=return_operation)
+    )
     if document is not None:
         prior_returns = prior_returns.filter(return_operation__document_instance=document)
     else:
@@ -856,29 +853,33 @@ def _validate_return_operation_delivery_scope(
             prior_returns = prior_returns.filter(
                 return_operation__hahitantsoa_event_draft=return_operation.hahitantsoa_event_draft
             )
-    prior_returned_by_item = {
-        item_id: quantity
-        for item_id, quantity in prior_returns.values("inventory_item_id")
-        .annotate(quantity=Sum("returned_quantity") + Sum("missing_quantity"))
-        .values_list("inventory_item_id", "quantity")
-    }
+    if prior_returns.exists():
+        raise InventoryStockMovementError(
+            "Un retour complet a déjà été validé pour cette sortie.",
+            code=RETURN_OPERATION_QUANTITY_EXCEEDED,
+        )
 
     requested_by_item: dict[object, int] = {}
     for line in lines:
         requested_by_item[line.inventory_item_id] = (
             requested_by_item.get(line.inventory_item_id, 0)
-            + line.returned_quantity
-            + line.missing_quantity
+            + line.effective_conforming_quantity
+            + line.effective_breakage_quantity
         )
 
     for item_id, requested_quantity in requested_by_item.items():
         outbound_quantity = outbound_by_item.get(item_id, 0)
-        already_returned = prior_returned_by_item.get(item_id, 0)
-        if outbound_quantity <= 0 or already_returned + requested_quantity > outbound_quantity:
+        if outbound_quantity <= 0 or requested_quantity != outbound_quantity:
             raise InventoryStockMovementError(
-                "La quantité retournée dépasse la quantité livrée disponible.",
+                "Le retour doit qualifier intégralement chaque quantité livrée.",
                 code=RETURN_OPERATION_QUANTITY_EXCEEDED,
             )
+
+    if set(requested_by_item) != set(outbound_by_item):
+        raise InventoryStockMovementError(
+            "Le retour doit inclure tous les articles livrés.",
+            code=RETURN_OPERATION_QUANTITY_EXCEEDED,
+        )
 
 
 @transaction.atomic
@@ -891,7 +892,8 @@ def validate_inventory_return_operation(
         pk=return_operation.pk
     )
     locked_lines = list(
-        InventoryReturnOperationLine.objects.select_related("inventory_item")
+        InventoryReturnOperationLine.objects.select_for_update()
+        .select_related("inventory_item")
         .filter(return_operation=locked_return_operation)
         .order_by("created_at", "id")
     )
@@ -904,6 +906,25 @@ def validate_inventory_return_operation(
             code=INVALID_RETURN_OPERATION_STATE,
         )
 
+    if not locked_lines:
+        raise InventoryStockMovementError(
+            "Un retour doit contenir au moins un article.",
+            code=INVALID_RETURN_OPERATION,
+        )
+
+    for line in locked_lines:
+        try:
+            line.full_clean()
+        except ValidationError as error:
+            first_field_errors = next(iter(error.message_dict.values()), error.messages)
+            message = (
+                first_field_errors[0] if first_field_errors else "Invalid return operation line."
+            )
+            raise InventoryStockMovementError(
+                message,
+                code=INVALID_RETURN_OPERATION,
+            ) from error
+
     _validate_return_operation_delivery_scope(
         return_operation=locked_return_operation,
         lines=locked_lines,
@@ -915,12 +936,13 @@ def validate_inventory_return_operation(
 
     for line in locked_lines:
         movement_specs = []
-        if line.intact_quantity > 0:
-            movement_specs.append((InventoryStockMovementType.INBOUND_RETURN, line.intact_quantity))
-        if line.damaged_quantity > 0:
-            movement_specs.append((InventoryStockMovementType.DAMAGE, line.damaged_quantity))
-        if line.missing_quantity > 0:
-            movement_specs.append((InventoryStockMovementType.LOSS, line.missing_quantity))
+        if line.effective_conforming_quantity > 0:
+            # The outbound delivery already removed every delivered unit from
+            # stock.  Reintegrating only conforming units leaves casse out of
+            # available stock without applying a second outbound movement.
+            movement_specs.append(
+                (InventoryStockMovementType.INBOUND_RETURN, line.effective_conforming_quantity)
+            )
 
         for movement_type, quantity in movement_specs:
             source_label = f"return_operation:{locked_return_operation.id}"
@@ -963,6 +985,7 @@ def validate_inventory_return_operation(
         target_id=str(locked_return_operation.id),
         metadata={
             "stock_movement_count": len(stock_movements),
+            "breakage_quantity": sum(line.effective_breakage_quantity for line in locked_lines),
             "reservation_draft_id": (
                 str(locked_return_operation.reservation_draft_id)
                 if locked_return_operation.reservation_draft_id

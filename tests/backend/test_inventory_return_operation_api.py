@@ -207,7 +207,12 @@ def test_sensitive_user_can_create_validate_and_authenticated_user_can_read_retu
     assert validate_response.status_code == 200
     validated_payload = validate_response.json()
     assert validated_payload["status"] == InventoryReturnOperationStatus.VALIDATED
-    assert InventoryStockMovement.objects.filter(return_operation_id=payload["id"]).count() == 4
+    assert InventoryStockMovement.objects.filter(return_operation_id=payload["id"]).count() == 2
+    mixed_line = next(
+        line for line in validated_payload["lines"] if line["inventory_item"] == str(mixed_item.id)
+    )
+    assert mixed_line["conforming_quantity"] == 1
+    assert mixed_line["breakage_quantity"] == 2
 
 
 def test_sensitive_user_can_create_return_with_logistics_event_link(sensitive_client) -> None:

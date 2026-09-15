@@ -106,7 +106,7 @@ def test_propose_classification_damaged_line(django_user_model) -> None:
     assert len(result.intact_summary) == 0
 
 
-def test_propose_classification_missing_line(django_user_model) -> None:
+def test_propose_classification_missing_line_is_casse(django_user_model) -> None:
     actor = django_user_model.objects.create_user(username="classify-missing", password="test-pass")
     item = _inventory_item("Missing lamp")
     draft = _reservation_draft()
@@ -129,7 +129,7 @@ def test_propose_classification_missing_line(django_user_model) -> None:
     result = propose_damage_loss_classification_lines(return_operation=ro)
 
     assert len(result.proposals) == 1
-    assert result.proposals[0].settlement_line_kind == "loss"
+    assert result.proposals[0].settlement_line_kind == "damage"
     assert result.proposals[0].quantity == 1
     assert len(result.intact_summary) == 0
 
@@ -156,13 +156,9 @@ def test_propose_classification_mixed_line(django_user_model) -> None:
 
     result = propose_damage_loss_classification_lines(return_operation=ro)
 
-    assert len(result.proposals) == 2
-    damage_proposals = [p for p in result.proposals if p.settlement_line_kind == "damage"]
-    loss_proposals = [p for p in result.proposals if p.settlement_line_kind == "loss"]
-    assert len(damage_proposals) == 1
-    assert damage_proposals[0].quantity == 2
-    assert len(loss_proposals) == 1
-    assert loss_proposals[0].quantity == 1
+    assert len(result.proposals) == 1
+    assert result.proposals[0].settlement_line_kind == "damage"
+    assert result.proposals[0].quantity == 3
     assert len(result.intact_summary) == 1
     assert result.intact_summary[0]["intact_quantity"] == 2
 
@@ -212,7 +208,7 @@ def test_propose_classification_multiple_lines(django_user_model) -> None:
     assert len(result.intact_summary) == 1
     assert len(result.proposals) == 2
     proposal_kinds = {p.settlement_line_kind for p in result.proposals}
-    assert proposal_kinds == {"damage", "loss"}
+    assert proposal_kinds == {"damage"}
 
 
 def test_classification_breakdown_intact(django_user_model) -> None:
@@ -270,7 +266,7 @@ def test_classification_breakdown_damaged(django_user_model) -> None:
     ]
 
 
-def test_classification_breakdown_missing(django_user_model) -> None:
+def test_classification_breakdown_missing_is_casse(django_user_model) -> None:
     actor = django_user_model.objects.create_user(username="bd-missing", password="test-pass")
     item = _inventory_item("Breakdown missing")
     draft = _reservation_draft()
@@ -294,7 +290,7 @@ def test_classification_breakdown_missing(django_user_model) -> None:
 
     assert len(breakdown) == 1
     assert breakdown[0]["classification_suggestions"] == [
-        {"kind": "loss", "quantity": 1},
+        {"kind": "damage", "quantity": 1},
     ]
 
 
@@ -322,9 +318,9 @@ def test_classification_breakdown_mixed(django_user_model) -> None:
 
     assert len(breakdown) == 1
     suggestions = breakdown[0]["classification_suggestions"]
-    assert len(suggestions) == 3
+    assert len(suggestions) == 1
     suggestion_kinds = {s["kind"] for s in suggestions}
-    assert suggestion_kinds == {"intact", "damage", "loss"}
+    assert suggestion_kinds == {"damage"}
 
 
 def test_classification_proposal_validated_return(django_user_model) -> None:
@@ -353,5 +349,5 @@ def test_classification_proposal_validated_return(django_user_model) -> None:
 
     result = propose_damage_loss_classification_lines(return_operation=ro)
 
-    assert len(result.proposals) == 2
+    assert len(result.proposals) == 1
     assert result.return_operation_id == str(ro.id)

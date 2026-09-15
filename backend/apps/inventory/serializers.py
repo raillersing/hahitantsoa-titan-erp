@@ -27,6 +27,20 @@ class InventoryItemSerializer(serializers.ModelSerializer):
     stock_summary = serializers.SerializerMethodField()
 
     def get_stock_summary(self, obj):
+        if obj._state.adding:
+            return {
+                "reported_inventory_quantity": obj.reported_inventory_quantity,
+                "reported_damaged_quantity": obj.reported_damaged_quantity,
+                "current_stock": obj.reported_inventory_quantity,
+                "available_stock": max(
+                    obj.reported_inventory_quantity - obj.reported_damaged_quantity, 0
+                ),
+                "reserved_stock": 0,
+                "out_stock": 0,
+                "return_stock": 0,
+                "damaged_lost_stock": 0,
+            }
+
         movements = list(obj.stock_movements.all()) if not obj._state.adding else []
         initial_movements = [
             movement
@@ -62,6 +76,17 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             if movement.movement_type
             in {InventoryStockMovementType.DAMAGE, InventoryStockMovementType.LOSS}
         )
+        canonical_breakage_without_legacy_movement = sum(
+            line.effective_breakage_quantity
+            for line in obj.return_operation_lines.filter(
+                return_operation__status="validated"
+            ).prefetch_related("stock_movements")
+            if not any(
+                movement.movement_type
+                in {InventoryStockMovementType.DAMAGE, InventoryStockMovementType.LOSS}
+                for movement in line.stock_movements.all()
+            )
+        )
         return {
             "reported_inventory_quantity": obj.reported_inventory_quantity,
             "reported_damaged_quantity": obj.reported_damaged_quantity,
@@ -70,7 +95,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             "reserved_stock": 0,
             "out_stock": outbound,
             "return_stock": returns,
-            "damaged_lost_stock": damaged_lost,
+            "damaged_lost_stock": damaged_lost + canonical_breakage_without_legacy_movement,
         }
 
     class Meta:
@@ -204,6 +229,8 @@ class InventoryReturnOperationLineSerializer(serializers.ModelSerializer):
             "id",
             "inventory_item",
             "expected_quantity",
+            "conforming_quantity",
+            "breakage_quantity",
             "returned_quantity",
             "damaged_quantity",
             "missing_quantity",
@@ -248,13 +275,42 @@ class InventoryReturnOperationLineCreateSerializer(serializers.Serializer):
         queryset=InventoryItem.objects.filter(is_active=True, is_deleted=False),
     )
     expected_quantity = serializers.IntegerField(min_value=1)
-    returned_quantity = serializers.IntegerField(min_value=0)
+    conforming_quantity = serializers.IntegerField(min_value=0, required=False)
+    breakage_quantity = serializers.IntegerField(min_value=0, required=False)
+    returned_quantity = serializers.IntegerField(min_value=0, required=False)
     damaged_quantity = serializers.IntegerField(min_value=0, required=False, default=0)
     missing_quantity = serializers.IntegerField(min_value=0, required=False, default=0)
     condition_status = serializers.ChoiceField(
-        choices=InventoryReturnOperationLine._meta.get_field("condition_status").choices
+        choices=InventoryReturnOperationLine._meta.get_field("condition_status").choices,
+        required=False,
     )
     notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate(self, attrs):
+        canonical_keys = {"conforming_quantity", "breakage_quantity"}
+        # Nested serializers do not keep their own ``initial_data``.  Presence
+        # in validated attrs is the reliable DRF contract at this level.
+        provided_canonical_keys = canonical_keys.intersection(attrs)
+        if provided_canonical_keys and provided_canonical_keys != canonical_keys:
+            raise serializers.ValidationError(
+                "Les quantités conforme et casse doivent être renseignées ensemble."
+            )
+        if provided_canonical_keys:
+            if (
+                attrs["conforming_quantity"] + attrs["breakage_quantity"]
+                != attrs["expected_quantity"]
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "breakage_quantity": (
+                            "Un retour complet exige que conforme plus casse égale "
+                            "la quantité attendue."
+                        )
+                    }
+                )
+            return attrs
+
+        return attrs
 
 
 class InventoryReturnOperationCreateSerializer(serializers.Serializer):

@@ -129,7 +129,39 @@ def test_linked_return_cannot_exceed_delivery_quantity(django_user_model):
     assert operation.status == InventoryReturnOperationStatus.DRAFT
 
 
-def test_prior_validated_return_reduces_available_delivery_quantity(django_user_model):
+def test_linked_return_requires_every_delivered_item(django_user_model):
+    actor = django_user_model.objects.create_user(username="return-complete-actor", password="test")
+    draft = _draft()
+    document = _delivery_note(draft)
+    returned_item = InventoryItem.objects.create(name="Returned item", kind="material")
+    omitted_item = InventoryItem.objects.create(name="Omitted item", kind="material")
+    for item in (returned_item, omitted_item):
+        create_inventory_stock_movement(
+            actor=actor,
+            inventory_item=item,
+            reservation_draft=draft,
+            document_instance=document,
+            movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+            quantity=1,
+            source_label="test delivery",
+            notes="Issued delivery",
+        )
+    operation = create_inventory_return_operation(
+        actor=actor,
+        reservation_draft=draft,
+        document_instance=document,
+        lines=[_line(returned_item, 1)],
+    )
+
+    with pytest.raises(InventoryStockMovementError) as error:
+        validate_inventory_return_operation(return_operation=operation, actor=actor)
+
+    assert error.value.code == "return_operation_quantity_exceeded"
+    operation.refresh_from_db()
+    assert operation.status == InventoryReturnOperationStatus.DRAFT
+
+
+def test_prior_validated_complete_return_blocks_a_second_return(django_user_model):
     actor = django_user_model.objects.create_user(username="return-repeat-actor", password="test")
     draft = _draft()
     document = _delivery_note(draft)
@@ -149,7 +181,7 @@ def test_prior_validated_return_reduces_available_delivery_quantity(django_user_
         actor=actor,
         reservation_draft=draft,
         document_instance=document,
-        lines=[_line(item, 1)],
+        lines=[_line(item, 2)],
     )
     validate_inventory_return_operation(return_operation=first, actor=actor)
 
