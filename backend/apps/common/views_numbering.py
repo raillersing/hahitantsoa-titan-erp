@@ -14,7 +14,7 @@ from apps.common.serializers_numbering import (
     NumberingSequencePreviewSerializer,
     NumberingSequenceSerializer,
 )
-from apps.documents.models import NumberingSequence
+from apps.documents.models import NumberingSequence, NumberingSequenceType
 from apps.identity.permissions import HasReservationSensitiveAccess
 
 
@@ -25,22 +25,31 @@ class NumberingSequenceListConfigureAPIView(APIView):
     @extend_schema(
         parameters=[
             OpenApiParameter(name="brand", type=str, required=False),
+            OpenApiParameter(name="sequence_type", type=str, required=False),
             OpenApiParameter(name="year", type=int, required=False),
         ],
         responses={200: NumberingSequenceSerializer(many=True)},
     )
     def get(self, request):
         brand = request.query_params.get("brand")
+        sequence_type = request.query_params.get("sequence_type")
         year = request.query_params.get("year")
         current_year = int(year) if year and year.isdigit() else timezone.now().year
 
         # Ensure defaults exist for current year
         for b in ["titan", "hahitantsoa"]:
-            get_or_create_numbering_sequence(brand=b, year=current_year)
+            for st in [
+                NumberingSequenceType.PROFORMA,
+                NumberingSequenceType.INVOICE,
+                NumberingSequenceType.DELIVERY_NOTE,
+            ]:
+                get_or_create_numbering_sequence(brand=b, sequence_type=st, year=current_year)
 
         qs = NumberingSequence.objects.all()
         if brand:
             qs = qs.filter(brand=brand.lower().strip())
+        if sequence_type:
+            qs = qs.filter(sequence_type=sequence_type.lower().strip())
         if year and year.isdigit():
             qs = qs.filter(year=int(year))
 
@@ -57,6 +66,7 @@ class NumberingSequenceListConfigureAPIView(APIView):
 
         seq = configure_numbering_sequence(
             brand=data["brand"],
+            sequence_type=data.get("sequence_type", NumberingSequenceType.PROFORMA),
             year=data["year"],
             next_number=data["next_number"],
             prefix=data.get("prefix"),
@@ -75,20 +85,27 @@ class NumberingSequencePreviewNextAPIView(APIView):
     @extend_schema(
         parameters=[
             OpenApiParameter(name="brand", type=str, required=True),
+            OpenApiParameter(name="sequence_type", type=str, required=False),
             OpenApiParameter(name="year", type=int, required=False),
         ],
         responses={200: NumberingSequencePreviewSerializer},
     )
     def get(self, request):
         brand = request.query_params.get("brand", "titan").lower().strip()
+        sequence_type = (
+            request.query_params.get("sequence_type", NumberingSequenceType.PROFORMA)
+            .lower()
+            .strip()
+        )
         year_param = request.query_params.get("year")
         year = int(year_param) if year_param and year_param.isdigit() else timezone.now().year
 
-        seq = get_or_create_numbering_sequence(brand=brand, year=year)
-        next_ref = peek_next_public_reference(brand=brand, year=year)
+        seq = get_or_create_numbering_sequence(brand=brand, sequence_type=sequence_type, year=year)
+        next_ref = peek_next_public_reference(brand=brand, sequence_type=sequence_type, year=year)
 
         payload = {
             "brand": seq.brand,
+            "sequence_type": seq.sequence_type,
             "year": seq.year,
             "next_reference": next_ref,
             "next_number": seq.next_number,

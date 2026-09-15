@@ -390,6 +390,7 @@ def commercial_document_context_to_document_instance_kwargs(
     proforma_validity_days: int | None = None,
     bank_profile: FinanceBankProfile | None = None,
     document_date=None,
+    document_reference: str | None = None,
 ) -> dict[str, object]:
     bank_profile = bank_profile or get_default_finance_bank_profile(
         business_scope=context.template.business_scope
@@ -417,9 +418,13 @@ def commercial_document_context_to_document_instance_kwargs(
         "template_preview_path": context.template.preview_path,
         "template_validated_by_client": context.template.validated_by_client,
         "template_notes": context.template.notes,
-        "document_reference": build_document_reference(
-            public_reference=context.reservation_draft.public_reference,
-            template_key=context.template.key,
+        "document_reference": (
+            document_reference
+            if document_reference is not None
+            else build_document_reference(
+                public_reference=context.reservation_draft.public_reference,
+                template_key=context.template.key,
+            )
         ),
         "reservation_public_reference": context.reservation_draft.public_reference,
         "reservation_status": context.reservation_draft.status,
@@ -523,6 +528,7 @@ def hahitantsoa_event_draft_document_instance_kwargs(
     proforma_validity_days: int | None = None,
     bank_profile: FinanceBankProfile | None = None,
     document_date=None,
+    document_reference: str | None = None,
 ) -> dict[str, object]:
     from apps.documents.registry import get_document_template_definition
 
@@ -559,9 +565,13 @@ def hahitantsoa_event_draft_document_instance_kwargs(
         "template_preview_path": template_definition.preview_path,
         "template_validated_by_client": template_definition.validated_by_client,
         "template_notes": template_definition.notes,
-        "document_reference": build_document_reference(
-            public_reference=event_draft.public_reference,
-            template_key=template_definition.key,
+        "document_reference": (
+            document_reference
+            if document_reference is not None
+            else build_document_reference(
+                public_reference=event_draft.public_reference,
+                template_key=template_definition.key,
+            )
         ),
         "reservation_public_reference": event_draft.public_reference,
         "reservation_status": event_draft.status,
@@ -637,12 +647,50 @@ def create_document_instance_from_reservation_draft(
         template_key=template_key,
     )
     validate_supported_reservation_draft_document_template_key(template_key)
-    if document_date is not None and context.template.document_type != "delivery_note":
-        raise CommercialDocumentContextError(
-            "Document date can only be set for delivery notes.", code="document_date_not_applicable"
+    document_reference = None
+    if context.template.document_type == "invoice":
+        existing_invoice = (
+            reservation_draft.document_instances.filter(document_type="invoice")
+            .exclude(status=DocumentInstanceStatus.VOIDED)
+            .first()
         )
-    if context.template.document_type == "delivery_note" and document_date is None:
-        document_date = timezone.localtime(reservation_draft.start_at).date() - timedelta(days=1)
+        if existing_invoice and existing_invoice.document_reference:
+            document_reference = existing_invoice.document_reference
+            document_date = existing_invoice.document_date or timezone.localdate()
+        else:
+            from apps.common.sequences import generate_next_public_reference
+            from apps.documents.models import NumberingSequenceType
+
+            document_reference = generate_next_public_reference(
+                brand="titan", sequence_type=NumberingSequenceType.INVOICE
+            )
+            document_date = timezone.localdate()
+    elif context.template.document_type == "delivery_note":
+        existing_bl = (
+            reservation_draft.document_instances.filter(document_type="delivery_note")
+            .exclude(status=DocumentInstanceStatus.VOIDED)
+            .first()
+        )
+        if existing_bl and existing_bl.document_reference:
+            document_reference = existing_bl.document_reference
+            if document_date is None:
+                document_date = existing_bl.document_date
+        else:
+            from apps.common.sequences import generate_next_public_reference
+            from apps.documents.models import NumberingSequenceType
+
+            document_reference = generate_next_public_reference(
+                brand="titan", sequence_type=NumberingSequenceType.DELIVERY_NOTE
+            )
+        if document_date is None:
+            document_date = timezone.localtime(reservation_draft.start_at).date() - timedelta(
+                days=1
+            )
+    elif document_date is not None:
+        raise CommercialDocumentContextError(
+            "Document date can only be set for delivery notes or generated invoices.",
+            code="document_date_not_applicable",
+        )
     if context.template.document_type == "proforma":
         if proforma_validity_days is None:
             proforma_validity_days = DEFAULT_PROFORMA_VALIDITY_DAYS
@@ -667,6 +715,7 @@ def create_document_instance_from_reservation_draft(
             proforma_validity_days=proforma_validity_days,
             bank_profile=bank_profile,
             document_date=document_date,
+            document_reference=document_reference,
         )
     )
     if amendment_sequence is not None or amendment_source_document_id is not None:
@@ -724,12 +773,54 @@ def create_document_instance_from_hahitantsoa_event_draft(
     amendment_source_document_id=None,
 ) -> DocumentInstance:
     validate_supported_hahitantsoa_event_draft_document_template_key(template_key)
-    if document_date is not None and template_key != "hahitantsoa.delivery_note.v1":
-        raise CommercialDocumentContextError(
-            "Document date can only be set for delivery notes.", code="document_date_not_applicable"
+    from apps.documents.registry import get_document_template_definition
+
+    template_definition = get_document_template_definition(template_key)
+    doc_type = template_definition.document_type if template_definition else ""
+    document_reference = None
+
+    if doc_type == "invoice":
+        existing_invoice = (
+            event_draft.document_instances.filter(document_type="invoice")
+            .exclude(status=DocumentInstanceStatus.VOIDED)
+            .first()
         )
-    if template_key == "hahitantsoa.delivery_note.v1" and document_date is None:
-        document_date = timezone.localtime(event_draft.start_at).date() - timedelta(days=1)
+        if existing_invoice and existing_invoice.document_reference:
+            document_reference = existing_invoice.document_reference
+            document_date = existing_invoice.document_date or timezone.localdate()
+        else:
+            from apps.common.sequences import generate_next_public_reference
+            from apps.documents.models import NumberingSequenceType
+
+            document_reference = generate_next_public_reference(
+                brand="hahitantsoa", sequence_type=NumberingSequenceType.INVOICE
+            )
+            document_date = timezone.localdate()
+    elif doc_type == "delivery_note" or template_key == "hahitantsoa.delivery_note.v1":
+        existing_bl = (
+            event_draft.document_instances.filter(document_type="delivery_note")
+            .exclude(status=DocumentInstanceStatus.VOIDED)
+            .first()
+        )
+        if existing_bl and existing_bl.document_reference:
+            document_reference = existing_bl.document_reference
+            if document_date is None:
+                document_date = existing_bl.document_date
+        else:
+            from apps.common.sequences import generate_next_public_reference
+            from apps.documents.models import NumberingSequenceType
+
+            document_reference = generate_next_public_reference(
+                brand="hahitantsoa", sequence_type=NumberingSequenceType.DELIVERY_NOTE
+            )
+        if document_date is None:
+            # Date agreed in contract: event start date
+            document_date = timezone.localtime(event_draft.start_at).date()
+    elif document_date is not None:
+        raise CommercialDocumentContextError(
+            "Document date can only be set for delivery notes or generated invoices.",
+            code="document_date_not_applicable",
+        )
     if template_key == HAHITANTSOA_PROFORMA_TEMPLATE_KEY:
         if proforma_validity_days is None:
             proforma_validity_days = DEFAULT_PROFORMA_VALIDITY_DAYS
@@ -753,6 +844,7 @@ def create_document_instance_from_hahitantsoa_event_draft(
             proforma_validity_days=proforma_validity_days,
             bank_profile=bank_profile,
             document_date=document_date,
+            document_reference=document_reference,
         )
     )
     if amendment_sequence is not None or amendment_source_document_id is not None:

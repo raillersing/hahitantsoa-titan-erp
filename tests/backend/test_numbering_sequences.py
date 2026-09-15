@@ -111,3 +111,71 @@ def test_numbering_sequence_api_endpoints():
     resp = client.get("/api/v1/numbering/sequences/preview-next/?brand=titan&year=2026")
     assert resp.status_code == 200
     assert resp.json()["next_reference"] == "LOC-500/2026"
+
+
+@pytest.mark.django_db
+def test_invoice_and_delivery_sequences():
+    from apps.documents.models import NumberingSequenceType
+
+    # Invoices default formats
+    inv_t = generate_next_public_reference(
+        brand="titan", sequence_type=NumberingSequenceType.INVOICE, year=2026
+    )
+    assert inv_t == "T-001/2026-FA"
+
+    inv_h = generate_next_public_reference(
+        brand="hahitantsoa", sequence_type=NumberingSequenceType.INVOICE, year=2026
+    )
+    assert inv_h == "H-001/2026-FA"
+
+    # Delivery notes default formats
+    bl_t = generate_next_public_reference(
+        brand="titan", sequence_type=NumberingSequenceType.DELIVERY_NOTE, year=2026
+    )
+    assert bl_t == "T-001/2026-BL"
+
+    bl_h = generate_next_public_reference(
+        brand="hahitantsoa", sequence_type=NumberingSequenceType.DELIVERY_NOTE, year=2026
+    )
+    assert bl_h == "H-001/2026-BL"
+
+
+@pytest.mark.django_db
+def test_invoice_and_delivery_sequence_api():
+    from apps.documents.models import NumberingSequenceType
+
+    user = User.objects.create_user(
+        username="admin_user",
+        password="secretpassword",
+        is_staff=True,
+    )
+    user.roles = ["manager"]
+    user.save()
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    # Configure invoice sequence
+    resp = client.post(
+        "/api/v1/numbering/sequences/",
+        {
+            "brand": "titan",
+            "sequence_type": NumberingSequenceType.INVOICE,
+            "year": 2026,
+            "next_number": 42,
+            "prefix": "FAC-",
+            "suffix_template": "/{year}",
+        },
+        format="json",
+    )
+    assert resp.status_code == 200
+    assert resp.json()["next_number"] == 42
+    assert resp.json()["prefix"] == "FAC-"
+    assert resp.json()["preview_next"] == "FAC-042/2026"
+
+    # Preview endpoint with sequence_type
+    preview_resp = client.get(
+        f"/api/v1/numbering/sequences/preview-next/?brand=titan&sequence_type={NumberingSequenceType.INVOICE}&year=2026"
+    )
+    assert preview_resp.status_code == 200
+    assert preview_resp.json()["next_reference"] == "FAC-042/2026"

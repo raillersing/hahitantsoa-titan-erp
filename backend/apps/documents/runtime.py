@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, replace
+from datetime import timedelta
 from decimal import Decimal
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import transaction
 from django.template.loader import render_to_string
+from django.utils import timezone
 
 from apps.documents.commercial import (
     CommercialDocumentCustomerContactPointContext,
@@ -206,6 +208,40 @@ def _resolve_proforma_reference(document_instance: DocumentInstance) -> str:
     return f"{doc_ref}-PF" if doc_ref else ""
 
 
+def _resolve_invoice_reference(document_instance: DocumentInstance) -> str:
+    """Resolve the authoritative invoice reference for a document instance if one exists."""
+    template_key = getattr(document_instance, "template_key", "")
+    if template_key in {"titan.invoice.v1", "hahitantsoa.invoice.v1"}:
+        return document_instance.document_reference or ""
+
+    if getattr(document_instance, "reservation_draft_id", None):
+        inv_doc = (
+            DocumentInstance.objects.filter(
+                reservation_draft_id=document_instance.reservation_draft_id,
+                template_key="titan.invoice.v1",
+            )
+            .exclude(status=DocumentInstanceStatus.VOIDED)
+            .order_by("-created_at")
+            .first()
+        )
+        if inv_doc and inv_doc.document_reference:
+            return inv_doc.document_reference
+    elif getattr(document_instance, "hahitantsoa_event_draft_id", None):
+        inv_doc = (
+            DocumentInstance.objects.filter(
+                hahitantsoa_event_draft_id=document_instance.hahitantsoa_event_draft_id,
+                template_key="hahitantsoa.invoice.v1",
+            )
+            .exclude(status=DocumentInstanceStatus.VOIDED)
+            .order_by("-created_at")
+            .first()
+        )
+        if inv_doc and inv_doc.document_reference:
+            return inv_doc.document_reference
+
+    return ""
+
+
 def _build_hahitantsoa_contract_runtime_context(
     *, document_instance: DocumentInstance
 ) -> dict[str, object]:
@@ -350,6 +386,7 @@ def _build_hahitantsoa_contract_runtime_context(
             "discount": "0,00",
             "total_amount_in_words": format_ariary_amount_in_words(calculated_total),
             "proforma_reference": _resolve_proforma_reference(document_instance),
+            "invoice_reference": _resolve_invoice_reference(document_instance),
             "lines": lines,
         },
     }
@@ -382,6 +419,46 @@ def preview_hahitantsoa_event_draft_document_html(*, event_draft, template_key: 
             code="hahitantsoa_document_preview_template_not_found",
         )
 
+    from apps.common.sequences import peek_next_public_reference
+    from apps.documents.models import NumberingSequenceType
+
+    doc_date = preview_instance.document_date
+    doc_ref = preview_instance.document_reference
+    invoice_ref = ""
+
+    existing_invoice = (
+        event_draft.document_instances.filter(document_type="invoice")
+        .exclude(status=DocumentInstanceStatus.VOIDED)
+        .first()
+    )
+    if existing_invoice:
+        invoice_ref = existing_invoice.document_reference
+
+    if template_key == "hahitantsoa.invoice.v1":
+        if existing_invoice:
+            doc_ref = existing_invoice.document_reference
+            doc_date = existing_invoice.document_date or timezone.localdate()
+        else:
+            doc_ref = peek_next_public_reference(
+                brand="hahitantsoa", sequence_type=NumberingSequenceType.INVOICE
+            )
+            doc_date = timezone.localdate()
+    elif template_key == "hahitantsoa.delivery_note.v1":
+        existing_bl = (
+            event_draft.document_instances.filter(document_type="delivery_note")
+            .exclude(status=DocumentInstanceStatus.VOIDED)
+            .first()
+        )
+        if existing_bl:
+            doc_ref = existing_bl.document_reference
+            doc_date = existing_bl.document_date
+        else:
+            doc_ref = peek_next_public_reference(
+                brand="hahitantsoa", sequence_type=NumberingSequenceType.DELIVERY_NOTE
+            )
+            if doc_date is None:
+                doc_date = timezone.localtime(event_draft.start_at).date()
+
     html_content = render_to_string(
         template_path,
         {
@@ -396,13 +473,14 @@ def preview_hahitantsoa_event_draft_document_html(*, event_draft, template_key: 
                 "swift_bic": preview_instance.bank_swift_bic,
             },
             "document": {
-                "date": preview_instance.document_date,
-                "reference": preview_instance.document_reference,
+                "date": doc_date,
+                "reference": doc_ref,
                 "proforma_reference": (
                     event_draft.public_reference
                     if str(event_draft.public_reference).endswith("-PF")
                     else f"{event_draft.public_reference}-PF"
                 ),
+                "invoice_reference": invoice_ref,
             },
         },
     )
@@ -454,17 +532,59 @@ def preview_reservation_draft_document_html(*, reservation_draft, template_key: 
         "iban": preview_instance.bank_iban,
         "swift_bic": preview_instance.bank_swift_bic,
     }
+
+    from apps.common.sequences import peek_next_public_reference
+    from apps.documents.models import NumberingSequenceType
+
+    doc_date = preview_instance.document_date
+    doc_ref = preview_instance.document_reference or reservation_draft.public_reference
+    invoice_ref = ""
+
+    existing_invoice = (
+        reservation_draft.document_instances.filter(document_type="invoice")
+        .exclude(status=DocumentInstanceStatus.VOIDED)
+        .first()
+    )
+    if existing_invoice:
+        invoice_ref = existing_invoice.document_reference
+
+    if template_key == "titan.invoice.v1":
+        if existing_invoice:
+            doc_ref = existing_invoice.document_reference
+            doc_date = existing_invoice.document_date or timezone.localdate()
+        else:
+            doc_ref = peek_next_public_reference(
+                brand="titan", sequence_type=NumberingSequenceType.INVOICE
+            )
+            doc_date = timezone.localdate()
+    elif template_key == "titan.delivery_note.v1":
+        existing_bl = (
+            reservation_draft.document_instances.filter(document_type="delivery_note")
+            .exclude(status=DocumentInstanceStatus.VOIDED)
+            .first()
+        )
+        if existing_bl:
+            doc_ref = existing_bl.document_reference
+            doc_date = existing_bl.document_date
+        else:
+            doc_ref = peek_next_public_reference(
+                brand="titan", sequence_type=NumberingSequenceType.DELIVERY_NOTE
+            )
+            if doc_date is None and reservation_draft.start_at:
+                doc_date = timezone.localtime(reservation_draft.start_at).date() - timedelta(days=1)
+
     render_context = {
         "context": runtime_context,
         "bank": bank,
         "document": {
-            "date": preview_instance.document_date,
-            "reference": preview_instance.document_reference or reservation_draft.public_reference,
+            "date": doc_date,
+            "reference": doc_ref,
             "proforma_reference": (
                 reservation_draft.public_reference
                 if str(reservation_draft.public_reference).endswith("-PF")
                 else f"{reservation_draft.public_reference}-PF"
             ),
+            "invoice_reference": invoice_ref,
         },
     }
     html_content = render_to_string(template_path, render_context)
@@ -517,6 +637,32 @@ def generate_document_instance_html(
             f"Cannot generate document from status: {document_instance.status}",
             code="invalid_document_status_for_generation",
         )
+
+    if document_instance.document_type == "invoice" or document_instance.template_key in {
+        "titan.invoice.v1",
+        "hahitantsoa.invoice.v1",
+    }:
+        if document_instance.document_date is None:
+            document_instance.document_date = timezone.localdate()
+            document_instance.save(update_fields=["document_date", "updated_at"])
+    elif document_instance.document_type == "delivery_note" or document_instance.template_key in {
+        "titan.delivery_note.v1",
+        "hahitantsoa.delivery_note.v1",
+    }:
+        if document_instance.document_date is None:
+            if document_instance.reservation_draft and document_instance.reservation_draft.start_at:
+                document_instance.document_date = timezone.localtime(
+                    document_instance.reservation_draft.start_at
+                ).date() - timedelta(days=1)
+                document_instance.save(update_fields=["document_date", "updated_at"])
+            elif (
+                document_instance.hahitantsoa_event_draft
+                and document_instance.hahitantsoa_event_draft.start_at
+            ):
+                document_instance.document_date = timezone.localtime(
+                    document_instance.hahitantsoa_event_draft.start_at
+                ).date()
+                document_instance.save(update_fields=["document_date", "updated_at"])
 
     if document_instance.template_key in {
         "titan.payment_receipt.v1",
@@ -695,6 +841,7 @@ def generate_document_instance_html(
             "date": document_instance.document_date,
             "reference": document_instance.document_reference,
             "proforma_reference": _resolve_proforma_reference(document_instance),
+            "invoice_reference": _resolve_invoice_reference(document_instance),
         },
     }
     # ponytail: the registry owns the single approved renderer for each workflow document.

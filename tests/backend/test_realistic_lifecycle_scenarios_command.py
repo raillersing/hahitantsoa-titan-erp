@@ -94,8 +94,8 @@ def test_realistic_scenarios_cover_prospect_confirmation_closeout_and_damage(
         "T-002/2026-CT",
         "T-002/2026-REC-01",
         "H-001/2026-DR",
-        "T-003/2026-BL",
+        "T-001/2026-BL",
         "T-003/2026-BR",
-        "T-003/2026-FA",
+        "T-001/2026-FA",
         "T-004/2026-FC",
     } <= references

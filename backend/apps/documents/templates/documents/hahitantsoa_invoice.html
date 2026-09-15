@@ -245,12 +245,12 @@
         <div class="header-box">
           <div class="ref">
             <span>FACTURE N° :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.public_reference|default:"..../.." }}{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ document.reference|default:context.event_draft.public_reference|default:"..../.." }}{% endif %}</span>
           </div>
           <div class="title">FACTURE</div>
           <div class="date">
             <span>DATE :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y" %}{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% if document.date %}{{ document.date|date:"d/m/Y" }}{% else %}....................{% endif %}{% endif %}</span>
           </div>
         </div>
       </header>

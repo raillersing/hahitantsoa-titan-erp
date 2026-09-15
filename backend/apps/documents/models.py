@@ -350,10 +350,21 @@ class NumberingSequenceBrand(models.TextChoices):
     HAHITANTSOA = "hahitantsoa", "Hahitantsoa"
 
 
+class NumberingSequenceType(models.TextChoices):
+    PROFORMA = "proforma", "Proforma"
+    INVOICE = "invoice", "Facture"
+    DELIVERY_NOTE = "delivery_note", "Bon de sortie / livraison"
+
+
 class NumberingSequence(UUIDModel, TimestampedModel, AuditableModel):
     brand = models.CharField(
         max_length=32,
         choices=NumberingSequenceBrand.choices,
+    )
+    sequence_type = models.CharField(
+        max_length=32,
+        choices=NumberingSequenceType.choices,
+        default=NumberingSequenceType.PROFORMA,
     )
     year = models.PositiveIntegerField()
     prefix = models.CharField(max_length=16, blank=True, default="")
@@ -362,16 +373,16 @@ class NumberingSequence(UUIDModel, TimestampedModel, AuditableModel):
     suffix_template = models.CharField(max_length=32, default="/{year}")
 
     class Meta:
-        ordering = ["brand", "-year"]
+        ordering = ["brand", "sequence_type", "-year"]
         constraints = [
             models.UniqueConstraint(
-                fields=["brand", "year"],
-                name="unique_brand_year_numbering_sequence",
+                fields=["brand", "sequence_type", "year"],
+                name="unique_brand_sequence_type_year",
             )
         ]
 
     def __str__(self) -> str:
-        return f"Sequence {self.brand} {self.year} (next: {self.next_number})"
+        return f"Sequence {self.brand} {self.sequence_type} {self.year} (next: {self.next_number})"
 
     def format_reference(self, number: int) -> str:
         formatted_num = f"{number:0{self.padding}d}"
