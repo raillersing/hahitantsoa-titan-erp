@@ -721,6 +721,92 @@ export default function ReservationDetailPage({
     }
   };
 
+  const titanInvoiceInstance = useMemo(() => {
+    return documentInstances.find(
+      (di) =>
+        (di.template_key === "titan.invoice.v1" || di.document_type === "invoice") &&
+        di.status !== "voided",
+    );
+  }, [documentInstances]);
+
+  const titanDeliveryNoteInstance = useMemo(() => {
+    return documentInstances.find(
+      (di) =>
+        (di.template_key === "titan.delivery_note.v1" || di.document_type === "delivery_note") &&
+        di.status !== "voided",
+    );
+  }, [documentInstances]);
+
+  const canGenerateInvoice =
+    (draft?.status === "confirmed" || Boolean(draft?.contract_signed_at) || Boolean(titanContractInstance)) &&
+    !titanInvoiceInstance;
+
+  const canGenerateDeliveryNote =
+    (draft?.status === "confirmed" || Boolean(draft?.contract_signed_at) || Boolean(titanContractInstance)) &&
+    !titanDeliveryNoteInstance;
+
+  const handleGenerateInvoice = async () => {
+    if (!draft) return;
+    setActionLoading("generate-invoice");
+    try {
+      let instance = titanInvoiceInstance;
+      if (!instance) {
+        instance = await createReservationDraftDocumentInstance(draft.id, {
+          template_key: "titan.invoice.v1",
+          notes: "Facture définitive émise depuis le dossier de réservation",
+        });
+      }
+      if (instance.status === "prepared") {
+        await generateReservationDraftDocumentInstance(draft.id, instance.id);
+      }
+      await generateReservationDraftDocumentInstancePdf(draft.id, instance.id);
+      const updatedDocs = await getReservationDraftDocumentInstances(draft.id);
+      setDocumentInstances(updatedDocs);
+      showToast("Facture définitive générée avec succès.", "success");
+      setPreviewModal({
+        title: `Facture de location Titan — ${instance.document_reference || instance.id.slice(0, 8)}`,
+        documentInstanceId: instance.id,
+        templateKey: "titan.invoice.v1",
+        type: "facture",
+      });
+    } catch (err: any) {
+      showToast(err?.message || "Erreur lors de la génération de la facture.", "error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleGenerateDeliveryNote = async () => {
+    if (!draft) return;
+    setActionLoading("generate-delivery-note");
+    try {
+      let instance = titanDeliveryNoteInstance;
+      if (!instance) {
+        instance = await createReservationDraftDocumentInstance(draft.id, {
+          template_key: "titan.delivery_note.v1",
+          notes: "Bon de livraison / sortie émis depuis le dossier de réservation",
+        });
+      }
+      if (instance.status === "prepared") {
+        await generateReservationDraftDocumentInstance(draft.id, instance.id);
+      }
+      await generateReservationDraftDocumentInstancePdf(draft.id, instance.id);
+      const updatedDocs = await getReservationDraftDocumentInstances(draft.id);
+      setDocumentInstances(updatedDocs);
+      showToast("Bon de livraison généré avec succès.", "success");
+      setPreviewModal({
+        title: `Bon de livraison / Sortie Titan — ${instance.document_reference || instance.id.slice(0, 8)}`,
+        documentInstanceId: instance.id,
+        templateKey: "titan.delivery_note.v1",
+        type: "bon_livraison",
+      });
+    } catch (err: any) {
+      showToast(err?.message || "Erreur lors de la génération du bon de livraison.", "error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const previewArtifact = previewDoc
     ? documentInstances.find((documentInstance) => {
         if (!['prepared', 'generated', 'issued'].includes(documentInstance.status)) return false;
@@ -2141,14 +2227,21 @@ export default function ReservationDetailPage({
                           </div>
                           <div>
                             <p className="font-bold text-slate-800 text-sm">Facture définitive</p>
-                            <p className="text-xs text-slate-500">Règlement & facturation</p>
+                            <p className="text-xs text-slate-500">
+                              {titanInvoiceInstance
+                                ? (titanInvoiceInstance.document_reference
+                                  ? `Réf. ${titanInvoiceInstance.document_reference} • Émise le ${formatDateFr(titanInvoiceInstance.prepared_at || titanInvoiceInstance.created_at)}`
+                                  : `Émise le ${formatDateFr(titanInvoiceInstance.prepared_at || titanInvoiceInstance.created_at)}`)
+                                : "Règlement & facturation"}
+                            </p>
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={() =>
                             setPreviewModal({
-                              title: "Facture de location Titan",
+                              title: `Facture de location Titan${titanInvoiceInstance?.document_reference ? ` — ${titanInvoiceInstance.document_reference}` : ""}`,
+                              documentInstanceId: titanInvoiceInstance?.id || null,
                               templateKey: "titan.invoice.v1",
                               type: "facture",
                             })
@@ -2160,8 +2253,50 @@ export default function ReservationDetailPage({
                         </button>
                       </div>
                       <p className="text-xs text-slate-600">
-                        Facturation officielle avec détail de la TVA et des règlements perçus.
+                        {titanInvoiceInstance
+                          ? "Facturation officielle enregistrée avec numéro séquentiel certifié."
+                          : "Facturation officielle avec détail de la TVA et des règlements perçus."}
                       </p>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-200/80 flex items-center justify-between">
+                      {titanInvoiceInstance ? (
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <i className="fa-solid fa-check text-[10px]"></i>
+                            Émise
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewModal({
+                                title: `Facture de location Titan — ${titanInvoiceInstance.document_reference || titanInvoiceInstance.id.slice(0, 8)}`,
+                                documentInstanceId: titanInvoiceInstance.id,
+                                templateKey: "titan.invoice.v1",
+                                type: "facture",
+                              })
+                            }
+                            className="text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer"
+                          >
+                            Consulter
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-xs text-slate-500">Non émise</span>
+                          {canGenerateInvoice && (
+                            <button
+                              type="button"
+                              onClick={() => void handleGenerateInvoice()}
+                              disabled={actionLoading === "generate-invoice"}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                            >
+                              <i className={`fa-solid ${actionLoading === "generate-invoice" ? "fa-spinner fa-spin" : "fa-file-invoice-dollar"}`}></i>
+                              <span>Émettre la facture</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -2219,14 +2354,21 @@ export default function ReservationDetailPage({
                           </div>
                           <div>
                             <p className="font-bold text-slate-800 text-sm">Bon de livraison / Sortie</p>
-                            <p className="text-xs text-slate-500">Remise matériel & transport</p>
+                            <p className="text-xs text-slate-500">
+                              {titanDeliveryNoteInstance
+                                ? (titanDeliveryNoteInstance.document_reference
+                                  ? `Réf. ${titanDeliveryNoteInstance.document_reference} • Généré le ${formatDateFr(titanDeliveryNoteInstance.prepared_at || titanDeliveryNoteInstance.created_at)}`
+                                  : `Généré le ${formatDateFr(titanDeliveryNoteInstance.prepared_at || titanDeliveryNoteInstance.created_at)}`)
+                                : "Remise matériel & transport"}
+                            </p>
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={() =>
                             setPreviewModal({
-                              title: "Bon de livraison / Sortie Titan",
+                              title: `Bon de livraison / Sortie Titan${titanDeliveryNoteInstance?.document_reference ? ` — ${titanDeliveryNoteInstance.document_reference}` : ""}`,
+                              documentInstanceId: titanDeliveryNoteInstance?.id || null,
                               templateKey: "titan.delivery_note.v1",
                               type: "bon_livraison",
                             })
@@ -2238,8 +2380,50 @@ export default function ReservationDetailPage({
                         </button>
                       </div>
                       <p className="text-xs text-slate-600">
-                        Document de passation et prise en charge signé à la sortie des articles.
+                        {titanDeliveryNoteInstance
+                          ? "Bon de livraison officiel généré avec numéro séquentiel certifié."
+                          : "Document de passation et prise en charge signé à la sortie des articles."}
                       </p>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-200/80 flex items-center justify-between">
+                      {titanDeliveryNoteInstance ? (
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-cyan-50 text-cyan-700 border border-cyan-200">
+                            <i className="fa-solid fa-check text-[10px]"></i>
+                            Généré
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewModal({
+                                title: `Bon de livraison Titan — ${titanDeliveryNoteInstance.document_reference || titanDeliveryNoteInstance.id.slice(0, 8)}`,
+                                documentInstanceId: titanDeliveryNoteInstance.id,
+                                templateKey: "titan.delivery_note.v1",
+                                type: "bon_livraison",
+                              })
+                            }
+                            className="text-xs font-bold text-cyan-700 hover:text-cyan-800 hover:underline cursor-pointer"
+                          >
+                            Consulter
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-xs text-slate-500">Non généré</span>
+                          {canGenerateDeliveryNote && (
+                            <button
+                              type="button"
+                              onClick={() => void handleGenerateDeliveryNote()}
+                              disabled={actionLoading === "generate-delivery-note"}
+                              className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                            >
+                              <i className={`fa-solid ${actionLoading === "generate-delivery-note" ? "fa-spinner fa-spin" : "fa-file-lines"}`}></i>
+                              <span>Générer le bon</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -2505,23 +2689,58 @@ export default function ReservationDetailPage({
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                   <div>
                     <h4 className="font-bold text-slate-800">Sortie / Livraison du matériel</h4>
-                    <p className="text-xs text-slate-500">Expédition, transport et décharge de livraison</p>
+                    <p className="text-xs text-slate-500">
+                      {titanDeliveryNoteInstance?.document_reference
+                        ? `Bon de livraison réf. ${titanDeliveryNoteInstance.document_reference} • Expédition et décharge`
+                        : "Expédition, transport et décharge de livraison"}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPreviewModal({
-                          title: "Bon de livraison / Sortie Titan",
-                          templateKey: "titan.delivery_note.v1",
-                          type: "bon_livraison",
-                        })
-                      }
-                      className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                    >
-                      <i className="fa-solid fa-file-lines text-indigo-600"></i>
-                      <span>Aperçu Bon de livraison</span>
-                    </button>
+                    {titanDeliveryNoteInstance ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewModal({
+                            title: `Bon de livraison Titan — ${titanDeliveryNoteInstance.document_reference || titanDeliveryNoteInstance.id.slice(0, 8)}`,
+                            documentInstanceId: titanDeliveryNoteInstance.id,
+                            templateKey: "titan.delivery_note.v1",
+                            type: "bon_livraison",
+                          })
+                        }
+                        className="px-3 py-1.5 bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-300 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <i className="fa-solid fa-file-lines text-cyan-600"></i>
+                        <span>BL {titanDeliveryNoteInstance.document_reference ? `(${titanDeliveryNoteInstance.document_reference})` : "prêt"}</span>
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewModal({
+                              title: "Bon de livraison / Sortie Titan",
+                              templateKey: "titan.delivery_note.v1",
+                              type: "bon_livraison",
+                            })
+                          }
+                          className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                        >
+                          <i className="fa-solid fa-file-lines text-indigo-600"></i>
+                          <span>Aperçu Bon de livraison</span>
+                        </button>
+                        {canGenerateDeliveryNote && (
+                          <button
+                            type="button"
+                            onClick={() => void handleGenerateDeliveryNote()}
+                            disabled={actionLoading === "generate-delivery-note"}
+                            className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          >
+                            <i className={`fa-solid ${actionLoading === "generate-delivery-note" ? "fa-spinner fa-spin" : "fa-file-lines"}`}></i>
+                            <span>Générer le BL</span>
+                          </button>
+                        )}
+                      </>
+                    )}
                     <button
                       type="button"
                       className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"

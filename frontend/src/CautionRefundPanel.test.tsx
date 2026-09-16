@@ -172,9 +172,9 @@ describe("CautionRefundPanel", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("caution-settlements-panel")).toBeInTheDocument();
+      expect(screen.getByTestId("settlement-row-settle-1")).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("settlement-row-settle-1")).toBeInTheDocument();
     expect(screen.getByTestId("settlement-row-settle-1")).toHaveTextContent(/150/);
   });
 

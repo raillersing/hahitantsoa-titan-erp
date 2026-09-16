@@ -643,4 +643,92 @@ describe('ReservationDetailPage', () => {
 
     expect(screen.queryByRole("button", { name: /Modifier le devis/i })).not.toBeInTheDocument();
   });
+
+  it("affiche les références séquentielles de la facture et du bon de livraison lorsqu'ils sont générés", async () => {
+    mockGetReservationDraft.mockReset();
+    mockGetReservationDraft.mockResolvedValue({
+      ...MOCK_DRAFT,
+      status: "confirmed",
+      contract_signed_at: "2026-06-01T12:00:00Z",
+    });
+    mockGetCustomer.mockResolvedValue(MOCK_CUSTOMER);
+    mockGetReservationDraftDocumentInstances.mockResolvedValue([
+      {
+        id: "doc-fa-1",
+        template_key: "titan.invoice.v1",
+        document_type: "invoice",
+        document_reference: "2026/0010-FA",
+        status: "generated",
+        prepared_at: "2026-06-02T10:00:00Z",
+      },
+      {
+        id: "doc-bl-1",
+        template_key: "titan.delivery_note.v1",
+        document_type: "delivery_note",
+        document_reference: "2026/0005-BL",
+        status: "generated",
+        prepared_at: "2026-06-02T10:00:00Z",
+      },
+    ]);
+    mockGetPayments.mockResolvedValue([]);
+    mockGetLifecycle.mockResolvedValue(null);
+
+    render(<ReservationDetailPage param="draft-loc-089" onNavigate={vi.fn()} />);
+    await waitForDraftLoad();
+
+    expect(screen.getByText(/2026\/0010-FA/)).toBeInTheDocument();
+    expect(screen.getByText(/2026\/0005-BL/)).toBeInTheDocument();
+  });
+
+  it("permet d'émettre la facture et le bon de livraison sur un dossier confirmé", async () => {
+    mockGetReservationDraft.mockReset();
+    mockGetReservationDraft.mockResolvedValue({
+      ...MOCK_DRAFT,
+      status: "confirmed",
+      contract_signed_at: "2026-06-01T12:00:00Z",
+    });
+    mockGetCustomer.mockResolvedValue(MOCK_CUSTOMER);
+    mockGetReservationDraftDocumentInstances.mockResolvedValue([]);
+    mockGetPayments.mockResolvedValue([]);
+    mockGetLifecycle.mockResolvedValue(null);
+
+    mockCreateReservationDraftDocumentInstance.mockResolvedValue({
+      id: "new-doc-1",
+      status: "prepared",
+    });
+    mockGenerateReservationDraftDocumentInstance.mockResolvedValue({
+      id: "new-doc-1",
+      status: "generated",
+    });
+    mockGenerateReservationDraftDocumentInstancePdf.mockResolvedValue({
+      id: "new-doc-1",
+    });
+
+    render(<ReservationDetailPage param="draft-loc-089" onNavigate={vi.fn()} />);
+    await waitForDraftLoad();
+
+    const emitInvoiceBtn = screen.getByRole("button", { name: /Émettre la facture/i });
+    expect(emitInvoiceBtn).toBeInTheDocument();
+    fireEvent.click(emitInvoiceBtn);
+
+    await waitFor(() => {
+      expect(mockCreateReservationDraftDocumentInstance).toHaveBeenCalledWith("draft-loc-089", {
+        template_key: "titan.invoice.v1",
+        notes: "Facture définitive émise depuis le dossier de réservation",
+      });
+      expect(mockGenerateReservationDraftDocumentInstance).toHaveBeenCalledWith("draft-loc-089", "new-doc-1");
+      expect(mockGenerateReservationDraftDocumentInstancePdf).toHaveBeenCalledWith("draft-loc-089", "new-doc-1");
+    });
+
+    const emitBlBtn = screen.getByRole("button", { name: /Générer le bon/i });
+    expect(emitBlBtn).toBeInTheDocument();
+    fireEvent.click(emitBlBtn);
+
+    await waitFor(() => {
+      expect(mockCreateReservationDraftDocumentInstance).toHaveBeenCalledWith("draft-loc-089", {
+        template_key: "titan.delivery_note.v1",
+        notes: "Bon de livraison / sortie émis depuis le dossier de réservation",
+      });
+    });
+  });
 });

@@ -8,6 +8,7 @@ import {
   createReturnOperation,
   createLogisticsEvent,
   createReservationDraftDocumentInstance,
+  createHahitantsoaEventDraftDocumentInstance,
   getDocumentInstancePdfBlob,
   getInventoryItems,
   getLogisticsEventItemLines,
@@ -21,6 +22,8 @@ import {
   getReservationDrafts,
   generateReservationDraftDocumentInstance,
   generateReservationDraftDocumentInstancePdf,
+  generateHahitantsoaEventDraftDocumentInstance,
+  generateHahitantsoaEventDraftDocumentInstancePdf,
   removeLogisticsEventItemLine,
   transitionLogisticsEvent,
 } from "./api";
@@ -98,6 +101,7 @@ function scheduleWarning(value: string, closedDays: TitanClosedDay[]): string | 
 
 type PassationState = {
   documentInstanceId: string | null;
+  documentReference?: string | null;
   loading: boolean;
   error: string | null;
 };
@@ -331,6 +335,7 @@ export function LogisticsDeliveryPanel({
       );
       setPassationState({
         documentInstanceId: deliveryNote?.id ?? null,
+        documentReference: deliveryNote?.document_reference ?? null,
         loading: false,
         error: null,
       });
@@ -624,6 +629,70 @@ export function LogisticsDeliveryPanel({
       window.open(url, "_blank");
     } catch {
       setPassationState((prev) => ({ ...prev, error: "Échec de l'ouverture du PDF du bon de livraison." }));
+    }
+  };
+
+  const handleGenerateDeliveryNote = async () => {
+    if (!selectedEvent) return;
+    const draftId = selectedEvent.reservation_draft || selectedEvent.hahitantsoa_event_draft;
+    if (!draftId) return;
+
+    setPassationState((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      if (selectedEvent.reservation_draft) {
+        let instance = await createReservationDraftDocumentInstance(
+          selectedEvent.reservation_draft,
+          {
+            template_key: "titan.delivery_note.v1",
+            notes: `Bon de livraison pour l'événement logistique ${selectedEvent.id}`,
+          },
+        );
+        if (instance.status === "prepared") {
+          instance = await generateReservationDraftDocumentInstance(
+            selectedEvent.reservation_draft,
+            instance.id,
+          );
+        }
+        await generateReservationDraftDocumentInstancePdf(
+          selectedEvent.reservation_draft,
+          instance.id,
+        );
+        setPassationState({
+          documentInstanceId: instance.id,
+          documentReference: instance.document_reference ?? null,
+          loading: false,
+          error: null,
+        });
+      } else if (selectedEvent.hahitantsoa_event_draft) {
+        let instance = await createHahitantsoaEventDraftDocumentInstance(
+          selectedEvent.hahitantsoa_event_draft,
+          {
+            template_key: "hahitantsoa.delivery_note.v1",
+          },
+        );
+        if (instance.status === "prepared") {
+          instance = await generateHahitantsoaEventDraftDocumentInstance(
+            selectedEvent.hahitantsoa_event_draft,
+            instance.id,
+          );
+        }
+        await generateHahitantsoaEventDraftDocumentInstancePdf(
+          selectedEvent.hahitantsoa_event_draft,
+          instance.id,
+        );
+        setPassationState({
+          documentInstanceId: instance.id,
+          documentReference: instance.document_reference ?? null,
+          loading: false,
+          error: null,
+        });
+      }
+    } catch (err: unknown) {
+      setPassationState((prev) => ({
+        ...prev,
+        loading: false,
+        error: err instanceof Error ? err.message : "Échec de la génération du bon de livraison.",
+      }));
     }
   };
 
@@ -1021,11 +1090,26 @@ export function LogisticsDeliveryPanel({
                       </button>
                     </div>
                   ) : null}
-                  {passationState.documentInstanceId ? (
-                    <div className="ops-preview-note">
-                      <p>Bon de livraison généré.</p>
+                   {passationState.documentInstanceId ? (
+                    <div className="ops-preview-note" data-testid="delivery-note-note">
+                      <p>
+                        Bon de livraison généré
+                        {passationState.documentReference ? ` (${passationState.documentReference})` : ""}.
+                      </p>
                       <button className="ops-button-secondary" type="button" onClick={() => void handleDownloadDeliveryNote()}>
                         Voir le PDF
+                      </button>
+                    </div>
+                  ) : selectedEvent.operation === "outbound" && (selectedEvent.reservation_draft || selectedEvent.hahitantsoa_event_draft) ? (
+                    <div className="ops-preview-note">
+                      <p>Bon de livraison non émis pour cette sortie.</p>
+                      <button
+                        className="ops-button-secondary"
+                        type="button"
+                        disabled={!canWrite || passationState.loading}
+                        onClick={() => void handleGenerateDeliveryNote()}
+                      >
+                        {passationState.loading ? "Génération..." : "Émettre le bon de livraison"}
                       </button>
                     </div>
                   ) : null}

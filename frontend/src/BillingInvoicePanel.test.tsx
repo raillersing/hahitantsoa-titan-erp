@@ -195,4 +195,69 @@ describe("BillingInvoicePanel", () => {
     expect(screen.queryByRole("button", { name: "Régler la facture" })).toBeNull();
     expect(screen.getByRole("button", { name: "Émettre une note de crédit" })).toBeDisabled();
   });
+
+  it("displays sequential document_reference and opens PDF when present", async () => {
+    const invoiceWithDoc: BillingInvoice = {
+      ...MOCK_INVOICE,
+      document_instance: {
+        id: "doc-inv-42",
+        reservation_draft: null,
+        customer: "cust-1",
+        template_key: "titan.invoice.v1",
+        template_version: "v1",
+        template_label: "Facture Titan",
+        business_scope: "titan",
+        document_type: "invoice",
+        template_status: "generated",
+        template_source_kind: "system",
+        template_source_reference: "REF",
+        template_path: "/path",
+        template_preview_path: "/preview",
+        template_validated_by_client: true,
+        template_notes: "",
+        document_reference: "2026/0042-FA",
+        reservation_public_reference: "LOC-2026-0042",
+        reservation_status: "confirmed",
+        customer_display_name: "Rakoto Andry",
+        customer_email: "rakoto@example.com",
+        customer_phone: "+261 34 000 0000",
+        customer_address: "Antananarivo",
+        status: "generated",
+        prepared_at: "2026-06-18T10:00:00Z",
+        prepared_by: "user-1",
+        voided_at: null,
+        voided_by: null,
+        void_reason: "",
+        content_checksum: "sum",
+        storage_path: "/storage",
+        generated_content_size_bytes: 1024,
+        valid_until: null,
+        notes: "",
+        created_at: "2026-06-18T10:00:00Z",
+        updated_at: "2026-06-18T10:00:00Z",
+      },
+    };
+
+    vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(true);
+    vi.spyOn(api, "getBillingInvoices").mockResolvedValue([invoiceWithDoc]);
+    vi.spyOn(api, "getBillingCreditNotes").mockResolvedValue([]);
+    const pdfBlobSpy = vi.spyOn(api, "getDocumentInstancePdfBlob").mockResolvedValue(new Blob(["pdf content"]));
+    const windowOpenSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    const createObjectURLSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:invoice-pdf");
+
+    render(<BillingInvoicePanel />);
+
+    expect(await screen.findByText("2026/0042-FA")).toBeInTheDocument();
+    expect(screen.getByText(/Facture Titan — 2026\/0042-FA/)).toBeInTheDocument();
+
+    const pdfButton = screen.getByRole("button", { name: "Voir le PDF" });
+    expect(pdfButton).toBeInTheDocument();
+    fireEvent.click(pdfButton);
+
+    await waitFor(() => {
+      expect(pdfBlobSpy).toHaveBeenCalledWith("doc-inv-42");
+      expect(createObjectURLSpy).toHaveBeenCalled();
+      expect(windowOpenSpy).toHaveBeenCalledWith("blob:invoice-pdf", "_blank");
+    });
+  });
 });
