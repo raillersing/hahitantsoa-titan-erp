@@ -336,7 +336,6 @@ describe('Stock & Logistics Pages', () => {
         notes: 'Déclaration créée depuis le retour contrôlé.',
         lines: [{
           return_operation_line: 'rline-002',
-          manual_label: 'Chaise Napoléon',
           settlement_line_kind: 'damage',
           quantity: 2,
           unit_amount: '75000',
@@ -374,6 +373,53 @@ describe('Stock & Logistics Pages', () => {
       render(<BreakageLossPage onNavigate={mockNavigate} />);
       const amountInput = await screen.findByRole('spinbutton', { name: 'Montant unitaire Chaise Napoléon' }) as HTMLInputElement;
       await waitFor(() => expect(amountInput.value).toBe('50000'));
+    });
+
+    it('aggregates damaged and missing quantities into a single canonical casse line with damage kind', async () => {
+      vi.spyOn(api, 'getDamageLossSettlements').mockResolvedValue([]);
+      vi.spyOn(api, 'getReturnOperations').mockResolvedValue([
+        {
+          id: 'ret-mixed',
+          reservation_draft: 'rd-mixed',
+          hahitantsoa_event_draft: null,
+          logistics_event: 'out-mixed',
+          document_instance: null,
+          status: 'validated',
+          notes: '',
+          validated_at: '2026-07-20T10:00:00Z',
+          validated_by: 'u-01',
+          lines: [{
+            id: 'rline-mixed', inventory_item: 'MAT-01', expected_quantity: 5,
+            conforming_quantity: 2, breakage_quantity: 3,
+            returned_quantity: 4, damaged_quantity: 2, missing_quantity: 1,
+            condition_status: 'mixed', notes: '2 endommagés + 1 manquant', intact_quantity: 2,
+            created_at: '', updated_at: '', created_by: null, updated_by: null,
+          }],
+          created_at: '', updated_at: '', created_by: null, updated_by: null,
+        },
+      ]);
+      const create = vi.spyOn(api, 'createDamageLossSettlement').mockResolvedValue({
+        id: 'set-mixed', return_operation: 'ret-mixed', settlement_status: 'draft', lines: [],
+      } as any);
+
+      render(<BreakageLossPage onNavigate={mockNavigate} />);
+      const amountInput = await screen.findByRole('spinbutton', { name: 'Montant unitaire Chaise Napoléon' });
+      fireEvent.change(amountInput, { target: { value: '45000' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Créer le règlement' }));
+
+      await waitFor(() => expect(create).toHaveBeenCalledWith({
+        return_operation: 'ret-mixed',
+        document_instance: null,
+        notes: 'Déclaration créée depuis le retour contrôlé.',
+        lines: [{
+          return_operation_line: 'rline-mixed',
+          settlement_line_kind: 'damage',
+          quantity: 3,
+          unit_amount: '45000',
+          amount_source: 'manual',
+          notes: '2 endommagés + 1 manquant',
+        }],
+      }));
     });
 
     it('displays "Voir la facture de casse" button when document_instance is present and navigates to documents', async () => {
