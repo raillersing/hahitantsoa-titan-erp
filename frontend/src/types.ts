@@ -1097,6 +1097,8 @@ export type InventoryReturnOperationLine = {
   id: string;
   inventory_item: string;
   expected_quantity: number;
+  conforming_quantity?: number;
+  breakage_quantity?: number;
   returned_quantity: number;
   damaged_quantity: number;
   missing_quantity: number;

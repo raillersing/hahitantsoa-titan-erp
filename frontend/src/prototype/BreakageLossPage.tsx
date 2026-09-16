@@ -17,6 +17,7 @@ import type {
   InventoryDamageLossSettlementExecution,
   InventoryItem,
   InventoryReturnOperation,
+  InventoryReturnOperationLine,
 } from "../types";
 
 type FilterStatus = "Tous" | "À traiter" | "Retenue validée" | "Clôturé";
@@ -80,6 +81,9 @@ export default function BreakageLossPage({ onNavigate, param }: { onNavigate: (s
     return () => { cancelled = true; controller.abort(); };
   }, []);
 
+const getLineCasseQuantity = (line: InventoryReturnOperationLine): number =>
+  line.breakage_quantity ?? (line.damaged_quantity + line.missing_quantity);
+
   useEffect(() => {
     if (returnOperations.length === 0 || inventoryItems.length === 0) return;
     setUnitAmounts((current) => {
@@ -88,7 +92,7 @@ export default function BreakageLossPage({ onNavigate, param }: { onNavigate: (s
       for (const op of returnOperations) {
         if (op.status !== "validated") continue;
         for (const line of op.lines) {
-          if (line.damaged_quantity > 0 || line.missing_quantity > 0) {
+          if (getLineCasseQuantity(line) > 0) {
             if (next[line.id] === undefined || next[line.id] === "") {
               const item = inventoryItems.find((i) => i.id === line.inventory_item);
               if (item?.breakage_price && Number(item.breakage_price) > 0) {
@@ -122,7 +126,7 @@ export default function BreakageLossPage({ onNavigate, param }: { onNavigate: (s
       (!param || scopedReturnIds.has(operation.id)) &&
       operation.status === "validated" &&
       !data.some((settlement) => settlement.return_operation === operation.id) &&
-      operation.lines.some((line) => line.damaged_quantity > 0 || line.missing_quantity > 0),
+      operation.lines.some((line) => getLineCasseQuantity(line) > 0),
   );
 
   const itemName = (itemId: string) => inventoryItems.find((item) => item.id === itemId)?.name ?? itemId.slice(0, 8);
@@ -130,31 +134,18 @@ export default function BreakageLossPage({ onNavigate, param }: { onNavigate: (s
   const handleCreateSettlement = async (operation: InventoryReturnOperation) => {
     if (creatingReturnId === operation.id) return;
     const affectedLines = operation.lines.flatMap((line) => {
+      const casseQuantity = getLineCasseQuantity(line);
+      if (casseQuantity <= 0) return [];
       const amount = unitAmounts[line.id]?.trim() ?? "";
-      const proposals: InventoryDamageLossSettlementCreatePayload["lines"] = [];
-      if (line.damaged_quantity > 0) {
-        proposals.push({
-          return_operation_line: line.id,
-          manual_label: itemName(line.inventory_item),
-          settlement_line_kind: "damage",
-          quantity: line.damaged_quantity,
-          unit_amount: amount,
-          amount_source: "manual",
-          notes: line.notes,
-        });
-      }
-      if (line.missing_quantity > 0) {
-        proposals.push({
-          return_operation_line: line.id,
-          manual_label: itemName(line.inventory_item),
-          settlement_line_kind: "loss",
-          quantity: line.missing_quantity,
-          unit_amount: amount,
-          amount_source: "manual",
-          notes: line.notes,
-        });
-      }
-      return proposals;
+      const proposal: InventoryDamageLossSettlementCreatePayload["lines"][number] = {
+        return_operation_line: line.id,
+        settlement_line_kind: "damage",
+        quantity: casseQuantity,
+        unit_amount: amount,
+        amount_source: "manual",
+        notes: line.notes || "",
+      };
+      return [proposal];
     });
     if (affectedLines.length === 0 || affectedLines.some((line) => !line.unit_amount || Number(line.unit_amount) <= 0)) {
       showToast("Saisissez un montant unitaire positif pour chaque article concerné.", "error");
@@ -312,7 +303,7 @@ export default function BreakageLossPage({ onNavigate, param }: { onNavigate: (s
             <p className="mt-1 text-sm text-amber-800">Saisissez la valeur de remplacement ou de réparation avant de créer le dossier financier.</p>
             <div className="mt-4 space-y-4">
               {pendingReturns.map((operation) => {
-                const affectedLines = operation.lines.filter((line) => line.damaged_quantity > 0 || line.missing_quantity > 0);
+                const affectedLines = operation.lines.filter((line) => getLineCasseQuantity(line) > 0);
                 return (
                   <div key={operation.id} className="p-4 bg-white rounded-lg border border-amber-200">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -320,29 +311,34 @@ export default function BreakageLossPage({ onNavigate, param }: { onNavigate: (s
                       <span className="text-sm text-slate-500">Retour validé, règlement absent</span>
                     </div>
                     <div className="mt-3 space-y-2">
-                      {affectedLines.map((line) => (
-                        <label key={line.id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                          <span>
-                            <strong>{itemName(line.inventory_item)}</strong>{" "}
-                            — {line.damaged_quantity > 0 ? `${line.damaged_quantity} endommagé(s)` : ""}
-                            {line.damaged_quantity > 0 && line.missing_quantity > 0 ? ", " : ""}
-                            {line.missing_quantity > 0 ? `${line.missing_quantity} manquant(s)` : ""}
-                          </span>
-                          <span className="flex items-center gap-2">
-                            <input
-                              className="w-36 px-3 py-2 border border-slate-300 rounded-lg"
-                              type="number"
-                              min="0.01"
-                              step="0.01"
-                              placeholder="Montant unitaire"
-                              value={unitAmounts[line.id] ?? ""}
-                              onChange={(event) => setUnitAmounts((current) => ({ ...current, [line.id]: event.target.value }))}
-                              aria-label={`Montant unitaire ${itemName(line.inventory_item)}`}
-                            />
-                            <span>Ar</span>
-                          </span>
-                        </label>
-                      ))}
+                      {affectedLines.map((line) => {
+                        const casseQty = getLineCasseQuantity(line);
+                        const parts: string[] = [];
+                        if (line.damaged_quantity > 0) parts.push(`${line.damaged_quantity} endommagé(s)`);
+                        if (line.missing_quantity > 0) parts.push(`${line.missing_quantity} manquant(s)`);
+                        const detailLabel = parts.length > 0 ? parts.join(", ") : `${casseQty} casse(s)`;
+
+                        return (
+                          <label key={line.id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                            <span>
+                              <strong>{itemName(line.inventory_item)}</strong> — {detailLabel}
+                            </span>
+                            <span className="flex items-center gap-2">
+                              <input
+                                className="w-36 px-3 py-2 border border-slate-300 rounded-lg"
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                placeholder="Montant unitaire"
+                                value={unitAmounts[line.id] ?? ""}
+                                onChange={(event) => setUnitAmounts((current) => ({ ...current, [line.id]: event.target.value }))}
+                                aria-label={`Montant unitaire ${itemName(line.inventory_item)}`}
+                              />
+                              <span>Ar</span>
+                            </span>
+                          </label>
+                        );
+                      })}
                     </div>
                     <div className="mt-4 flex justify-end">
                       <button
