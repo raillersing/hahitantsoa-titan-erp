@@ -14,6 +14,8 @@ from apps.inventory.models import (
     InventoryStockMovement,
 )
 from apps.inventory.services import (
+    DAMAGE_LOSS_SETTLEMENT_ALREADY_EXISTS,
+    INVALID_DAMAGE_LOSS_SETTLEMENT_CLASSIFICATION,
     INVALID_DAMAGE_LOSS_SETTLEMENT_RETURN_OPERATION_STATE,
     INVALID_DAMAGE_LOSS_SETTLEMENT_STATE,
     InventoryStockMovementError,
@@ -79,7 +81,7 @@ def _validated_return_operation(django_user_model):
     return actor, reservation_draft, result.return_operation
 
 
-def test_create_damage_loss_settlement_persists_manual_and_return_lines_without_side_effects(
+def test_create_damage_loss_settlement_persists_exact_return_casse_without_side_effects(
     django_user_model,
     django_capture_on_commit_callbacks,
 ) -> None:
@@ -98,23 +100,16 @@ def test_create_damage_loss_settlement_persists_manual_and_return_lines_without_
                 {
                     "return_operation_line": line,
                     "settlement_line_kind": "damage",
-                    "quantity": 1,
+                    "quantity": 2,
                     "unit_amount": Decimal("25000.00"),
                     "notes": "Broken leg",
-                },
-                {
-                    "manual_label": "Nettoyage hors inventaire",
-                    "settlement_line_kind": "non_inventory_damage",
-                    "quantity": 1,
-                    "unit_amount": Decimal("5000.00"),
-                    "notes": "Cleaning fee",
                 },
             ],
         )
 
     settlement.refresh_from_db()
     assert settlement.settlement_status == InventoryDamageLossSettlementStatus.DRAFT
-    assert settlement.lines.count() == 2
+    assert settlement.lines.count() == 1
     assert InventoryStockMovement.objects.count() == before_stock_movement_count
     assert Payment.objects.count() == before_payment_count
     assert DocumentInstance.objects.count() == before_document_count
@@ -216,17 +211,10 @@ def test_validate_damage_loss_settlement_computes_caution_refund_and_excess(
         lines=[
             {
                 "return_operation_line": return_operation.lines.get(),
-                "settlement_line_kind": "loss",
+                "settlement_line_kind": "damage",
                 "quantity": 2,
-                "unit_amount": Decimal("20000.00"),
+                "unit_amount": Decimal("22500.00"),
                 "notes": "Two units billed",
-            },
-            {
-                "manual_label": "Cleaning surcharge",
-                "settlement_line_kind": "other",
-                "quantity": 1,
-                "unit_amount": Decimal("5000.00"),
-                "notes": "Extra manual charge",
             },
         ],
     )
@@ -277,7 +265,7 @@ def test_validate_damage_loss_settlement_computes_excess_due_without_caution(
         lines=[
             {
                 "return_operation_line": return_operation.lines.get(),
-                "settlement_line_kind": "loss",
+                "settlement_line_kind": "damage",
                 "quantity": 1,
                 "unit_amount": Decimal("30000.00"),
                 "notes": "Missing item",
@@ -306,7 +294,7 @@ def test_validate_damage_loss_settlement_rolls_back_on_failure(
             {
                 "return_operation_line": return_operation.lines.get(),
                 "settlement_line_kind": "damage",
-                "quantity": 1,
+                "quantity": 2,
                 "unit_amount": Decimal("15000.00"),
                 "notes": "",
             }
@@ -349,7 +337,7 @@ def test_validate_damage_loss_settlement_rejects_second_validation(django_user_m
             {
                 "return_operation_line": return_operation.lines.get(),
                 "settlement_line_kind": "damage",
-                "quantity": 1,
+                "quantity": 2,
                 "unit_amount": Decimal("15000.00"),
                 "notes": "",
             }
@@ -361,3 +349,128 @@ def test_validate_damage_loss_settlement_rejects_second_validation(django_user_m
         validate_inventory_damage_loss_settlement(settlement=settlement, actor=actor)
 
     assert error_info.value.code == INVALID_DAMAGE_LOSS_SETTLEMENT_STATE
+
+
+def test_create_damage_loss_settlement_rejects_manual_or_partial_classification(
+    django_user_model,
+) -> None:
+    actor, _, return_operation = _validated_return_operation(django_user_model)
+    return_line = return_operation.lines.get()
+
+    for line_data in (
+        {
+            "return_operation_line": return_line,
+            "settlement_line_kind": "damage",
+            "quantity": 1,
+            "unit_amount": Decimal("10000.00"),
+        },
+        {
+            "manual_label": "Frais manuel",
+            "settlement_line_kind": "other",
+            "quantity": 1,
+            "unit_amount": Decimal("10000.00"),
+        },
+    ):
+        with pytest.raises(InventoryStockMovementError) as error_info:
+            create_inventory_damage_loss_settlement(
+                actor=actor,
+                return_operation=return_operation,
+                lines=[line_data],
+            )
+
+        assert error_info.value.code == INVALID_DAMAGE_LOSS_SETTLEMENT_CLASSIFICATION
+
+
+def test_create_damage_loss_settlement_allows_empty_casse_for_caution_refund(
+    django_user_model,
+) -> None:
+    actor = django_user_model.objects.create_user(
+        username="settlement-no-casse",
+        password="test-pass",
+    )
+    return_operation = create_inventory_return_operation(
+        actor=actor,
+        lines=[
+            {
+                "inventory_item": _inventory_item("Settlement intact item"),
+                "expected_quantity": 1,
+                "returned_quantity": 1,
+                "damaged_quantity": 0,
+                "missing_quantity": 0,
+                "condition_status": "intact",
+                "notes": "",
+            }
+        ],
+    )
+    validated_return = validate_inventory_return_operation(
+        return_operation=return_operation,
+        actor=actor,
+    ).return_operation
+
+    settlement = create_inventory_damage_loss_settlement(
+        actor=actor,
+        return_operation=validated_return,
+        lines=[],
+    )
+
+    assert settlement.lines.count() == 0
+
+
+def test_create_damage_loss_settlement_rejects_duplicate_return_settlement(
+    django_user_model,
+) -> None:
+    actor, _, return_operation = _validated_return_operation(django_user_model)
+    line = return_operation.lines.get()
+    create_inventory_damage_loss_settlement(
+        actor=actor,
+        return_operation=return_operation,
+        lines=[
+            {
+                "return_operation_line": line,
+                "settlement_line_kind": "damage",
+                "quantity": 2,
+                "unit_amount": Decimal("10000.00"),
+            }
+        ],
+    )
+
+    with pytest.raises(InventoryStockMovementError) as error_info:
+        create_inventory_damage_loss_settlement(
+            actor=actor,
+            return_operation=return_operation,
+            lines=[
+                {
+                    "return_operation_line": line,
+                    "settlement_line_kind": "damage",
+                    "quantity": 2,
+                    "unit_amount": Decimal("10000.00"),
+                }
+            ],
+        )
+
+    assert error_info.value.code == DAMAGE_LOSS_SETTLEMENT_ALREADY_EXISTS
+
+
+def test_create_damage_loss_settlement_normalizes_legacy_loss_and_display_label(
+    django_user_model,
+) -> None:
+    actor, _, return_operation = _validated_return_operation(django_user_model)
+    return_line = return_operation.lines.get()
+
+    settlement = create_inventory_damage_loss_settlement(
+        actor=actor,
+        return_operation=return_operation,
+        lines=[
+            {
+                "return_operation_line": return_line,
+                "manual_label": "Libellé client non fiable",
+                "settlement_line_kind": "loss",
+                "quantity": 2,
+                "unit_amount": Decimal("10000.00"),
+            }
+        ],
+    )
+
+    settlement_line = settlement.lines.get()
+    assert settlement_line.settlement_line_kind == "damage"
+    assert settlement_line.manual_label == return_line.inventory_item.name

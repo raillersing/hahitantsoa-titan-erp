@@ -94,14 +94,14 @@ def test_damage_loss_settlement_requires_validated_return_operation(django_user_
     assert "return_operation" in error_info.value.message_dict
 
 
-def test_damage_loss_settlement_line_requires_manual_label_without_return_line(
+def test_damage_loss_settlement_line_requires_return_casse_line(
     django_user_model,
 ) -> None:
     _, return_operation = _validated_return_operation(django_user_model)
     settlement = InventoryDamageLossSettlement.objects.create(return_operation=return_operation)
     line = InventoryDamageLossSettlementLine(
         settlement=settlement,
-        settlement_line_kind="other",
+        settlement_line_kind="damage",
         quantity=1,
         unit_amount=Decimal("100.00"),
     )
@@ -109,7 +109,7 @@ def test_damage_loss_settlement_line_requires_manual_label_without_return_line(
     with pytest.raises(ValidationError) as error_info:
         line.full_clean()
 
-    assert "manual_label" in error_info.value.message_dict
+    assert "return_operation_line" in error_info.value.message_dict
 
 
 def test_validated_damage_loss_settlement_requires_validated_by(django_user_model) -> None:

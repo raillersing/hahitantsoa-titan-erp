@@ -20,6 +20,7 @@ from apps.inventory.models import (
     InventoryDamageLossSettlementExecution,
     InventoryDamageLossSettlementExecutionStatus,
     InventoryDamageLossSettlementLine,
+    InventoryDamageLossSettlementLineKind,
     InventoryDamageLossSettlementStatus,
     InventoryItem,
     InventoryReturnOperation,
@@ -196,6 +197,8 @@ INVALID_DAMAGE_LOSS_SETTLEMENT = "invalid_damage_loss_settlement"
 INVALID_DAMAGE_LOSS_SETTLEMENT_RETURN_OPERATION_STATE = (
     "invalid_damage_loss_settlement_return_operation_state"
 )
+INVALID_DAMAGE_LOSS_SETTLEMENT_CLASSIFICATION = "invalid_damage_loss_settlement_classification"
+DAMAGE_LOSS_SETTLEMENT_ALREADY_EXISTS = "damage_loss_settlement_already_exists"
 INVALID_DAMAGE_LOSS_SETTLEMENT_EXECUTION = "invalid_damage_loss_settlement_execution"
 INVALID_DAMAGE_LOSS_SETTLEMENT_EXECUTION_STATE = "invalid_damage_loss_settlement_execution_state"
 INVALID_DAMAGE_LOSS_SETTLEMENT_EXECUTION_SETTLEMENT_STATE = (
@@ -475,6 +478,83 @@ def calculate_caution_available_for_return_operation(
     return aggregate["total"] or Decimal("0.00")
 
 
+def _validate_damage_loss_settlement_classification(
+    *,
+    return_operation: InventoryReturnOperation,
+    return_lines: list[InventoryReturnOperationLine],
+    line_data: list[dict] | tuple[dict, ...] | None = None,
+    settlement_lines: list[InventoryDamageLossSettlementLine] | None = None,
+) -> None:
+    """Ensure a settlement is an exact financial classification of recorded casse.
+
+    The return inspection is the only source of truth for casse quantities.  A
+    settlement may set the monetary amount, but it must not add, remove, or
+    reclassify physical quantities.
+    """
+    expected_by_line_id = {
+        line.id: line.casse_quantity for line in return_lines if line.casse_quantity > 0
+    }
+    supplied_by_line_id: dict[object, tuple[int, str, str]] = {}
+
+    if settlement_lines is not None:
+        candidates = (
+            {
+                "return_operation_line": line.return_operation_line,
+                "quantity": line.quantity,
+                "settlement_line_kind": line.settlement_line_kind,
+                "manual_label": line.manual_label,
+            }
+            for line in settlement_lines
+        )
+    else:
+        candidates = line_data or ()
+
+    for candidate in candidates:
+        return_line = candidate.get("return_operation_line")
+        if return_line is None:
+            raise InventoryStockMovementError(
+                "Chaque ligne de règlement doit provenir d'une casse constatée au retour.",
+                code=INVALID_DAMAGE_LOSS_SETTLEMENT_CLASSIFICATION,
+            )
+        if return_line.return_operation_id != return_operation.id:
+            raise InventoryStockMovementError(
+                "Une ligne de règlement doit appartenir au même retour.",
+                code=INVALID_DAMAGE_LOSS_SETTLEMENT_CLASSIFICATION,
+            )
+        if candidate.get("settlement_line_kind") not in {
+            InventoryDamageLossSettlementLineKind.DAMAGE,
+            InventoryDamageLossSettlementLineKind.LOSS,
+        }:
+            raise InventoryStockMovementError(
+                "Les lignes de règlement doivent être classées comme casse.",
+                code=INVALID_DAMAGE_LOSS_SETTLEMENT_CLASSIFICATION,
+            )
+        if return_line.id in supplied_by_line_id:
+            raise InventoryStockMovementError(
+                "Une casse de retour ne peut être réglée qu'une seule fois.",
+                code=INVALID_DAMAGE_LOSS_SETTLEMENT_CLASSIFICATION,
+            )
+        supplied_by_line_id[return_line.id] = (
+            candidate.get("quantity"),
+            candidate.get("settlement_line_kind"),
+            candidate.get("manual_label", ""),
+        )
+
+    if set(supplied_by_line_id) != set(expected_by_line_id):
+        raise InventoryStockMovementError(
+            "Le règlement doit reprendre exactement toutes les casses du retour.",
+            code=INVALID_DAMAGE_LOSS_SETTLEMENT_CLASSIFICATION,
+        )
+
+    for return_line_id, expected_quantity in expected_by_line_id.items():
+        supplied_quantity, _, _ = supplied_by_line_id[return_line_id]
+        if supplied_quantity != expected_quantity:
+            raise InventoryStockMovementError(
+                "La quantité réglée doit correspondre exactement à la casse constatée.",
+                code=INVALID_DAMAGE_LOSS_SETTLEMENT_CLASSIFICATION,
+            )
+
+
 @transaction.atomic
 def create_inventory_damage_loss_settlement(
     *,
@@ -485,8 +565,39 @@ def create_inventory_damage_loss_settlement(
     notes: str = "",
 ) -> InventoryDamageLossSettlement:
     actor_id = getattr(actor, "pk", None)
+    # Lock the return row itself.  Do not join optional Titan/Hahitantsoa
+    # dossier relations here: PostgreSQL cannot lock the nullable side of an
+    # outer join, and the returned row is the only shared write boundary.
+    locked_return_operation = InventoryReturnOperation.objects.select_for_update().get(
+        pk=return_operation.pk
+    )
+    locked_return_lines = list(
+        InventoryReturnOperationLine.objects.select_for_update()
+        .select_related("inventory_item")
+        .filter(return_operation=locked_return_operation)
+        .order_by("created_at", "id")
+    )
+    if locked_return_operation.status != InventoryReturnOperationStatus.VALIDATED:
+        raise InventoryStockMovementError(
+            "Damage/loss settlement requires a validated return operation.",
+            code=INVALID_DAMAGE_LOSS_SETTLEMENT_RETURN_OPERATION_STATE,
+        )
+    if (
+        InventoryDamageLossSettlement.objects.select_for_update()
+        .filter(return_operation=locked_return_operation)
+        .exists()
+    ):
+        raise InventoryStockMovementError(
+            "A damage/loss settlement already exists for this return operation.",
+            code=DAMAGE_LOSS_SETTLEMENT_ALREADY_EXISTS,
+        )
+    _validate_damage_loss_settlement_classification(
+        return_operation=locked_return_operation,
+        return_lines=locked_return_lines,
+        line_data=lines,
+    )
     settlement = InventoryDamageLossSettlement(
-        return_operation=return_operation,
+        return_operation=locked_return_operation,
         document_instance=document_instance,
         notes=notes,
         created_by_id=actor_id,
@@ -544,8 +655,16 @@ def create_inventory_damage_loss_settlement_execution(
     notes: str = "",
 ) -> InventoryDamageLossSettlementExecution:
     actor_id = getattr(actor, "pk", None)
+    locked_settlement = InventoryDamageLossSettlement.objects.select_for_update().get(
+        pk=settlement.pk
+    )
+    existing_execution = InventoryDamageLossSettlementExecution.objects.filter(
+        settlement=locked_settlement
+    ).first()
+    if existing_execution is not None:
+        return existing_execution
     execution = InventoryDamageLossSettlementExecution(
-        settlement=settlement,
+        settlement=locked_settlement,
         notes=notes,
         created_by_id=actor_id,
         updated_by_id=actor_id,
@@ -1018,9 +1137,23 @@ def validate_inventory_damage_loss_settlement(
         "return_operation__reservation_draft",
     ).get(pk=locked_settlement.pk)
     locked_lines = list(
-        InventoryDamageLossSettlementLine.objects.filter(settlement=locked_settlement).order_by(
-            "created_at", "id"
+        InventoryDamageLossSettlementLine.objects.select_for_update()
+        .filter(settlement=locked_settlement)
+        .order_by("created_at", "id")
+    )
+    locked_lines = list(
+        InventoryDamageLossSettlementLine.objects.select_related(
+            "return_operation_line",
+            "return_operation_line__inventory_item",
         )
+        .filter(settlement=locked_settlement)
+        .order_by("created_at", "id")
+    )
+    locked_return_lines = list(
+        InventoryReturnOperationLine.objects.select_for_update()
+        .select_related("inventory_item")
+        .filter(return_operation=locked_settlement.return_operation)
+        .order_by("created_at", "id")
     )
     if locked_settlement.settlement_status != InventoryDamageLossSettlementStatus.DRAFT:
         raise InventoryStockMovementError(
@@ -1033,6 +1166,30 @@ def validate_inventory_damage_loss_settlement(
             "Damage/loss settlement requires a validated return operation.",
             code=INVALID_DAMAGE_LOSS_SETTLEMENT_RETURN_OPERATION_STATE,
         )
+
+    _validate_damage_loss_settlement_classification(
+        return_operation=locked_settlement.return_operation,
+        return_lines=locked_return_lines,
+        settlement_lines=locked_lines,
+    )
+
+    # Normalize legacy draft rows before the financial snapshot is taken.
+    # This keeps existing UI payloads readable while making persisted truth
+    # unambiguously casse-only.
+    for line in locked_lines:
+        original_kind = line.settlement_line_kind
+        original_label = line.manual_label
+        try:
+            line.full_clean()
+        except ValidationError as error:
+            first_field_errors = next(iter(error.message_dict.values()), error.messages)
+            message = first_field_errors[0] if first_field_errors else "Invalid damage/loss line."
+            raise InventoryStockMovementError(
+                message,
+                code=INVALID_DAMAGE_LOSS_SETTLEMENT_CLASSIFICATION,
+            ) from error
+        if line.settlement_line_kind != original_kind or line.manual_label != original_label:
+            line.save(update_fields=["settlement_line_kind", "manual_label", "total_amount"])
 
     damage_loss_total = sum(
         (_coerce_decimal_amount(line.total_amount) for line in locked_lines),

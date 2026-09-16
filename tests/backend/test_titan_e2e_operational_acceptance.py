@@ -245,10 +245,10 @@ def test_titan_full_happy_path_operational_acceptance(
                 "inventory_item_id": item.id,
                 "expected_quantity": 2,
                 "returned_quantity": 2,
-                "damaged_quantity": 0,
+                "damaged_quantity": 2,
                 "missing_quantity": 0,
-                "condition_status": "intact",
-                "notes": "",
+                "condition_status": "damaged",
+                "notes": "Damaged units",
             }
         ],
         notes="Return notes",
@@ -265,7 +265,7 @@ def test_titan_full_happy_path_operational_acceptance(
         lines=[
             {
                 "return_operation_line": return_line,
-                "settlement_line_kind": "loss",
+                "settlement_line_kind": "damage",
                 "quantity": 2,
                 "unit_amount": Decimal("2500.00"),
                 "notes": "Damage settlement",

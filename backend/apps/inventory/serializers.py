@@ -405,9 +405,10 @@ class InventoryDamageLossSettlementSerializer(serializers.ModelSerializer):
 class InventoryDamageLossSettlementLineCreateSerializer(serializers.Serializer):
     return_operation_line = serializers.PrimaryKeyRelatedField(
         queryset=InventoryReturnOperationLine.objects.select_related("return_operation"),
-        required=False,
-        allow_null=True,
+        required=True,
     )
+    # Accepted only for transport compatibility.  The service derives the
+    # persisted label from return_operation_line.inventory_item.
     manual_label = serializers.CharField(required=False, allow_blank=True, default="")
     settlement_line_kind = serializers.ChoiceField(
         choices=InventoryDamageLossSettlementLine._meta.get_field("settlement_line_kind").choices
@@ -436,7 +437,9 @@ class InventoryDamageLossSettlementCreateSerializer(serializers.Serializer):
         allow_null=True,
     )
     notes = serializers.CharField(required=False, allow_blank=True, default="")
-    lines = InventoryDamageLossSettlementLineCreateSerializer(many=True, allow_empty=False)
+    # A return with no casse still needs a zero-value settlement so that the
+    # caution refund obligation can be executed and audited.
+    lines = InventoryDamageLossSettlementLineCreateSerializer(many=True, allow_empty=True)
 
 
 class InventoryCautionRefundObligationSerializer(serializers.ModelSerializer):

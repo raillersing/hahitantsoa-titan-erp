@@ -798,9 +798,26 @@ class InventoryDamageLossSettlementLine(UUIDModel, TimestampedModel, AuditableMo
                 {"amount_source": "Only manual amount_source is allowed in this bundle."}
             )
 
-        if self.return_operation_line_id is None and not (self.manual_label or "").strip():
+        if self.return_operation_line_id is None:
             raise ValidationError(
-                {"manual_label": ("Manual non-inventory settlement lines require manual_label.")}
+                {
+                    "return_operation_line": (
+                        "Settlement lines must be derived from a return operation casse line."
+                    )
+                }
+            )
+
+        if self.settlement_line_kind == InventoryDamageLossSettlementLineKind.LOSS:
+            # Compatibility for drafts created before missing quantities were
+            # collapsed into the canonical casse outcome.
+            self.settlement_line_kind = InventoryDamageLossSettlementLineKind.DAMAGE
+        elif self.settlement_line_kind != InventoryDamageLossSettlementLineKind.DAMAGE:
+            raise ValidationError(
+                {
+                    "settlement_line_kind": (
+                        "Return-derived settlement lines must use the casse classification."
+                    )
+                }
             )
 
         if (
@@ -817,6 +834,30 @@ class InventoryDamageLossSettlementLine(UUIDModel, TimestampedModel, AuditableMo
                     )
                 }
             )
+
+        if self.return_operation_line_id is not None:
+            # ``manual_label`` remains a read-model compatibility field for
+            # existing clients.  It is always derived from inventory, never a
+            # separately billable manual line.
+            self.manual_label = self.return_operation_line.inventory_item.name
+            casse_quantity = self.return_operation_line.casse_quantity
+            if casse_quantity <= 0:
+                raise ValidationError(
+                    {
+                        "return_operation_line": (
+                            "A settlement line requires a return line with casse."
+                        )
+                    }
+                )
+            if self.quantity > casse_quantity:
+                raise ValidationError(
+                    {
+                        "quantity": (
+                            "Settlement quantity cannot exceed the casse recorded on "
+                            "the return line."
+                        )
+                    }
+                )
 
         self.total_amount = self.quantity * self.unit_amount
 
