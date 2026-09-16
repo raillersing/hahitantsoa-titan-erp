@@ -174,16 +174,9 @@ def test_sensitive_user_can_create_validate_and_authenticated_user_can_read_dama
                 {
                     "return_operation_line": str(return_operation_line.id),
                     "settlement_line_kind": "damage",
-                    "quantity": 1,
+                    "quantity": 2,
                     "unit_amount": "20000.00",
                     "notes": "Broken element",
-                },
-                {
-                    "manual_label": "Nettoyage",
-                    "settlement_line_kind": "non_inventory_damage",
-                    "quantity": 1,
-                    "unit_amount": "5000.00",
-                    "notes": "Manual fee",
                 },
             ],
         },
@@ -193,7 +186,7 @@ def test_sensitive_user_can_create_validate_and_authenticated_user_can_read_dama
     assert create_response.status_code == 201
     payload = create_response.json()
     assert payload["settlement_status"] == "draft"
-    assert len(payload["lines"]) == 2
+    assert len(payload["lines"]) == 1
     assert Payment.objects.count() == before_payment_count
     assert DocumentInstance.objects.count() == before_document_count
     assert InventoryStockMovement.objects.count() == before_stock_movement_count
@@ -213,9 +206,9 @@ def test_sensitive_user_can_create_validate_and_authenticated_user_can_read_dama
     assert validate_response.status_code == 200
     validated_payload = validate_response.json()
     assert validated_payload["settlement_status"] == "validated"
-    assert Decimal(validated_payload["damage_loss_total"]) == Decimal("25000.00")
+    assert Decimal(validated_payload["damage_loss_total"]) == Decimal("40000.00")
     assert Decimal(validated_payload["caution_available"]) == Decimal("60000.00")
-    assert Decimal(validated_payload["refund_due"]) == Decimal("35000.00")
+    assert Decimal(validated_payload["refund_due"]) == Decimal("20000.00")
     assert Payment.objects.count() == before_payment_count
     assert DocumentInstance.objects.count() == before_document_count
     assert InventoryStockMovement.objects.count() == before_stock_movement_count
@@ -257,8 +250,8 @@ def test_damage_loss_settlement_validate_requires_sensitive_access(
             "lines": [
                 {
                     "return_operation_line": str(return_operation.lines.get().id),
-                    "settlement_line_kind": "loss",
-                    "quantity": 1,
+                    "settlement_line_kind": "damage",
+                    "quantity": 2,
                     "unit_amount": "20000.00",
                     "notes": "",
                 }
@@ -302,8 +295,8 @@ def test_damage_loss_settlement_create_rejects_draft_return_operation(
             "return_operation": str(return_operation.id),
             "lines": [
                 {
-                    "manual_label": "Manual fee",
-                    "settlement_line_kind": "other",
+                    "return_operation_line": str(return_operation.lines.get().id),
+                    "settlement_line_kind": "damage",
                     "quantity": 1,
                     "unit_amount": "1000.00",
                     "notes": "",
@@ -329,8 +322,8 @@ def test_damage_loss_settlement_validate_rejects_second_validation(
             "lines": [
                 {
                     "return_operation_line": str(return_operation.lines.get().id),
-                    "settlement_line_kind": "loss",
-                    "quantity": 1,
+                    "settlement_line_kind": "damage",
+                    "quantity": 2,
                     "unit_amount": "20000.00",
                     "notes": "",
                 }
@@ -369,7 +362,7 @@ def test_damage_loss_settlement_detail_rejects_write_methods(
                 {
                     "return_operation_line": str(return_operation.lines.get().id),
                     "settlement_line_kind": "damage",
-                    "quantity": 1,
+                    "quantity": 2,
                     "unit_amount": "15000.00",
                     "notes": "",
                 }

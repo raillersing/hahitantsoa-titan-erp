@@ -113,7 +113,7 @@ def _validated_settlement(
         lines=[
             {
                 "return_operation_line": return_result.return_operation.lines.get(),
-                "settlement_line_kind": "loss",
+                "settlement_line_kind": "damage",
                 "quantity": quantity,
                 "unit_amount": unit_amount,
                 "notes": "",
@@ -189,7 +189,7 @@ def test_create_execution_rejects_non_validated_settlement(django_user_model) ->
         lines=[
             {
                 "return_operation_line": validated_return.lines.get(),
-                "settlement_line_kind": "loss",
+                "settlement_line_kind": "damage",
                 "quantity": 1,
                 "unit_amount": Decimal("1000.00"),
                 "notes": "",

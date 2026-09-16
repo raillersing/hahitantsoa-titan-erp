@@ -92,15 +92,7 @@ def test_execution_requires_validated_settlement(django_user_model) -> None:
             return_operation=return_operation,
             actor=actor,
         ).return_operation,
-        lines=[
-            {
-                "return_operation_line": return_operation.lines.get(),
-                "settlement_line_kind": "damage",
-                "quantity": 1,
-                "unit_amount": Decimal("1000.00"),
-                "notes": "",
-            }
-        ],
+        lines=[],
     )
     execution = InventoryDamageLossSettlementExecution(settlement=settlement)
 
