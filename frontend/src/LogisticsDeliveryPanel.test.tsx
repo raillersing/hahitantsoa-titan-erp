@@ -430,12 +430,53 @@ describe("LogisticsDeliveryPanel", () => {
   it("restores an existing delivery note when selecting an event", async () => {
     vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([MOCK_HANDOVER_EVENT]);
     vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue([
-      { id: "existing-delivery-note", template_key: "titan.delivery_note.v1", status: "generated" } as any,
+      {
+        id: "existing-delivery-note",
+        template_key: "titan.delivery_note.v1",
+        status: "generated",
+        document_reference: "2026/0012-BL",
+      } as any,
     ]);
 
     render(<LogisticsDeliveryPanel />);
 
     expect(await screen.findByRole("button", { name: "Voir le PDF" })).toBeInTheDocument();
+    expect(screen.getByText(/2026\/0012-BL/)).toBeInTheDocument();
+  });
+
+  it("generates a delivery note when none exists for an outbound event", async () => {
+    vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(true);
+    vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([MOCK_HANDOVER_EVENT]);
+    vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue([]);
+    const createSpy = vi.spyOn(api, "createReservationDraftDocumentInstance").mockResolvedValue({
+      id: "bl-doc-1",
+      status: "prepared",
+      document_reference: "2026/0013-BL",
+    } as any);
+    const generateSpy = vi.spyOn(api, "generateReservationDraftDocumentInstance").mockResolvedValue({
+      id: "bl-doc-1",
+      status: "generated",
+      document_reference: "2026/0013-BL",
+    } as any);
+    const pdfSpy = vi.spyOn(api, "generateReservationDraftDocumentInstancePdf").mockResolvedValue({
+      id: "bl-doc-1",
+    } as any);
+
+    render(<LogisticsDeliveryPanel />);
+
+    const emitBtn = await screen.findByRole("button", { name: "Émettre le bon de livraison" });
+    expect(emitBtn).toBeInTheDocument();
+    fireEvent.click(emitBtn);
+
+    await waitFor(() => {
+      expect(createSpy).toHaveBeenCalledWith("rd-1111", {
+        template_key: "titan.delivery_note.v1",
+        notes: "Bon de livraison pour l'événement logistique handover-1",
+      });
+      expect(generateSpy).toHaveBeenCalledWith("rd-1111", "bl-doc-1");
+      expect(pdfSpy).toHaveBeenCalledWith("rd-1111", "bl-doc-1");
+    });
+    expect(await screen.findByText(/2026\/0013-BL/)).toBeInTheDocument();
   });
 
   it("generates and opens the printable preparation sheet", async () => {

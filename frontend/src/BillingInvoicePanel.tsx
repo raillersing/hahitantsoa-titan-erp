@@ -8,6 +8,7 @@ import {
   executeBillingRefundObligation,
   getBillingCreditNotes,
   getBillingInvoices,
+  getDocumentInstancePdfBlob,
   getHahitantsoaEventDraftBillingInvoices,
   issueBillingCreditNote,
   settleBillingInvoice,
@@ -97,7 +98,9 @@ function InvoiceRow({
     >
       <span className="ops-row__primary">
         <span className="ops-row__title">
-          {invoice.document_instance?.template_label ?? invoice.id.slice(0, 8)}
+          {invoice.document_instance?.document_reference ??
+            invoice.document_instance?.template_label ??
+            invoice.id.slice(0, 8)}
         </span>
         <span className="ops-row__subtext">{invoice.source_kind}</span>
       </span>
@@ -457,12 +460,35 @@ export function BillingInvoicePanel({
               <>
                 <div className="ops-section-heading">
                   <div>
-                    <h4>{selectedInvoice.document_instance?.template_label ?? "Détail de la facture"}</h4>
+                    <h4>
+                      {selectedInvoice.document_instance?.document_reference
+                        ? `${selectedInvoice.document_instance.template_label || "Facture"} — ${selectedInvoice.document_instance.document_reference}`
+                        : selectedInvoice.document_instance?.template_label ?? "Détail de la facture"}
+                    </h4>
                     <p className="ops-section-helper">
                       Source {selectedInvoice.source_kind} · {formatAmount(selectedInvoice.amount)} MGA
                     </p>
                   </div>
-                  <InvoiceStatusBadge invoice={selectedInvoice} />
+                  <div className="flex items-center gap-2">
+                    {selectedInvoice.document_instance?.id ? (
+                      <button
+                        type="button"
+                        className="ops-button-secondary text-xs"
+                        onClick={async () => {
+                          try {
+                            const blob = await getDocumentInstancePdfBlob(selectedInvoice.document_instance!.id);
+                            const url = URL.createObjectURL(blob);
+                            window.open(url, "_blank");
+                          } catch {
+                            setActionState({ status: "error", message: "Échec de l'ouverture du PDF de la facture." });
+                          }
+                        }}
+                      >
+                        Voir le PDF
+                      </button>
+                    ) : null}
+                    <InvoiceStatusBadge invoice={selectedInvoice} />
+                  </div>
                 </div>
 
                 <div className="ops-detail-section">
