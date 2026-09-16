@@ -21,6 +21,8 @@ const VARIABLE_MAP: Record<string, string> = {
   "company.bankName": "Banque",
   "company.bankIban": "IBAN",
   "document.date": "Date edition",
+  "dossier.invoiceNumber": "Numéro de facture liée",
+  "dossier.number": "Numéro de bon de livraison / référence",
 };
 
 type PaperSize = "A4" | "THERMAL_80MM";

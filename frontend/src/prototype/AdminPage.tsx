@@ -8,7 +8,43 @@ import {
   getNumberingSequences,
   configureNumberingSequence,
 } from "../api";
-import type { User, ApplicationRole, NumberingSequence, NumberingSequenceBrand } from "../types";
+import type { User, ApplicationRole, NumberingSequence, NumberingSequenceBrand, NumberingSequenceType } from "../types";
+
+const DEFAULT_SUFFIX_BY_TYPE: Record<NumberingSequenceType, string> = {
+  proforma: "/{year}",
+  invoice: "/{year}-FA",
+  delivery_note: "/{year}-BL",
+};
+
+const SEQUENCE_TYPE_INFO: Record<NumberingSequenceType, {
+  label: string;
+  badge: string;
+  previewName: string;
+  description: string;
+  exampleStart: string;
+}> = {
+  proforma: {
+    label: "Devis / Proformas",
+    badge: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    previewName: "proforma",
+    description: "Les nouvelles réservations et proformas recevront cette référence par défaut ou le numéro configuré s'incrémentera automatiquement en évitant les collisions.",
+    exampleStart: "Ex: 100 pour démarrer à 100/{year}, ou 500 pour démarrer à 500/{year}.",
+  },
+  invoice: {
+    label: "Factures Définitives",
+    badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    previewName: "facture",
+    description: "Les factures définitives générées recevront cette référence par défaut ou le numéro configuré s'incrémentera automatiquement avec le suffixe -FA.",
+    exampleStart: "Ex: 1 pour démarrer à 001/{year}-FA, ou 100 pour démarrer à 100/{year}-FA.",
+  },
+  delivery_note: {
+    label: "Bons de Livraison (BL)",
+    badge: "bg-amber-50 text-amber-700 border-amber-200",
+    previewName: "bon de livraison",
+    description: "Les bons de livraison et fiches de sortie recevront cette référence par défaut ou le numéro configuré s'incrémentera automatiquement avec le suffixe -BL.",
+    exampleStart: "Ex: 1 pour démarrer à 001/{year}-BL, ou 50 pour démarrer à 050/{year}-BL.",
+  },
+};
 
 interface AdminPageProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -41,6 +77,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   const [sequencesLoading, setSequencesLoading] = useState(false);
   const [sequencesError, setSequencesError] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedSequenceType, setSelectedSequenceType] = useState<NumberingSequenceType>("proforma");
   const [editingBrand, setEditingBrand] = useState<NumberingSequenceBrand | null>(null);
   const [editNextNumber, setEditNextNumber] = useState<number>(1);
   const [editPrefix, setEditPrefix] = useState<string>("");
@@ -72,6 +109,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
       setSavingSequence(true);
       await configureNumberingSequence({
         brand,
+        sequence_type: selectedSequenceType,
         year: selectedYear,
         next_number: editNextNumber,
         prefix: editPrefix,
@@ -79,7 +117,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
         suffix_template: editSuffix,
       });
       setEditingBrand(null);
-      showToast(`Séquence ${brand === "titan" ? "Titan" : "Hahitantsoa"} ${selectedYear} enregistrée.`);
+      showToast(`Séquence ${brand === "titan" ? "Titan" : "Hahitantsoa"} (${selectedSequenceType}) ${selectedYear} enregistrée.`);
       await loadSequences(selectedYear);
     } catch (err: any) {
       showToast(err?.message || "Erreur lors de l'enregistrement de la séquence.");
@@ -388,24 +426,50 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                 <div>
                   <h3 className="text-base font-bold text-slate-800">Configuration des Séquences Annuelles</h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Définissez les numéros de départ (ex: 100, 500) et formats de référence pour les proformas et dossiers par marque et année.
+                    Définissez les numéros de départ (ex: 100, 500) et formats de référence pour les proformas, factures et bons de livraison par marque et année.
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Année :</label>
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => {
-                      const yr = parseInt(e.target.value, 10);
-                      setSelectedYear(yr);
-                      setEditingBrand(null);
-                    }}
-                    className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-800 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {[selectedYear - 1, selectedYear, selectedYear + 1, selectedYear + 2].filter((v, i, a) => a.indexOf(v) === i).map((y) => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200" role="group" aria-label="Type de séquence">
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedSequenceType("proforma"); setEditingBrand(null); }}
+                      className={`px-3 py-1.5 rounded-md text-xs font-bold transition ${selectedSequenceType === "proforma" ? "bg-indigo-600 text-white shadow-xs" : "text-slate-600 hover:bg-slate-50"}`}
+                    >
+                      Proformas & Devis
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedSequenceType("invoice"); setEditingBrand(null); }}
+                      className={`px-3 py-1.5 rounded-md text-xs font-bold transition ${selectedSequenceType === "invoice" ? "bg-indigo-600 text-white shadow-xs" : "text-slate-600 hover:bg-slate-50"}`}
+                    >
+                      Factures Définitives
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedSequenceType("delivery_note"); setEditingBrand(null); }}
+                      className={`px-3 py-1.5 rounded-md text-xs font-bold transition ${selectedSequenceType === "delivery_note" ? "bg-indigo-600 text-white shadow-xs" : "text-slate-600 hover:bg-slate-50"}`}
+                    >
+                      Bons de Livraison
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Année :</label>
+                    <select
+                      value={selectedYear}
+                      onChange={(e) => {
+                        const yr = parseInt(e.target.value, 10);
+                        setSelectedYear(yr);
+                        setEditingBrand(null);
+                      }}
+                      className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-800 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {[selectedYear - 1, selectedYear, selectedYear + 1, selectedYear + 2].filter((v, i, a) => a.indexOf(v) === i).map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -421,14 +485,17 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
               {!sequencesLoading && !sequencesError && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {(["titan", "hahitantsoa"] as NumberingSequenceBrand[]).map((brand) => {
-                    const seq = sequences.find((s) => s.brand === brand);
+                    const seq = sequences.find(
+                      (s) => s.brand === brand && (s.sequence_type ?? "proforma") === selectedSequenceType
+                    );
                     const isEditing = editingBrand === brand;
                     const brandLabel = brand === "titan" ? "Titan (Location de Matériel)" : "Hahitantsoa (Événementiel)";
                     const currentNextNumber = seq ? seq.next_number : 1;
                     const currentPrefix = seq ? seq.prefix : "";
                     const currentPadding = seq ? seq.padding : 3;
-                    const currentSuffix = seq ? seq.suffix_template : "/{year}";
-                    const currentPreview = seq?.preview_next || `${currentPrefix}${String(currentNextNumber).padStart(currentPadding, "0")}/${selectedYear}`;
+                    const currentSuffix = seq?.suffix_template || DEFAULT_SUFFIX_BY_TYPE[selectedSequenceType];
+                    const currentPreview = seq?.preview_next || `${currentPrefix}${String(currentNextNumber).padStart(currentPadding, "0")}${currentSuffix.replace("{year}", String(selectedYear))}`;
+                    const typeInfo = SEQUENCE_TYPE_INFO[selectedSequenceType];
 
                     // preview for edit mode
                     const editComputedPreview = `${editPrefix}${String(editNextNumber).padStart(editPadding, "0")}${editSuffix.replace("{year}", String(selectedYear))}`;
@@ -441,16 +508,21 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                               <span className={`w-3 h-3 rounded-full ${brand === "titan" ? "bg-emerald-500" : "bg-indigo-500"}`}></span>
                               <h4 className="font-bold text-slate-800 text-base">{brandLabel}</h4>
                             </div>
-                            <span className="text-xs font-mono font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
-                              Année {selectedYear}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50 text-slate-700">
+                                {typeInfo.label}
+                              </span>
+                              <span className="text-xs font-mono font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
+                                Année {selectedYear}
+                              </span>
+                            </div>
                           </div>
 
                           {!isEditing ? (
                             <div className="space-y-4">
                               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
                                 <span className="text-xs text-slate-500 block uppercase font-bold tracking-wider mb-1">
-                                  Prochaine référence automatique
+                                  Prochaine référence automatique ({typeInfo.label})
                                 </span>
                                 <span className="text-xl font-mono font-bold text-slate-900 tracking-tight">
                                   {currentPreview}
@@ -471,7 +543,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                               </div>
 
                               <p className="text-xs text-slate-500 leading-relaxed">
-                                Les nouvelles réservations et proformas recevront cette référence par défaut ou le numéro configuré s'incrémentera automatiquement en évitant les collisions.
+                                {typeInfo.description}
                               </p>
                             </div>
                           ) : (
@@ -488,7 +560,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
                                 />
                                 <span className="text-[11px] text-slate-400 mt-1 block">
-                                  Ex: 100 pour démarrer à 100/{selectedYear}, ou 500 pour démarrer à 500/{selectedYear}.
+                                  {typeInfo.exampleStart.replace("{year}", String(selectedYear))}
                                 </span>
                               </div>
 
@@ -528,13 +600,15 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                                   type="text"
                                   value={editSuffix}
                                   onChange={(e) => setEditSuffix(e.target.value)}
-                                  placeholder="/{year}"
+                                  placeholder={DEFAULT_SUFFIX_BY_TYPE[selectedSequenceType]}
                                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
                                 />
                               </div>
 
                               <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
-                                <span className="text-xs text-indigo-600 font-bold block mb-1">Aperçu du prochain proforma :</span>
+                                <span className="text-xs text-indigo-600 font-bold block mb-1">
+                                  Aperçu du prochain {typeInfo.previewName} :
+                                </span>
                                 <span className="font-mono font-bold text-indigo-900 text-sm">
                                   {editComputedPreview}
                                 </span>
