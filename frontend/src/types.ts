@@ -2136,9 +2136,12 @@ export type PayrollRuleSetCreatePayload = Omit<
 
 export type NumberingSequenceBrand = "titan" | "hahitantsoa";
 
+export type NumberingSequenceType = "proforma" | "invoice" | "delivery_note";
+
 export type NumberingSequence = {
   id: string;
   brand: NumberingSequenceBrand;
+  sequence_type?: NumberingSequenceType;
   year: number;
   prefix: string;
   next_number: number;
@@ -2151,6 +2154,7 @@ export type NumberingSequence = {
 
 export type NumberingSequenceConfigurePayload = {
   brand: NumberingSequenceBrand;
+  sequence_type?: NumberingSequenceType;
   year: number;
   next_number: number;
   prefix?: string;
@@ -2160,6 +2164,7 @@ export type NumberingSequenceConfigurePayload = {
 
 export type NumberingSequencePreviewResponse = {
   brand: string;
+  sequence_type?: string;
   year: number;
   next_reference: string;
   next_number: number;

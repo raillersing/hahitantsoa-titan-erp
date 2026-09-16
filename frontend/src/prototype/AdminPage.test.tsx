@@ -37,6 +37,7 @@ const mockSequences: NumberingSequence[] = [
   {
     id: "seq-1",
     brand: "titan",
+    sequence_type: "proforma",
     year: 2026,
     prefix: "",
     next_number: 100,
@@ -47,14 +48,67 @@ const mockSequences: NumberingSequence[] = [
     updated_at: "2026-01-01T00:00:00Z",
   },
   {
+    id: "seq-1-inv",
+    brand: "titan",
+    sequence_type: "invoice",
+    year: 2026,
+    prefix: "",
+    next_number: 10,
+    padding: 3,
+    suffix_template: "/{year}-FA",
+    preview_next: "010/2026-FA",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  },
+  {
+    id: "seq-1-bl",
+    brand: "titan",
+    sequence_type: "delivery_note",
+    year: 2026,
+    prefix: "",
+    next_number: 5,
+    padding: 3,
+    suffix_template: "/{year}-BL",
+    preview_next: "005/2026-BL",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  },
+  {
     id: "seq-2",
     brand: "hahitantsoa",
+    sequence_type: "proforma",
     year: 2026,
     prefix: "H-",
     next_number: 50,
     padding: 3,
     suffix_template: "/{year}",
     preview_next: "H-050/2026",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  },
+  {
+    id: "seq-2-inv",
+    brand: "hahitantsoa",
+    sequence_type: "invoice",
+    year: 2026,
+    prefix: "H-",
+    next_number: 15,
+    padding: 3,
+    suffix_template: "/{year}-FA",
+    preview_next: "H-015/2026-FA",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  },
+  {
+    id: "seq-2-bl",
+    brand: "hahitantsoa",
+    sequence_type: "delivery_note",
+    year: 2026,
+    prefix: "H-",
+    next_number: 8,
+    padding: 3,
+    suffix_template: "/{year}-BL",
+    preview_next: "H-008/2026-BL",
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   },
@@ -211,10 +265,61 @@ describe("AdminPage", () => {
       expect(mockConfigureNumberingSequence).toHaveBeenCalledWith(
         expect.objectContaining({
           brand: "titan",
+          sequence_type: "proforma",
           year: 2026,
           next_number: 200,
         })
       );
     });
+  });
+
+  it("permet de basculer sur les séquences de Factures Définitives et de Bons de Livraison et de les configurer", async () => {
+    render(<AdminPage onNavigate={vi.fn()} />);
+    await screen.findByText("Admin User");
+
+    const numberingTab = screen.getByRole("button", { name: /Numérotation & Séquences/i });
+    fireEvent.click(numberingTab);
+
+    expect(await screen.findByText("Configuration des Séquences Annuelles")).toBeInTheDocument();
+
+    // Switch to Factures Définitives
+    const invoiceTypeBtn = screen.getByRole("button", { name: /Factures Définitives/i });
+    fireEvent.click(invoiceTypeBtn);
+
+    expect(screen.getByText("010/2026-FA")).toBeInTheDocument();
+    expect(screen.getByText("H-015/2026-FA")).toBeInTheDocument();
+
+    const configButtons = screen.getAllByRole("button", { name: /Configurer la séquence/i });
+    // Click config for Titan Invoice
+    fireEvent.click(configButtons[0]);
+
+    // Update next_number and prefix
+    const inputNumber = screen.getByDisplayValue("10");
+    fireEvent.change(inputNumber, { target: { value: "25" } });
+    const inputPrefix = screen.getByPlaceholderText("Ex: PRO-");
+    fireEvent.change(inputPrefix, { target: { value: "FAC-" } });
+
+    // Save
+    const saveBtn = screen.getByRole("button", { name: /^Enregistrer$/i });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(mockConfigureNumberingSequence).toHaveBeenCalledWith(
+        expect.objectContaining({
+          brand: "titan",
+          sequence_type: "invoice",
+          year: 2026,
+          next_number: 25,
+          prefix: "FAC-",
+        })
+      );
+    });
+
+    // Switch to Bons de Livraison
+    const blTypeBtn = screen.getByRole("button", { name: /Bons de Livraison/i });
+    fireEvent.click(blTypeBtn);
+
+    expect(screen.getByText("005/2026-BL")).toBeInTheDocument();
+    expect(screen.getByText("H-008/2026-BL")).toBeInTheDocument();
   });
 });

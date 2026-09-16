@@ -61,6 +61,7 @@ import type {
   NumberingSequenceBrand,
   NumberingSequenceConfigurePayload,
   NumberingSequencePreviewResponse,
+  NumberingSequenceType,
   User,
   HahitantsoaEventDraft,
   HahitantsoaEventDraftCreatePayload,
@@ -2795,11 +2796,13 @@ export function updateHahitantsoaEventDraftPublicReference(
 export function getNumberingSequences(
   brand?: NumberingSequenceBrand | string,
   year?: number,
+  sequenceType?: NumberingSequenceType | string,
   signal?: AbortSignal,
 ): Promise<NumberingSequence[]> {
   const params = new URLSearchParams();
   if (brand) params.set("brand", brand);
   if (year) params.set("year", String(year));
+  if (sequenceType) params.set("sequence_type", sequenceType);
   const query = params.toString() ? `?${params.toString()}` : "";
   return getAuthenticatedJson(`/api/v1/numbering/sequences/${query}`, signal);
 }
@@ -2814,10 +2817,12 @@ export function configureNumberingSequence(
 export function previewNextPublicReference(
   brand: string,
   year?: number,
+  sequenceType?: string,
   signal?: AbortSignal,
 ): Promise<NumberingSequencePreviewResponse> {
   const params = new URLSearchParams();
   params.set("brand", brand);
   if (year) params.set("year", String(year));
-  return getAuthenticatedJson(`/api/v1/numbering/preview/?${params.toString()}`, signal);
+  if (sequenceType) params.set("sequence_type", sequenceType);
+  return getAuthenticatedJson(`/api/v1/numbering/sequences/preview-next/?${params.toString()}`, signal);
 }
