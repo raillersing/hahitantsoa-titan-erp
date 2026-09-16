@@ -115,6 +115,32 @@ test('Titan : l’assistant émet les documents, enregistre l’acompte et persi
   await page.reload();
   await expect(page.getByText('Confirmée', { exact: true }).first()).toBeVisible();
 
+  // Émission de la facture définitive séquentielle (PR #839 / #844)
+  const invoiceGenerated = page.waitForResponse((response) =>
+    response.request().method() === 'POST'
+    && /\/api\/v1\/documents\/reservation-drafts\/[^/]+\/instances\/[^/]+\/generate-pdf\/$/.test(new URL(response.url()).pathname)
+    && response.ok(),
+  );
+  await page.getByRole('button', { name: 'Émettre la facture' }).click();
+  await invoiceGenerated;
+  await expect(page.getByText(/Facture de location Titan/i).first()).toBeVisible();
+  await page.locator('button[title="Fermer"]').click();
+  await expect(page.getByText('Émise', { exact: true })).toBeVisible();
+
+  // Émission du bon de livraison séquentiel (PR #839 / #844)
+  await page.getByRole('button', { name: /Sortie \/ Livraison/i }).click();
+  await expect(page.getByRole('heading', { name: 'Sortie / Livraison du matériel' })).toBeVisible();
+  const deliveryNoteGenerated = page.waitForResponse((response) =>
+    response.request().method() === 'POST'
+    && /\/api\/v1\/documents\/reservation-drafts\/[^/]+\/instances\/[^/]+\/generate-pdf\/$/.test(new URL(response.url()).pathname)
+    && response.ok(),
+  );
+  await page.getByRole('button', { name: 'Générer le BL' }).click();
+  await deliveryNoteGenerated;
+  await expect(page.getByText(/Bon de livraison \/ Sortie Titan/i).first()).toBeVisible();
+  await page.locator('button[title="Fermer"]').click();
+  await expect(page.getByText(/BL \(/i)).toBeVisible();
+
   const persistedDocuments = await page.request.get(
     `/api/v1/documents/reservation-drafts/${persistedDraft.id}/instances/`,
   );
@@ -122,5 +148,7 @@ test('Titan : l’assistant émet les documents, enregistre l’acompte et persi
   await expect(persistedDocuments.json()).resolves.toEqual(expect.arrayContaining([
     expect.objectContaining({ template_key: 'titan.proforma.v1' }),
     expect.objectContaining({ template_key: 'titan.material_contract.v1' }),
+    expect.objectContaining({ template_key: 'titan.invoice.v1' }),
+    expect.objectContaining({ template_key: 'titan.delivery_note.v1' }),
   ]));
 });
