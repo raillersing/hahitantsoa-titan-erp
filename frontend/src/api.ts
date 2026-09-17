@@ -549,6 +549,54 @@ export function getReportCategory(
   );
 }
 
+export interface TabularExportParams {
+  scope?: "all" | "titan" | "hahitantsoa" | string;
+  start_date?: string;
+  end_date?: string;
+  method?: string;
+}
+
+export async function downloadTabularExport(
+  exportType: "sales" | "payments" | "cautions" | "breakage",
+  params: TabularExportParams = {},
+): Promise<void> {
+  const query = new URLSearchParams({ format: "csv" });
+  if (params.scope && params.scope !== "all") query.set("scope", params.scope);
+  if (params.start_date) query.set("start_date", params.start_date);
+  if (params.end_date) query.set("end_date", params.end_date);
+  if (params.method && params.method !== "all") query.set("method", params.method);
+
+  const response = await fetch(`/api/v1/reports/exports/${exportType}/?${query.toString()}`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new Error("Vous n'avez pas l'autorisation d'exporter ce document.");
+    }
+    throw new Error(`Erreur lors du téléchargement de l'export (${response.status}).`);
+  }
+
+  const disposition = response.headers.get("Content-Disposition");
+  let filename = `export-${exportType}-${new Date().toISOString().slice(0, 10)}.csv`;
+  if (disposition) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match && match[1]) {
+      filename = match[1];
+    }
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 const REPORT_KPI_LABELS: Record<string, string> = {
   reservation_created: "Réservations créées",
   reservation_confirmed: "Réservations confirmées",

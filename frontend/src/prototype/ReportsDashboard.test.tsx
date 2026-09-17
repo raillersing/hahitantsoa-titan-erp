@@ -61,4 +61,54 @@ describe("ReportsDashboard", () => {
     click.mockRestore();
     vi.unstubAllGlobals();
   });
+
+  it("renders the tabular accounting & operational exports section", () => {
+    render(<ReportsDashboard onNavigate={() => {}} />);
+    expect(screen.getByText("Exports Comptables & Fiscaux (Tabulaires)")).toBeInTheDocument();
+    expect(screen.getByText("Facturier des Ventes")).toBeInTheDocument();
+    expect(screen.getByText("Journal des Règlements")).toBeInTheDocument();
+    expect(screen.getByText("Balance des Cautions")).toBeInTheDocument();
+    expect(screen.getByText("Registre de la Casse")).toBeInTheDocument();
+  });
+
+  it("calls downloadTabularExport with selected filters when clicking export buttons", async () => {
+    const downloadSpy = vi.spyOn(api, "downloadTabularExport").mockResolvedValue(undefined);
+    render(<ReportsDashboard onNavigate={() => {}} />);
+
+    // Configure filters
+    const scopeSelect = screen.getByLabelText(/Volet d'activité/i);
+    fireEvent.change(scopeSelect, { target: { value: "titan" } });
+
+    const startDateInput = screen.getByLabelText(/Date de début/i);
+    fireEvent.change(startDateInput, { target: { value: "2026-01-01" } });
+
+    const endDateInput = screen.getByLabelText(/Date de fin/i);
+    fireEvent.change(endDateInput, { target: { value: "2026-01-31" } });
+
+    // Click on Exporter Facturier
+    const exportSalesBtn = screen.getByRole("button", { name: /Exporter Facturier/i });
+    fireEvent.click(exportSalesBtn);
+
+    expect(downloadSpy).toHaveBeenCalledWith("sales", {
+      scope: "titan",
+      start_date: "2026-01-01",
+      end_date: "2026-01-31",
+      method: undefined,
+    });
+    expect(await screen.findByText("Export téléchargé avec succès.")).toBeInTheDocument();
+  });
+
+  it("displays an error message when downloadTabularExport fails", async () => {
+    vi.spyOn(api, "downloadTabularExport").mockRejectedValue(
+      new Error("Vous n'avez pas l'autorisation d'exporter ce document."),
+    );
+    render(<ReportsDashboard onNavigate={() => {}} />);
+
+    const exportCautionsBtn = screen.getByRole("button", { name: /Exporter Cautions/i });
+    fireEvent.click(exportCautionsBtn);
+
+    expect(
+      await screen.findByText("Vous n'avez pas l'autorisation d'exporter ce document."),
+    ).toBeInTheDocument();
+  });
 });

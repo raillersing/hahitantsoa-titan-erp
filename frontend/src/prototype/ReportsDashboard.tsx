@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { getReportCategory } from "../api";
+import { getReportCategory, downloadTabularExport } from "../api";
 import type { ReportCategory, ReportCategoryResponse, ReportKpi } from "../types";
 import { LoadingSpinner } from "../components";
 
@@ -82,6 +82,34 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
   const [data, setData] = useState<ReportCategoryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Tabular accounting & operational exports state
+  const [exportScope, setExportScope] = useState<string>("all");
+  const [exportStartDate, setExportStartDate] = useState<string>("");
+  const [exportEndDate, setExportEndDate] = useState<string>("");
+  const [exportPaymentMethod, setExportPaymentMethod] = useState<string>("all");
+  const [downloadingType, setDownloadingType] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportSuccess, setExportSuccess] = useState<string | null>(null);
+
+  const handleTabularExport = async (type: "sales" | "payments" | "cautions" | "breakage") => {
+    setDownloadingType(type);
+    setExportError(null);
+    setExportSuccess(null);
+    try {
+      await downloadTabularExport(type, {
+        scope: exportScope,
+        start_date: exportStartDate || undefined,
+        end_date: exportEndDate || undefined,
+        method: type === "payments" ? exportPaymentMethod : undefined,
+      });
+      setExportSuccess("Export téléchargé avec succès.");
+    } catch (err: any) {
+      setExportError(err.message || "Erreur lors du téléchargement de l'export.");
+    } finally {
+      setDownloadingType(null);
+    }
+  };
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -216,6 +244,248 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
           <p className="text-sm">Aucun indicateur disponible pour cette catégorie.</p>
         </div>
       )}
+
+      {/* Section Exports Comptables & Opérationnels */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <i className="fas fa-file-excel text-emerald-600"></i>
+              Exports Comptables &amp; Fiscaux (Tabulaires)
+            </h3>
+            <p className="text-sm text-slate-500">
+              Extractions conformes aux normes malgaches (PCG 2005, TVA, isolation des cautions) au format CSV (séparateur point-virgule et encodage UTF-8 BOM pour Excel).
+            </p>
+          </div>
+        </div>
+
+        {/* Bannières de notification */}
+        {exportError && (
+          <div className="flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+            <div className="flex items-center gap-2">
+              <i className="fas fa-exclamation-circle text-rose-500"></i>
+              <span>{exportError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setExportError(null)}
+              className="text-rose-500 hover:text-rose-700"
+              aria-label="Fermer"
+            >
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+        )}
+
+        {exportSuccess && (
+          <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+            <div className="flex items-center gap-2">
+              <i className="fas fa-check-circle text-emerald-500"></i>
+              <span>{exportSuccess}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setExportSuccess(null)}
+              className="text-emerald-500 hover:text-emerald-700"
+              aria-label="Fermer"
+            >
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+        )}
+
+        {/* Filtres d'export */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <div>
+            <label htmlFor="export-start-date" className="block text-xs font-semibold text-slate-600 mb-1">
+              Date de début
+            </label>
+            <input
+              id="export-start-date"
+              type="date"
+              value={exportStartDate}
+              onChange={(e) => setExportStartDate(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="export-end-date" className="block text-xs font-semibold text-slate-600 mb-1">
+              Date de fin
+            </label>
+            <input
+              id="export-end-date"
+              type="date"
+              value={exportEndDate}
+              onChange={(e) => setExportEndDate(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="export-scope" className="block text-xs font-semibold text-slate-600 mb-1">
+              Volet d'activité
+            </label>
+            <select
+              id="export-scope"
+              value={exportScope}
+              onChange={(e) => setExportScope(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="all">Tous les volets</option>
+              <option value="titan">Titan (Location pure)</option>
+              <option value="hahitantsoa">Hahitantsoa (Événementiel)</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="export-payment-method" className="block text-xs font-semibold text-slate-600 mb-1">
+              Mode de règlement (Trésorerie)
+            </label>
+            <select
+              id="export-payment-method"
+              value={exportPaymentMethod}
+              onChange={(e) => setExportPaymentMethod(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="all">Tous les modes</option>
+              <option value="cash">Espèces (Caisse)</option>
+              <option value="bank_transfer">Virement Bancaire</option>
+              <option value="mvola">MVola</option>
+              <option value="orange_money">Orange Money</option>
+              <option value="cheque">Chèque</option>
+              <option value="versement">Versement</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Grille des 4 exports */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Facturier des Ventes */}
+          <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:border-indigo-300 transition">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-indigo-600 font-semibold text-base">
+                <i className="fas fa-file-invoice"></i>
+                <h4>Facturier des Ventes</h4>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Journal officiel des factures : NIF, STAT, HT, TVA 20%, TTC et statut d'apurement.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleTabularExport("sales")}
+              disabled={downloadingType !== null}
+              className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 transition disabled:opacity-50"
+            >
+              {downloadingType === "sales" ? (
+                <>
+                  <i className="fas fa-spinner fa-spin"></i>
+                  <span>Génération…</span>
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-download"></i>
+                  <span>Exporter Facturier</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Journal des Encaissements */}
+          <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:border-emerald-300 transition">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-emerald-600 font-semibold text-base">
+                <i className="fas fa-money-bill-wave"></i>
+                <h4>Journal des Règlements</h4>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Recettes et décaissements : acomptes, soldes, remboursements de caution et références bancaires.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleTabularExport("payments")}
+              disabled={downloadingType !== null}
+              className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition disabled:opacity-50"
+            >
+              {downloadingType === "payments" ? (
+                <>
+                  <i className="fas fa-spinner fa-spin"></i>
+                  <span>Génération…</span>
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-download"></i>
+                  <span>Exporter Règlements</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Balance des Cautions */}
+          <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:border-amber-300 transition">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-amber-600 font-semibold text-base">
+                <i className="fas fa-shield-alt"></i>
+                <h4>Balance des Cautions</h4>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Dépôts de garantie : montants reçus, retenues sur dégradations et reliquats à restituer.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleTabularExport("cautions")}
+              disabled={downloadingType !== null}
+              className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-amber-600 px-3 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-700 transition disabled:opacity-50"
+            >
+              {downloadingType === "cautions" ? (
+                <>
+                  <i className="fas fa-spinner fa-spin"></i>
+                  <span>Génération…</span>
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-download"></i>
+                  <span>Exporter Cautions</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Registre de la Casse */}
+          <div className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:border-rose-300 transition">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-rose-600 font-semibold text-base">
+                <i className="fas fa-exclamation-triangle"></i>
+                <h4>Registre de la Casse</h4>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Livre des dégradations et pertes : articles, quantités, barème et montants imputés.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleTabularExport("breakage")}
+              disabled={downloadingType !== null}
+              className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-3 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-rose-700 transition disabled:opacity-50"
+            >
+              {downloadingType === "breakage" ? (
+                <>
+                  <i className="fas fa-spinner fa-spin"></i>
+                  <span>Génération…</span>
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-download"></i>
+                  <span>Exporter Casse</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
