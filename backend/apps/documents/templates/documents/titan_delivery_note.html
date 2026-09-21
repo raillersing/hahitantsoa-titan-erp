@@ -191,7 +191,7 @@
         </div>
         <div class="identity-row">
           <strong>FACTURE :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.invoiceNumber {% templatetag closevariable %}</span>{% else %}{{ document.invoice_reference|default:document.proforma_reference|default:context.reservation_draft.proforma_reference|default:".........." }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.invoiceNumber {% templatetag closevariable %}</span>{% elif document.invoice_reference %}{{ document.invoice_reference }}{% elif document.proforma_reference %}{{ document.proforma_reference }}{% else %}{{ context.reservation_draft.proforma_reference|default:".........." }}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>LOCATION DU :</strong>

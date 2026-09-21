@@ -193,7 +193,7 @@
 
       <section class="identity">
         <div class="identity-row"><strong>NOM :</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.customer_display_name|default:"............................" }}{% endif %}</span></div>
-        <div class="identity-row"><strong>FACTURE :</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.invoiceNumber {% templatetag closevariable %}</span>{% else %}{{ document.invoice_reference|default:document.proforma_reference|default:context.event_draft.proforma_reference|default:"........" }}{% endif %}</span></div>
+        <div class="identity-row"><strong>FACTURE :</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.invoiceNumber {% templatetag closevariable %}</span>{% elif document.invoice_reference %}{{ document.invoice_reference }}{% elif document.proforma_reference %}{{ document.proforma_reference }}{% else %}{{ context.event_draft.proforma_reference|default:"........" }}{% endif %}</span></div>
         <div class="identity-row"><strong>EVENEMENT DU :</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"../../...." }}{% endif %}</span></div>
       </section>
 
