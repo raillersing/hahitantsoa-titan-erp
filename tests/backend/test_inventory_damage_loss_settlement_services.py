@@ -12,6 +12,7 @@ from apps.inventory.models import (
     InventoryDamageLossSettlementStatus,
     InventoryItem,
     InventoryStockMovement,
+    InventoryStockMovementType,
 )
 from apps.inventory.services import (
     DAMAGE_LOSS_SETTLEMENT_ALREADY_EXISTS,
@@ -21,6 +22,7 @@ from apps.inventory.services import (
     InventoryStockMovementError,
     create_inventory_damage_loss_settlement,
     create_inventory_return_operation,
+    create_inventory_stock_movement,
     validate_inventory_damage_loss_settlement,
     validate_inventory_return_operation,
 )
@@ -61,13 +63,22 @@ def _validated_return_operation(django_user_model):
         password="test-pass",
     )
     reservation_draft = _reservation_draft()
+    damaged_item = _inventory_item("Settlement service damaged")
+    create_inventory_stock_movement(
+        actor=actor,
+        inventory_item=damaged_item,
+        reservation_draft=reservation_draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        quantity=3,
+        source_label="test delivery",
+    )
     return_operation = create_inventory_return_operation(
         actor=actor,
         reservation_draft=reservation_draft,
         notes="Validated return for settlement",
         lines=[
             {
-                "inventory_item": _inventory_item("Settlement service damaged"),
+                "inventory_item": damaged_item,
                 "expected_quantity": 3,
                 "returned_quantity": 2,
                 "damaged_quantity": 1,
@@ -124,8 +135,10 @@ def test_create_damage_loss_settlement_rejects_draft_return_operation(django_use
         username="settlement-draft-return",
         password="test-pass",
     )
+    draft = _reservation_draft()
     return_operation = create_inventory_return_operation(
         actor=actor,
+        reservation_draft=draft,
         lines=[
             {
                 "inventory_item": _inventory_item("Draft return settlement item"),
@@ -243,11 +256,22 @@ def test_validate_damage_loss_settlement_computes_excess_due_without_caution(
         username="settlement-no-caution",
         password="test-pass",
     )
+    draft = _reservation_draft()
+    item = _inventory_item("Standalone return settlement")
+    create_inventory_stock_movement(
+        actor=actor,
+        inventory_item=item,
+        reservation_draft=draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        quantity=1,
+        source_label="test delivery",
+    )
     return_operation = create_inventory_return_operation(
         actor=actor,
+        reservation_draft=draft,
         lines=[
             {
-                "inventory_item": _inventory_item("Standalone return settlement"),
+                "inventory_item": item,
                 "expected_quantity": 1,
                 "returned_quantity": 0,
                 "damaged_quantity": 0,
@@ -304,7 +328,9 @@ def test_validate_damage_loss_settlement_rolls_back_on_failure(
     before_document_count = DocumentInstance.objects.count()
     before_stock_movement_count = InventoryStockMovement.objects.count()
 
-    def _failing_calculate_caution_available_for_return_operation(_return_operation):
+    def _failing_calculate_caution_available_for_return_operation(
+        _return_operation, *args, **kwargs
+    ):
         raise InventoryStockMovementError(
             "Synthetic settlement failure.",
             code="synthetic_damage_loss_settlement_failure",
@@ -388,11 +414,22 @@ def test_create_damage_loss_settlement_allows_empty_casse_for_caution_refund(
         username="settlement-no-casse",
         password="test-pass",
     )
+    draft = _reservation_draft()
+    item = _inventory_item("Settlement intact item")
+    create_inventory_stock_movement(
+        actor=actor,
+        inventory_item=item,
+        reservation_draft=draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        quantity=1,
+        source_label="test delivery",
+    )
     return_operation = create_inventory_return_operation(
         actor=actor,
+        reservation_draft=draft,
         lines=[
             {
-                "inventory_item": _inventory_item("Settlement intact item"),
+                "inventory_item": item,
                 "expected_quantity": 1,
                 "returned_quantity": 1,
                 "damaged_quantity": 0,
@@ -474,3 +511,71 @@ def test_create_damage_loss_settlement_normalizes_legacy_loss_and_display_label(
     settlement_line = settlement.lines.get()
     assert settlement_line.settlement_line_kind == "damage"
     assert settlement_line.manual_label == return_line.inventory_item.name
+
+
+def test_calculate_caution_available_deducts_prior_validated_settlements(
+    django_user_model,
+) -> None:
+    actor, draft, first_return_op = _validated_return_operation(django_user_model)
+    first_line = first_return_op.lines.get()
+
+    confirmed_receipt = DocumentInstance.objects.create(
+        reservation_draft=draft,
+        customer=draft.customer,
+        template_key="titan.payment_receipt.v1",
+        template_version="v1",
+        template_label="Recu de caution",
+        business_scope="shared",
+        document_type="payment_receipt",
+        template_status="generated_draft_template",
+        template_source_kind="generated_from_brand_style",
+        template_source_reference="test",
+        template_path="backend/apps/documents/templates_documents/shared/payment_receipt/v1/template.html",
+        template_preview_path="backend/apps/documents/templates_documents/shared/payment_receipt/v1/preview.pdf",
+        template_validated_by_client=False,
+        reservation_public_reference=draft.public_reference,
+        reservation_status=draft.status,
+        customer_display_name=draft.customer.display_name,
+        customer_email=draft.customer.email,
+        customer_phone=draft.customer.phone,
+        customer_address=draft.customer.address,
+        status="generated",
+    )
+    Payment.objects.create(
+        reservation_draft=draft,
+        receipt_document=confirmed_receipt,
+        amount=Decimal("100000.00"),
+        payment_kind=PaymentKind.CAUTION,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.CONFIRMED,
+        paid_at=timezone.now(),
+        confirmed_at=timezone.now(),
+        confirmed_by=actor,
+        created_by=actor,
+    )
+
+    first_settlement = create_inventory_damage_loss_settlement(
+        actor=actor,
+        return_operation=first_return_op,
+        lines=[
+            {
+                "return_operation_line": first_line,
+                "settlement_line_kind": "damage",
+                "quantity": 2,
+                "unit_amount": Decimal("15000.00"),
+            }
+        ],
+    )
+    validate_inventory_damage_loss_settlement(settlement=first_settlement, actor=actor)
+    first_settlement.refresh_from_db()
+    assert first_settlement.caution_applied == Decimal("30000.00")
+    assert first_settlement.refund_due == Decimal("70000.00")
+
+    assert inventory_services.calculate_caution_available_for_return_operation(
+        first_return_op,
+        exclude_settlement=first_settlement,
+    ) == Decimal("100000.00")
+
+    assert inventory_services.calculate_caution_available_for_return_operation(
+        first_return_op,
+    ) == Decimal("0.00")

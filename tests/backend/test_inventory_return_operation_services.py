@@ -17,6 +17,7 @@ from apps.inventory.services import (
     INVALID_RETURN_OPERATION_STATE,
     InventoryStockMovementError,
     create_inventory_return_operation,
+    create_inventory_stock_movement,
     validate_inventory_return_operation,
 )
 from apps.payments.models import Payment
@@ -183,11 +184,21 @@ def test_validate_return_operation_creates_expected_stock_movements(
         username="return-validator",
         password="test-pass",
     )
+    draft = _reservation_draft()
     intact_item = _inventory_item("Return intact item")
     mixed_item = _inventory_item("Return mixed item")
+    for item, qty in ((intact_item, 2), (mixed_item, 3)):
+        create_inventory_stock_movement(
+            actor=actor,
+            inventory_item=item,
+            reservation_draft=draft,
+            movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+            quantity=qty,
+            source_label="test delivery",
+        )
     return_operation = create_inventory_return_operation(
         actor=actor,
-        reservation_draft=_reservation_draft(),
+        reservation_draft=draft,
         notes="Validate return operation",
         lines=[
             {
@@ -245,12 +256,22 @@ def test_validate_return_operation_rolls_back_if_stock_movement_creation_fails(
         username="return-rollback",
         password="test-pass",
     )
+    draft = _reservation_draft()
+    item = _inventory_item("Rollback item")
+    create_inventory_stock_movement(
+        actor=actor,
+        inventory_item=item,
+        reservation_draft=draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        quantity=2,
+        source_label="test delivery",
+    )
     return_operation = create_inventory_return_operation(
         actor=actor,
-        reservation_draft=_reservation_draft(),
+        reservation_draft=draft,
         lines=[
             {
-                "inventory_item": _inventory_item("Rollback item"),
+                "inventory_item": item,
                 "expected_quantity": 2,
                 "returned_quantity": 1,
                 "damaged_quantity": 0,
@@ -301,11 +322,22 @@ def test_validate_return_operation_rejects_second_validation(django_user_model) 
         username="return-revalidate",
         password="test-pass",
     )
+    draft = _reservation_draft()
+    item = _inventory_item("Revalidate item")
+    create_inventory_stock_movement(
+        actor=actor,
+        inventory_item=item,
+        reservation_draft=draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        quantity=1,
+        source_label="test delivery",
+    )
     return_operation = create_inventory_return_operation(
         actor=actor,
+        reservation_draft=draft,
         lines=[
             {
-                "inventory_item": _inventory_item("Revalidate item"),
+                "inventory_item": item,
                 "expected_quantity": 1,
                 "returned_quantity": 1,
                 "damaged_quantity": 0,

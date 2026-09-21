@@ -19,6 +19,10 @@ class CloseoutValidationError(ValueError):
         self.code = code
 
 
+ReservationCloseoutError = CloseoutValidationError
+ReservationCloseoutValidationError = CloseoutValidationError
+
+
 @dataclass
 class BillingCloseoutSummary:
     invoice_count: int = 0
@@ -281,6 +285,8 @@ def validate_reservation_closeable(*, reservation_draft: ReservationDraft) -> li
             blockers.append(f"return_settlement_not_validated:{op.id}")
             continue
         if settlement is None:
+            if any(line.casse_quantity > 0 for line in op.lines.all()):
+                blockers.append(f"return_settlement_missing_for_casse:{op.id}")
             continue
 
         execution = getattr(settlement, "execution", None)
@@ -334,6 +340,47 @@ def validate_reservation_closeable(*, reservation_draft: ReservationDraft) -> li
             blockers.append("logistics_outbound_operation_missing")
         if not return_ops:
             blockers.append("return_operation_missing")
+
+    # Commercial invoicing and settlement completeness
+    if reservation_draft.total_amount > Decimal("0.00"):
+        total_invoiced = sum(
+            (
+                inv.amount
+                for inv in invoices
+                if inv.invoice_status != BillingInvoiceStatus.CANCELLED
+            ),
+            Decimal("0.00"),
+        )
+        if total_invoiced < reservation_draft.total_amount:
+            blockers.append(
+                f"commercial_invoicing_incomplete:{reservation_draft.total_amount - total_invoiced}"
+            )
+
+        total_settled = sum(
+            (
+                inv.settlement.amount
+                for inv in invoices
+                if hasattr(inv, "settlement") and inv.invoice_status == BillingInvoiceStatus.SETTLED
+            ),
+            Decimal("0.00"),
+        ) + sum(
+            (
+                sum((i.paid_amount for i in inv.installments.all()), Decimal("0.00"))
+                for inv in invoices
+                if inv.installments.exists() and inv.invoice_status == BillingInvoiceStatus.SETTLED
+            ),
+            Decimal("0.00"),
+        )
+        if total_settled < reservation_draft.total_amount:
+            blockers.append(
+                f"commercial_settlement_incomplete:{reservation_draft.total_amount - total_settled}"
+            )
+
+    pending_payments = reservation_draft.payments.filter(
+        payment_status=PaymentStatus.PENDING
+    ).count()
+    if pending_payments > 0:
+        blockers.append(f"payments_pending_resolution:{pending_payments}")
 
     from apps.billing.services import (
         RESERVATION_FINANCIAL_CLOSEOUT_COHERENT,
@@ -451,3 +498,11 @@ def closeout_reservation_draft(
     )
 
     return summary
+
+
+def is_reservation_closed(reservation_draft_or_id: Any) -> bool:
+    """Check if a reservation draft is already closed."""
+    if reservation_draft_or_id is None:
+        return False
+    draft_id = getattr(reservation_draft_or_id, "pk", reservation_draft_or_id)
+    return ReservationCloseout.objects.filter(reservation_draft_id=draft_id).exists()

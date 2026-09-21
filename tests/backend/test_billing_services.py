@@ -241,3 +241,27 @@ def test_settle_billing_invoice_rejects_cancelled_invoice(django_user_model) -> 
     assert error_info.value.code == INVALID_BILLING_INVOICE_STATUS
     invoice.refresh_from_db()
     assert invoice.invoice_status == BillingInvoiceStatus.CANCELLED
+
+
+def test_settle_billing_invoice_rejects_caution_payment(django_user_model) -> None:
+    actor, _, excess_receivable = _executed_excess_receivable(django_user_model)
+    invoice = issue_billing_invoice_for_excess_receivable(
+        excess_receivable=excess_receivable,
+        actor=actor,
+    )
+    caution_payment = create_payment(
+        actor=actor,
+        reservation_draft=invoice.reservation_draft,
+        payment_kind=PaymentKind.CAUTION,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=invoice.amount,
+        source_label="Caution for settlement",
+    )
+    confirmed_caution = confirm_payment(payment=caution_payment, actor=actor).payment
+
+    with pytest.raises(BillingLifecycleError) as error_info:
+        settle_billing_invoice(invoice=invoice, payment=confirmed_caution, actor=actor)
+
+    assert error_info.value.code == "invalid_billing_settlement_payment"
+    assert "caution" in str(error_info.value).lower()

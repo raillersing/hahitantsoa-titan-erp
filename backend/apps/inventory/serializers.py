@@ -341,13 +341,45 @@ class InventoryReturnOperationCreateSerializer(serializers.Serializer):
     lines = InventoryReturnOperationLineCreateSerializer(many=True, allow_empty=False)
 
     def validate(self, attrs):
-        if attrs.get("reservation_draft") and attrs.get("hahitantsoa_event_draft"):
+        res = attrs.get("reservation_draft")
+        evt = attrs.get("hahitantsoa_event_draft")
+        if res and evt:
             raise serializers.ValidationError(
                 "Un retour ne peut concerner qu'un dossier Titan ou un événement Hahitantsoa."
             )
-        if attrs.get("idempotency_key") and not (
-            attrs.get("reservation_draft") or attrs.get("hahitantsoa_event_draft")
-        ):
+        if not res and not evt:
+            raise serializers.ValidationError(
+                "Un retour doit être rattaché à une réservation Titan ou un événement Hahitantsoa."
+            )
+
+        from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+        from apps.reservations.closeout import is_reservation_closed
+
+        if res and is_reservation_closed(res):
+            raise serializers.ValidationError(
+                {"reservation_draft": "Ce dossier est clôturé. Aucun retour n'est autorisé."}
+            )
+        if evt and is_hahitantsoa_event_closed(evt):
+            raise serializers.ValidationError(
+                {
+                    "hahitantsoa_event_draft": (
+                        "Cet événement est clôturé. Aucun retour n'est autorisé."
+                    )
+                }
+            )
+
+        doc = attrs.get("document_instance")
+        if doc is not None:
+            if res and doc.reservation_draft_id != res.id:
+                raise serializers.ValidationError(
+                    {"document_instance": "Le bon de livraison ne correspond pas à la réservation."}
+                )
+            if evt and doc.hahitantsoa_event_draft_id != evt.id:
+                raise serializers.ValidationError(
+                    {"document_instance": "Le bon de livraison ne correspond pas à l'événement."}
+                )
+
+        if attrs.get("idempotency_key") and not (res or evt):
             raise serializers.ValidationError(
                 {"idempotency_key": "La clé de reprise nécessite un dossier métier."}
             )
@@ -437,9 +469,27 @@ class InventoryDamageLossSettlementCreateSerializer(serializers.Serializer):
         allow_null=True,
     )
     notes = serializers.CharField(required=False, allow_blank=True, default="")
-    # A return with no casse still needs a zero-value settlement so that the
-    # caution refund obligation can be executed and audited.
     lines = InventoryDamageLossSettlementLineCreateSerializer(many=True, allow_empty=True)
+
+    def validate(self, attrs):
+        return_operation = attrs.get("return_operation")
+        if return_operation:
+            from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+            from apps.reservations.closeout import is_reservation_closed
+
+            if is_reservation_closed(return_operation.reservation_draft_id):
+                raise serializers.ValidationError(
+                    {"return_operation": "Ce dossier est clôturé. Aucun règlement n'est autorisé."}
+                )
+            if is_hahitantsoa_event_closed(return_operation.hahitantsoa_event_draft_id):
+                raise serializers.ValidationError(
+                    {
+                        "return_operation": (
+                            "Cet événement est clôturé. Aucun règlement n'est autorisé."
+                        )
+                    }
+                )
+        return attrs
 
 
 class InventoryCautionRefundObligationSerializer(serializers.ModelSerializer):
@@ -528,3 +578,19 @@ class InventoryDamageLossSettlementExecutionCreateSerializer(serializers.Seriali
         queryset=InventoryDamageLossSettlement.objects.select_related("return_operation"),
     )
     notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate(self, attrs):
+        settlement = attrs.get("settlement")
+        if settlement and settlement.return_operation:
+            from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+            from apps.reservations.closeout import is_reservation_closed
+
+            if is_reservation_closed(settlement.return_operation.reservation_draft_id):
+                raise serializers.ValidationError(
+                    {"settlement": "Ce dossier est clôturé. Aucune exécution n'est autorisée."}
+                )
+            if is_hahitantsoa_event_closed(settlement.return_operation.hahitantsoa_event_draft_id):
+                raise serializers.ValidationError(
+                    {"settlement": "Cet événement est clôturé. Aucune exécution n'est autorisée."}
+                )
+        return attrs

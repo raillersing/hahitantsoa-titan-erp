@@ -11,7 +11,11 @@ from apps.inventory.models import (
     InventoryReturnOperation,
 )
 from apps.logistics.models import LogisticsEvent, LogisticsEventStatus, LogisticsEventType
-from apps.reservations.closeout import closeout_reservation_draft, get_closeout_summary
+from apps.reservations.closeout import (
+    closeout_reservation_draft,
+    get_closeout_summary,
+    validate_reservation_closeable,
+)
 from apps.reservations.models import ReservationCloseout, ReservationDraft, ReservationDraftStatus
 
 pytestmark = pytest.mark.django_db
@@ -228,3 +232,155 @@ def test_get_closeout_summary_with_returns_and_settlement():
     assert result.returns.total_damage_loss == 100
     assert result.returns.total_excess_due == 50
     assert result.returns.total_refund_due == 25
+
+
+def test_closeout_blocked_by_casse_without_settlement(django_user_model):
+    draft = _reservation_draft()
+    actor = django_user_model.objects.create_user(username="casse-closeout-actor", password="p")
+    draft.confirmed_at = timezone.now()
+    draft.confirmed_by = actor
+    draft.save()
+
+    return_op = InventoryReturnOperation.objects.create(
+        reservation_draft=draft,
+        status="validated",
+        validated_at=timezone.now(),
+        validated_by=actor,
+    )
+    from apps.inventory.models import InventoryItem, InventoryReturnOperationLine
+
+    item = InventoryItem.objects.create(name="Broken cup", kind="material")
+    InventoryReturnOperationLine.objects.create(
+        return_operation=return_op,
+        inventory_item=item,
+        expected_quantity=2,
+        conforming_quantity=1,
+        breakage_quantity=1,
+        returned_quantity=2,
+        damaged_quantity=1,
+        missing_quantity=0,
+        condition_status="mixed",
+    )
+
+    blockers = validate_reservation_closeable(reservation_draft=draft)
+    assert any(
+        b.startswith(f"return_settlement_missing_for_casse:{return_op.id}") for b in blockers
+    )
+
+    from apps.reservations.closeout import ReservationCloseoutError
+
+    with pytest.raises(ReservationCloseoutError) as error:
+        closeout_reservation_draft(reservation_draft=draft, actor=actor)
+    assert error.value.code == "reservation_not_closeable"
+
+
+def test_closeout_blocked_by_incomplete_commercial_invoicing_and_settlement(django_user_model):
+    from decimal import Decimal
+
+    from apps.billing.models import BillingInvoice, BillingInvoiceStatus
+    from apps.reservations.closeout import ReservationCloseoutError
+
+    draft = _reservation_draft()
+    actor = django_user_model.objects.create_user(
+        username="commercial-closeout-actor", password="p"
+    )
+    draft.confirmed_at = timezone.now()
+    draft.confirmed_by = actor
+    draft.total_amount = Decimal("50000.00")
+    draft.save()
+
+    # 1. Blocked when total_invoiced < total_amount
+    blockers = validate_reservation_closeable(reservation_draft=draft)
+    assert any(b.startswith("commercial_invoicing_incomplete") for b in blockers)
+    with pytest.raises(ReservationCloseoutError):
+        closeout_reservation_draft(reservation_draft=draft, actor=actor)
+
+    BillingInvoice.objects.create(
+        reservation_draft=draft,
+        amount=Decimal("50000.00"),
+        invoice_status=BillingInvoiceStatus.OPEN,
+        issued_at=timezone.now(),
+        source_kind="manual",
+    )
+    blockers = validate_reservation_closeable(reservation_draft=draft)
+    assert not any(b.startswith("commercial_invoicing_incomplete") for b in blockers)
+    assert any(b.startswith("commercial_settlement_incomplete") for b in blockers)
+    with pytest.raises(ReservationCloseoutError):
+        closeout_reservation_draft(reservation_draft=draft, actor=actor)
+
+
+def test_closeout_blocked_by_pending_payments(django_user_model):
+    from decimal import Decimal
+
+    from apps.payments.models import Payment, PaymentMethod, PaymentStatus
+    from apps.reservations.closeout import ReservationCloseoutError
+
+    draft = _reservation_draft()
+    actor = django_user_model.objects.create_user(username="pending-closeout-actor", password="p")
+    draft.confirmed_at = timezone.now()
+    draft.confirmed_by = actor
+    draft.save()
+
+    Payment.objects.create(
+        reservation_draft=draft,
+        amount=Decimal("10000.00"),
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        created_by=actor,
+    )
+
+    blockers = validate_reservation_closeable(reservation_draft=draft)
+    assert "payments_pending_resolution:1" in blockers
+    with pytest.raises(ReservationCloseoutError):
+        closeout_reservation_draft(reservation_draft=draft, actor=actor)
+
+
+def test_post_closeout_mutations_blocked(django_user_model):
+    from decimal import Decimal
+
+    from apps.billing.services import (
+        BillingServiceError,
+        issue_billing_invoice_for_commercial_closeout,
+    )
+    from apps.inventory.services import (
+        InventoryStockMovementError,
+        create_inventory_return_operation,
+    )
+    from apps.payments.services import PaymentServiceError, create_payment
+
+    draft = _reservation_draft()
+    actor = django_user_model.objects.create_user(username="post-closeout-actor", password="p")
+    draft.confirmed_at = timezone.now()
+    draft.confirmed_by = actor
+    draft.save()
+
+    closeout_reservation_draft(reservation_draft=draft, actor=actor)
+
+    # 1. Payment creation blocked
+    with pytest.raises(PaymentServiceError) as p_err:
+        create_payment(
+            actor=actor,
+            reservation_draft=draft,
+            payment_kind="deposit",
+            payment_method="cash",
+            amount=Decimal("1000.00"),
+        )
+    assert p_err.value.code == "dossier_already_closed"
+
+    # 2. Billing invoice issuance blocked
+    with pytest.raises(BillingServiceError) as b_err:
+        issue_billing_invoice_for_commercial_closeout(
+            actor=actor,
+            reservation_draft=draft,
+            amount=Decimal("1000.00"),
+        )
+    assert b_err.value.code == "dossier_already_closed"
+
+    # 3. Inventory return creation blocked
+    with pytest.raises(InventoryStockMovementError) as i_err:
+        create_inventory_return_operation(
+            actor=actor,
+            reservation_draft=draft,
+            lines=[],
+        )
+    assert i_err.value.code == "dossier_already_closed"

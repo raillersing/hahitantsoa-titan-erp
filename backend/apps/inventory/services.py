@@ -462,11 +462,17 @@ def _coerce_decimal_amount(value) -> Decimal:
 
 def calculate_caution_available_for_return_operation(
     return_operation: InventoryReturnOperation,
+    exclude_settlement: InventoryDamageLossSettlement | None = None,
 ) -> Decimal:
     if return_operation.reservation_draft_id is not None:
-        filters = {"reservation_draft": return_operation.reservation_draft}
+        filters = {"reservation_draft_id": return_operation.reservation_draft_id}
+        settlement_filters = {
+            "return_operation__reservation_draft_id": return_operation.reservation_draft_id
+        }
     elif return_operation.hahitantsoa_event_draft_id is not None:
-        filters = {"hahitantsoa_event_draft": return_operation.hahitantsoa_event_draft}
+        event_id = return_operation.hahitantsoa_event_draft_id
+        filters = {"hahitantsoa_event_draft_id": event_id}
+        settlement_filters = {"return_operation__hahitantsoa_event_draft_id": event_id}
     else:
         return Decimal("0.00")
 
@@ -475,7 +481,20 @@ def calculate_caution_available_for_return_operation(
         payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES,
         **filters,
     ).aggregate(total=Sum("amount"))
-    return aggregate["total"] or Decimal("0.00")
+    total_caution = aggregate["total"] or Decimal("0.00")
+
+    prior_settlements = InventoryDamageLossSettlement.objects.filter(
+        settlement_status=InventoryDamageLossSettlementStatus.VALIDATED,
+        **settlement_filters,
+    )
+    if exclude_settlement is not None:
+        prior_settlements = prior_settlements.exclude(pk=exclude_settlement.pk)
+
+    consumed_caution = sum(
+        (s.caution_applied + s.refund_due for s in prior_settlements),
+        Decimal("0.00"),
+    )
+    return max(total_caution - consumed_caution, Decimal("0.00"))
 
 
 def _validate_damage_loss_settlement_classification(
@@ -582,6 +601,17 @@ def create_inventory_damage_loss_settlement(
             "Damage/loss settlement requires a validated return operation.",
             code=INVALID_DAMAGE_LOSS_SETTLEMENT_RETURN_OPERATION_STATE,
         )
+
+    from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+    from apps.reservations.closeout import is_reservation_closed
+
+    if is_reservation_closed(
+        locked_return_operation.reservation_draft_id
+    ) or is_hahitantsoa_event_closed(locked_return_operation.hahitantsoa_event_draft_id):
+        raise InventoryStockMovementError(
+            "Ce dossier est clôturé. Aucun règlement n'est autorisé post-clôture.",
+            code="dossier_already_closed",
+        )
     if (
         InventoryDamageLossSettlement.objects.select_for_update()
         .filter(return_operation=locked_return_operation)
@@ -658,6 +688,19 @@ def create_inventory_damage_loss_settlement_execution(
     locked_settlement = InventoryDamageLossSettlement.objects.select_for_update().get(
         pk=settlement.pk
     )
+
+    return_op = locked_settlement.return_operation
+    from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+    from apps.reservations.closeout import is_reservation_closed
+
+    if is_reservation_closed(return_op.reservation_draft_id) or is_hahitantsoa_event_closed(
+        return_op.hahitantsoa_event_draft_id
+    ):
+        raise InventoryStockMovementError(
+            "Ce dossier est clôturé. Aucune exécution n'est autorisée post-clôture.",
+            code="dossier_already_closed",
+        )
+
     existing_execution = InventoryDamageLossSettlementExecution.objects.filter(
         settlement=locked_settlement
     ).first()
@@ -714,6 +757,31 @@ def create_inventory_return_operation(
     lines: list[dict] | tuple[dict, ...],
 ) -> InventoryReturnOperation:
     actor_id = getattr(actor, "pk", None)
+
+    if reservation_draft is not None and hahitantsoa_event_draft is not None:
+        raise InventoryStockMovementError(
+            "Un retour ne peut concerner qu'un dossier Titan ou un événement Hahitantsoa.",
+            code=INVALID_RETURN_OPERATION,
+        )
+    if reservation_draft is None and hahitantsoa_event_draft is None:
+        raise InventoryStockMovementError(
+            "Un retour doit être rattaché à une réservation Titan ou un événement Hahitantsoa.",
+            code=INVALID_RETURN_OPERATION,
+        )
+
+    from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+    from apps.reservations.closeout import is_reservation_closed
+
+    if reservation_draft is not None and is_reservation_closed(reservation_draft):
+        raise InventoryStockMovementError(
+            "Ce dossier est clôturé. Aucun retour n'est autorisé post-clôture.",
+            code="dossier_already_closed",
+        )
+    if hahitantsoa_event_draft is not None and is_hahitantsoa_event_closed(hahitantsoa_event_draft):
+        raise InventoryStockMovementError(
+            "Cet événement est clôturé. Aucun retour n'est autorisé post-clôture.",
+            code="dossier_already_closed",
+        )
 
     if idempotency_key:
         existing = (
@@ -874,8 +942,32 @@ def _validate_return_operation_delivery_scope(
     document = return_operation.document_instance
     event = return_operation.logistics_event
 
-    if document is None and event is None:
-        return
+    if (
+        return_operation.reservation_draft_id is None
+        and return_operation.hahitantsoa_event_draft_id is None
+    ):
+        raise InventoryStockMovementError(
+            "Un retour doit être rattaché à une réservation ou un événement.",
+            code=RETURN_OPERATION_SCOPE_MISMATCH,
+        )
+
+    from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+    from apps.reservations.closeout import is_reservation_closed
+
+    if return_operation.reservation_draft_id and is_reservation_closed(
+        return_operation.reservation_draft_id
+    ):
+        raise InventoryStockMovementError(
+            "Ce dossier est clôturé. Aucune validation de retour n'est autorisée post-clôture.",
+            code="dossier_already_closed",
+        )
+    if return_operation.hahitantsoa_event_draft_id and is_hahitantsoa_event_closed(
+        return_operation.hahitantsoa_event_draft_id
+    ):
+        raise InventoryStockMovementError(
+            "Cet événement est clôturé. Aucune validation de retour n'est autorisée post-clôture.",
+            code="dossier_already_closed",
+        )
 
     if document is not None:
         document = DocumentInstance.objects.select_for_update().get(pk=document.pk)
@@ -953,6 +1045,11 @@ def _validate_return_operation_delivery_scope(
         .annotate(quantity=Sum("quantity"))
         .values_list("inventory_item_id", "quantity")
     }
+    if not outbound_by_item:
+        raise InventoryStockMovementError(
+            "Aucune sortie préalable enregistrée pour ce dossier.",
+            code=RETURN_OPERATION_SCOPE_MISMATCH,
+        )
     prior_returns = (
         InventoryReturnOperationLine.objects.select_for_update()
         .filter(
@@ -1167,6 +1264,17 @@ def validate_inventory_damage_loss_settlement(
             code=INVALID_DAMAGE_LOSS_SETTLEMENT_RETURN_OPERATION_STATE,
         )
 
+    from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+    from apps.reservations.closeout import is_reservation_closed
+
+    if is_reservation_closed(
+        locked_settlement.return_operation.reservation_draft_id
+    ) or is_hahitantsoa_event_closed(locked_settlement.return_operation.hahitantsoa_event_draft_id):
+        raise InventoryStockMovementError(
+            "Ce dossier est clôturé. Aucun règlement n'est autorisé post-clôture.",
+            code="dossier_already_closed",
+        )
+
     _validate_damage_loss_settlement_classification(
         return_operation=locked_settlement.return_operation,
         return_lines=locked_return_lines,
@@ -1195,8 +1303,32 @@ def validate_inventory_damage_loss_settlement(
         (_coerce_decimal_amount(line.total_amount) for line in locked_lines),
         Decimal("0.00"),
     )
+
+    res_id = locked_settlement.return_operation.reservation_draft_id
+    event_id = locked_settlement.return_operation.hahitantsoa_event_draft_id
+    if res_id is not None:
+        dossier_filter = {"reservation_draft_id": res_id}
+        settlement_filter = {"return_operation__reservation_draft_id": res_id}
+    else:
+        dossier_filter = {"hahitantsoa_event_draft_id": event_id}
+        settlement_filter = {"return_operation__hahitantsoa_event_draft_id": event_id}
+
+    list(
+        Payment.objects.select_for_update().filter(
+            payment_kind=PaymentKind.CAUTION,
+            payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES,
+            **dossier_filter,
+        )
+    )
+    list(
+        InventoryDamageLossSettlement.objects.select_for_update().filter(
+            **settlement_filter,
+        )
+    )
+
     caution_available = calculate_caution_available_for_return_operation(
-        locked_settlement.return_operation
+        locked_settlement.return_operation,
+        exclude_settlement=locked_settlement,
     )
     caution_applied = min(damage_loss_total, caution_available)
     refund_due = max(caution_available - damage_loss_total, Decimal("0.00"))
@@ -1273,6 +1405,18 @@ def execute_inventory_damage_loss_settlement_execution(
         raise InventoryStockMovementError(
             "Damage/loss settlement execution requires a validated settlement.",
             code=INVALID_DAMAGE_LOSS_SETTLEMENT_EXECUTION_SETTLEMENT_STATE,
+        )
+
+    return_op = locked_execution.settlement.return_operation
+    from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+    from apps.reservations.closeout import is_reservation_closed
+
+    if is_reservation_closed(return_op.reservation_draft_id) or is_hahitantsoa_event_closed(
+        return_op.hahitantsoa_event_draft_id
+    ):
+        raise InventoryStockMovementError(
+            "Ce dossier est clôturé. Aucune exécution n'est autorisée post-clôture.",
+            code="dossier_already_closed",
         )
 
     actor_id = getattr(actor, "pk", None)

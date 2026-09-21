@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 
@@ -42,6 +43,13 @@ class PurchaseOrder(UUIDModel, TimestampedModel, AuditableModel):
         ordering = ["-created_at", "id"]
         verbose_name = "Purchase order"
         verbose_name_plural = "Purchase orders"
+
+    def clean(self) -> None:
+        super().clean()
+        if self.amount is not None and self.amount < Decimal("0.01"):
+            raise ValidationError(
+                {"amount": "Le montant du bon de commande doit être strictement positif."}
+            )
 
     def save(self, *args, **kwargs):
         if not self.reference:
@@ -101,6 +109,13 @@ class QuickExpense(UUIDModel, TimestampedModel):
         ordering = ["-created_at", "id"]
         verbose_name = "Quick expense"
         verbose_name_plural = "Quick expenses"
+
+    def clean(self) -> None:
+        super().clean()
+        if self.amount is not None and self.amount < Decimal("0.01"):
+            raise ValidationError(
+                {"amount": "Le montant de la dépense doit être strictement positif."}
+            )
 
     def __str__(self) -> str:
         return f"{self.amount} – {self.category}"

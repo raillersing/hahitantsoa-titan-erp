@@ -98,6 +98,24 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
         reservation_draft = attrs.get("reservation_draft")
         hahitantsoa_event_draft = attrs.get("hahitantsoa_event_draft")
         source_label = (attrs.get("source_label") or "").strip()
+        from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+        from apps.reservations.closeout import is_reservation_closed
+
+        if reservation_draft is not None and is_reservation_closed(reservation_draft):
+            raise serializers.ValidationError(
+                {"reservation_draft": "Ce dossier est clôturé. Aucun paiement ne peut être ajouté."}
+            )
+        if hahitantsoa_event_draft is not None and is_hahitantsoa_event_closed(
+            hahitantsoa_event_draft
+        ):
+            raise serializers.ValidationError(
+                {
+                    "hahitantsoa_event_draft": (
+                        "Cet événement est clôturé. Aucun paiement ne peut être ajouté."
+                    )
+                }
+            )
+
         if reservation_draft is not None and hahitantsoa_event_draft is not None:
             raise serializers.ValidationError(
                 {
@@ -167,6 +185,29 @@ class DepositRecordingSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "Provide exactly one reservation draft or Hahitantsoa event draft."
             )
+
+        from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+        from apps.reservations.closeout import is_reservation_closed
+
+        if reservation_draft is not None and is_reservation_closed(reservation_draft):
+            raise serializers.ValidationError(
+                {
+                    "reservation_draft": (
+                        "Ce dossier est clôturé. Aucun acompte ne peut être enregistré."
+                    )
+                }
+            )
+        if hahitantsoa_event_draft is not None and is_hahitantsoa_event_closed(
+            hahitantsoa_event_draft
+        ):
+            raise serializers.ValidationError(
+                {
+                    "hahitantsoa_event_draft": (
+                        "Cet événement est clôturé. Aucun acompte ne peut être enregistré."
+                    )
+                }
+            )
+
         if not attrs["idempotency_key"].strip():
             raise serializers.ValidationError({"idempotency_key": "This field must not be blank."})
         return attrs

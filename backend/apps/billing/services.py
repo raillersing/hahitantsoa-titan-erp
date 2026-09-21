@@ -15,7 +15,7 @@ from apps.inventory.models import (
     InventoryDamageLossExcessReceivableStatus,
 )
 from apps.inventory.services import generate_excess_receivable_invoice_document
-from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment
+from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment, PaymentKind
 from apps.payments.services import confirm_refund_payment
 
 from .models import (
@@ -63,6 +63,9 @@ class BillingLifecycleError(ValueError):
     def __init__(self, message: str, *, code: str) -> None:
         super().__init__(message)
         self.code = code
+
+
+BillingServiceError = BillingLifecycleError
 
 
 @dataclass(frozen=True)
@@ -319,6 +322,8 @@ def compute_reservation_financial_closeout_summary(
     total_paid = Payment.objects.filter(
         reservation_draft=reservation_draft,
         payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES,
+    ).exclude(
+        payment_kind=PaymentKind.CAUTION,
     ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
 
     cashbox_movements = CashboxMovement.objects.filter(
@@ -423,6 +428,8 @@ def compute_hahitantsoa_financial_closeout_summary(
     total_paid = Payment.objects.filter(
         hahitantsoa_event_draft=hahitantsoa_event_draft,
         payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES,
+    ).exclude(
+        payment_kind=PaymentKind.CAUTION,
     ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
     cashbox_movements = CashboxMovement.objects.filter(
         Q(payment__hahitantsoa_event_draft=hahitantsoa_event_draft)
@@ -610,6 +617,18 @@ def issue_billing_invoice_for_excess_receivable(
     return_op = locked_receivable.settlement_execution.settlement.return_operation
     reservation_draft = return_op.reservation_draft
     hahitantsoa_event_draft = return_op.hahitantsoa_event_draft
+
+    from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+    from apps.reservations.closeout import is_reservation_closed
+
+    if is_reservation_closed(reservation_draft) or is_hahitantsoa_event_closed(
+        hahitantsoa_event_draft
+    ):
+        raise BillingLifecycleError(
+            "Ce dossier est clôturé. Aucune facture ne peut être émise post-clôture.",
+            code="dossier_already_closed",
+        )
+
     actor_id = getattr(actor, "pk", None)
     invoice = BillingInvoice.objects.create(
         excess_receivable=locked_receivable,
@@ -657,6 +676,14 @@ def issue_billing_invoice_for_commercial_closeout(
             code=INVALID_BILLING_INVOICE_SOURCE_STATE,
         )
 
+    from apps.reservations.closeout import is_reservation_closed
+
+    if is_reservation_closed(reservation_draft):
+        raise BillingLifecycleError(
+            "Ce dossier est clôturé. Aucune facture ne peut être émise post-clôture.",
+            code="dossier_already_closed",
+        )
+
     actor_id = getattr(actor, "pk", None)
     invoice = BillingInvoice.objects.create(
         excess_receivable=None,
@@ -700,6 +727,14 @@ def issue_billing_invoice_for_hahitantsoa_closeout(
         raise BillingLifecycleError(
             "Hahitantsoa closeout invoice amount must be positive.",
             code=INVALID_BILLING_INVOICE_SOURCE_STATE,
+        )
+
+    from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+
+    if is_hahitantsoa_event_closed(hahitantsoa_event_draft):
+        raise BillingLifecycleError(
+            "Cet événement est clôturé. Aucune facture ne peut être émise post-clôture.",
+            code="dossier_already_closed",
         )
 
     actor_id = getattr(actor, "pk", None)
@@ -748,6 +783,23 @@ def settle_billing_invoice(
     locked_payment = Payment.objects.select_related(
         "reservation_draft", "hahitantsoa_event_draft"
     ).get(pk=locked_payment.pk)
+
+    from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+    from apps.reservations.closeout import is_reservation_closed
+
+    if is_reservation_closed(locked_invoice.reservation_draft_id) or is_hahitantsoa_event_closed(
+        locked_invoice.hahitantsoa_event_draft_id
+    ):
+        raise BillingLifecycleError(
+            "Ce dossier est clôturé. Aucun règlement n'est autorisé post-clôture.",
+            code="dossier_already_closed",
+        )
+
+    if locked_payment.payment_kind == PaymentKind.CAUTION:
+        raise BillingLifecycleError(
+            "Un paiement de caution ne peut pas être imputé au règlement d'une facture.",
+            code=INVALID_BILLING_SETTLEMENT_PAYMENT,
+        )
 
     if locked_invoice.invoice_status != BillingInvoiceStatus.OPEN:
         raise BillingLifecycleError(
@@ -974,6 +1026,20 @@ def create_billing_invoice_installments(
 
     locked_invoice = BillingInvoice.objects.select_for_update().get(pk=invoice.pk)
 
+    from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+    from apps.reservations.closeout import is_reservation_closed
+
+    if is_reservation_closed(locked_invoice.reservation_draft_id) or is_hahitantsoa_event_closed(
+        locked_invoice.hahitantsoa_event_draft_id
+    ):
+        raise BillingLifecycleError(
+            (
+                "Ce dossier est clôturé. Aucune modification d'échéancier "
+                "n'est autorisée post-clôture."
+            ),
+            code="dossier_already_closed",
+        )
+
     if locked_invoice.invoice_status != BillingInvoiceStatus.OPEN:
         raise BillingLifecycleError(
             "Billing invoice must be open before creating an installment schedule.",
@@ -1072,6 +1138,23 @@ def allocate_payment_to_installment(
     locked_invoice = BillingInvoice.objects.select_for_update().get(
         pk=locked_installment.invoice_id
     )
+
+    from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+    from apps.reservations.closeout import is_reservation_closed
+
+    if is_reservation_closed(locked_invoice.reservation_draft_id) or is_hahitantsoa_event_closed(
+        locked_invoice.hahitantsoa_event_draft_id
+    ):
+        raise BillingLifecycleError(
+            "Ce dossier est clôturé. Aucun règlement d'échéance n'est autorisé post-clôture.",
+            code="dossier_already_closed",
+        )
+
+    if locked_payment.payment_kind == PaymentKind.CAUTION:
+        raise BillingLifecycleError(
+            "Un paiement de caution ne peut pas être imputé au règlement d'une facture.",
+            code=INVALID_BILLING_INSTALLMENT_ALLOCATION,
+        )
 
     if locked_invoice.invoice_status != BillingInvoiceStatus.OPEN:
         raise BillingLifecycleError(

@@ -1,9 +1,13 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from .models import PurchaseOrder, PurchaseOrderStatus, QuickExpense, QuickExpenseCategory
 
 
 class PurchaseOrderSerializer(serializers.ModelSerializer):
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
+
     class Meta:
         model = PurchaseOrder
         fields = [
@@ -23,7 +27,7 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
 class PurchaseOrderCreateSerializer(serializers.Serializer):
     supplier_name = serializers.CharField(max_length=255)
     subject = serializers.CharField(max_length=512, required=False, allow_blank=True, default="")
-    amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
     status = serializers.ChoiceField(
         choices=PurchaseOrderStatus.choices,
         default=PurchaseOrderStatus.PENDING,
@@ -35,12 +39,15 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
 class PurchaseOrderUpdateSerializer(serializers.Serializer):
     supplier_name = serializers.CharField(max_length=255, required=False)
     subject = serializers.CharField(max_length=512, required=False)
-    amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+    amount = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0.01"), required=False
+    )
     status = serializers.ChoiceField(choices=PurchaseOrderStatus.choices, required=False)
     notes = serializers.CharField(required=False)
 
 
 class QuickExpenseSerializer(serializers.ModelSerializer):
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
     recorded_by_display = serializers.CharField(source="recorded_by.get_full_name", read_only=True)
 
     class Meta:
@@ -58,7 +65,7 @@ class QuickExpenseSerializer(serializers.ModelSerializer):
 
 
 class QuickExpenseCreateSerializer(serializers.Serializer):
-    amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
     category = serializers.ChoiceField(
         choices=QuickExpenseCategory.choices,
         default=QuickExpenseCategory.OTHER,

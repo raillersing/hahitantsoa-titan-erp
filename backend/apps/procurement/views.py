@@ -40,11 +40,13 @@ class PurchaseOrderListCreateAPIView(generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         serializer = PurchaseOrderCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        purchase_order = PurchaseOrder.objects.create(
+        purchase_order = PurchaseOrder(
             **serializer.validated_data,
             created_by=request.user,
             updated_by=request.user,
         )
+        purchase_order.full_clean()
+        purchase_order.save()
         return Response(
             PurchaseOrderSerializer(purchase_order).data, status=status.HTTP_201_CREATED
         )
@@ -64,7 +66,9 @@ class PurchaseOrderRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAP
         return super().get_permissions()
 
     def perform_update(self, serializer):
-        serializer.save(updated_by=self.request.user)
+        instance = serializer.save(updated_by=self.request.user)
+        instance.full_clean()
+        instance.save()
 
 
 class QuickExpenseListCreateAPIView(generics.ListCreateAPIView):
@@ -93,10 +97,12 @@ class QuickExpenseListCreateAPIView(generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         serializer = QuickExpenseCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        expense = QuickExpense.objects.create(
+        expense = QuickExpense(
             **serializer.validated_data,
             recorded_by=request.user,
         )
+        expense.full_clean()
+        expense.save()
         return Response(QuickExpenseSerializer(expense).data, status=status.HTTP_201_CREATED)
 
 
