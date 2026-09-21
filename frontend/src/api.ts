@@ -63,6 +63,8 @@ import type {
   NumberingSequencePreviewResponse,
   NumberingSequenceType,
   User,
+  UserCreatePayload,
+  UserUpdatePayload,
   HahitantsoaEventDraft,
   HahitantsoaEventDraftCreatePayload,
   HahitantsoaEventDraftUpdatePayload,
@@ -2166,6 +2168,33 @@ export function getUsers(
     url += `?search=${encodeURIComponent(search)}`;
   }
   return getAuthenticatedJson(url, signal);
+}
+
+export function createUser(
+  payload: UserCreatePayload,
+  signal?: AbortSignal,
+): Promise<User> {
+  return postAuthenticatedJson("/api/v1/identity/users/", payload, signal);
+}
+
+export function updateUser(
+  id: string | number,
+  payload: UserUpdatePayload,
+  signal?: AbortSignal,
+): Promise<User> {
+  return patchAuthenticatedJson(`/api/v1/identity/users/${id}/`, payload, signal);
+}
+
+export function resetUserPassword(
+  id: string | number,
+  newPassword: string,
+  signal?: AbortSignal,
+): Promise<{ detail: string }> {
+  return postAuthenticatedJson(
+    `/api/v1/identity/users/${id}/reset-password/`,
+    { new_password: newPassword },
+    signal,
+  );
 }
 
 export function getApplicationRoles(
