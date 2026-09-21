@@ -115,6 +115,9 @@ const mockSequences: NumberingSequence[] = [
 ];
 
 const mockGetUsers = vi.fn();
+const mockCreateUser = vi.fn();
+const mockUpdateUser = vi.fn();
+const mockResetUserPassword = vi.fn();
 const mockGetRoles = vi.fn();
 const mockCreateApplicationRole = vi.fn();
 const mockGetNumberingSequences = vi.fn();
@@ -122,6 +125,9 @@ const mockConfigureNumberingSequence = vi.fn();
 
 vi.mock("../api", () => ({
   getUsers: (...args: any[]) => mockGetUsers(...args),
+  createUser: (...args: any[]) => mockCreateUser(...args),
+  updateUser: (...args: any[]) => mockUpdateUser(...args),
+  resetUserPassword: (...args: any[]) => mockResetUserPassword(...args),
   getApplicationRoles: (...args: any[]) => mockGetRoles(...args),
   createApplicationRole: (...args: any[]) => mockCreateApplicationRole(...args),
   getNumberingSequences: (...args: any[]) => mockGetNumberingSequences(...args),
@@ -134,6 +140,27 @@ describe("AdminPage", () => {
     mockGetUsers.mockResolvedValue(mockUsers);
     mockGetRoles.mockResolvedValue(mockRoles);
     mockGetNumberingSequences.mockResolvedValue(mockSequences);
+    mockCreateUser.mockResolvedValue({
+      id: "user-2",
+      username: "jean.dupont",
+      first_name: "Jean",
+      last_name: "Dupont",
+      display_name: "Jean Dupont",
+      email: "jean.dupont@example.com",
+      role_names: ["ADMINISTRATEUR_METIER"],
+      role_slugs: ["administrateur-metier"],
+      is_active: true,
+      is_staff: false,
+      last_login: null,
+      date_joined: "2026-06-01T10:00:00Z",
+    });
+    mockUpdateUser.mockResolvedValue({
+      ...mockUsers[0],
+      email: "updated@example.com",
+    });
+    mockResetUserPassword.mockResolvedValue({
+      detail: "Mot de passe réinitialisé avec succès.",
+    });
     mockConfigureNumberingSequence.mockResolvedValue({
       id: "seq-1",
       brand: "titan",
@@ -150,14 +177,111 @@ describe("AdminPage", () => {
     vi.restoreAllMocks();
   });
 
-  it("affiche les utilisateurs par défaut et le lien vers Django admin", async () => {
+  it("affiche les collaborateurs avec rôles et aucun lien vers Django admin", async () => {
     render(<AdminPage onNavigate={vi.fn()} />);
     expect(await screen.findByText("Admin User")).toBeInTheDocument();
+    expect(screen.getByText("@admin")).toBeInTheDocument();
     expect(screen.getByText("admin@example.com")).toBeInTheDocument();
 
-    const userAddLink = screen.getByRole("link", { name: /Nouvel Utilisateur \(Admin Django\)/i });
-    expect(userAddLink).toHaveAttribute("href", "/admin/auth/user/add/");
-    expect(userAddLink).toHaveAttribute("target", "_blank");
+    // Vérifier l'absence totale de redirection vers /admin/
+    expect(screen.queryByRole("link", { name: /admin/i })).not.toBeInTheDocument();
+
+    // Vérifier la présence du bouton de création in-app
+    const newCollaboratorBtn = screen.getByRole("button", { name: /Nouveau Collaborateur/i });
+    expect(newCollaboratorBtn).toBeInTheDocument();
+  });
+
+  it("permet d'ouvrir le modal et de créer un collaborateur in-app", async () => {
+    render(<AdminPage onNavigate={vi.fn()} />);
+    await screen.findByText("Admin User");
+
+    const newBtn = screen.getByRole("button", { name: /Nouveau Collaborateur/i });
+    fireEvent.click(newBtn);
+
+    // Vérifier l'ouverture du modal
+    expect(screen.getByRole("heading", { name: /Nouveau Collaborateur/i })).toBeInTheDocument();
+
+    // Remplir le formulaire
+    const firstNameInput = screen.getByPlaceholderText("Ex: Jean");
+    const lastNameInput = screen.getByPlaceholderText("Ex: Dupont");
+    const emailInput = screen.getByPlaceholderText("jean.dupont@entreprise.com");
+
+    fireEvent.change(firstNameInput, { target: { value: "Jean" } });
+    fireEvent.change(lastNameInput, { target: { value: "Dupont" } });
+    fireEvent.change(emailInput, { target: { value: "jean.dupont@example.com" } });
+
+    // L'identifiant est suggéré automatiquement
+    const usernameInput = screen.getByPlaceholderText("ex: jean.dupont") as HTMLInputElement;
+    expect(usernameInput.value).toBe("jean.dupont");
+
+    // Soumettre le formulaire
+    const submitBtn = screen.getByRole("button", { name: /Créer le collaborateur/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockCreateUser).toHaveBeenCalledWith(
+        expect.objectContaining({
+          username: "jean.dupont",
+          first_name: "Jean",
+          last_name: "Dupont",
+          email: "jean.dupont@example.com",
+        })
+      );
+    });
+  });
+
+  it("permet de modifier un profil collaborateur", async () => {
+    render(<AdminPage onNavigate={vi.fn()} />);
+    await screen.findByText("Admin User");
+
+    const editBtn = screen.getByRole("button", { name: /Modifier/i });
+    fireEvent.click(editBtn);
+
+    expect(screen.getByRole("heading", { name: /Modifier le profil collaborateur/i })).toBeInTheDocument();
+
+    const emailInput = screen.getByDisplayValue("admin@example.com");
+    fireEvent.change(emailInput, { target: { value: "nouveau.mail@example.com" } });
+
+    const saveBtn = screen.getByRole("button", { name: /Enregistrer les modifications/i });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(mockUpdateUser).toHaveBeenCalledWith(
+        "user-1",
+        expect.objectContaining({
+          email: "nouveau.mail@example.com",
+        })
+      );
+    });
+  });
+
+  it("permet de réinitialiser le mot de passe d'un collaborateur", async () => {
+    render(<AdminPage onNavigate={vi.fn()} />);
+    await screen.findByText("Admin User");
+
+    const accessBtn = screen.getByRole("button", { name: /Accès/i });
+    fireEvent.click(accessBtn);
+
+    expect(screen.getByRole("heading", { name: /Réinitialiser le mot de passe/i })).toBeInTheDocument();
+
+    const submitBtn = screen.getByRole("button", { name: /Mettre à jour le mot de passe/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockResetUserPassword).toHaveBeenCalledWith("user-1", expect.any(String));
+    });
+  });
+
+  it("permet de suspendre le compte d'un collaborateur", async () => {
+    render(<AdminPage onNavigate={vi.fn()} />);
+    await screen.findByText("Admin User");
+
+    const suspendBtn = screen.getByRole("button", { name: /Suspendre/i });
+    fireEvent.click(suspendBtn);
+
+    await waitFor(() => {
+      expect(mockUpdateUser).toHaveBeenCalledWith("user-1", { is_active: false });
+    });
   });
 
   it("permet de consulter les détails d'un rôle existant", async () => {

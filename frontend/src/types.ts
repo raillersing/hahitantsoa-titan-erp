@@ -1579,6 +1579,24 @@ export type User = {
   last_login: string | null;
   date_joined: string;
   role_names: string[];
+  role_slugs?: string[];
+};
+
+export type UserCreatePayload = {
+  username: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  password: string;
+  role_slugs?: string[];
+};
+
+export type UserUpdatePayload = {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  is_active?: boolean;
+  role_slugs?: string[];
 };
 
 export type ApplicationRole = {
