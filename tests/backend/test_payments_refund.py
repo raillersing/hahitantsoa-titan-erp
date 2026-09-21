@@ -20,12 +20,14 @@ from apps.hahitantsoa.closeout import validate_hahitantsoa_event_closeable
 from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.inventory.models import (
     InventoryCautionRefundObligationStatus,
+    InventoryStockMovementType,
 )
 from apps.inventory.serializers import InventoryCautionRefundObligationSerializer
 from apps.inventory.services import (
     create_inventory_damage_loss_settlement,
     create_inventory_damage_loss_settlement_execution,
     create_inventory_return_operation,
+    create_inventory_stock_movement,
     execute_inventory_damage_loss_settlement_execution,
     validate_inventory_damage_loss_settlement,
     validate_inventory_return_operation,
@@ -131,12 +133,22 @@ def _pending_hahitantsoa_refund_obligation(
         username=f"refund-hah-{caution_amount}-{unit_amount}", password="test-pass", is_staff=True
     )
     event_draft = _event_draft_refund(actor=actor)
+    item = _inventory_item(f"Refund hah item {caution_amount}")
+    create_inventory_stock_movement(
+        actor=actor,
+        inventory_item=item,
+        hahitantsoa_event_draft=event_draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        quantity=2,
+        source_label="test delivery",
+        notes="Issued delivery",
+    )
     return_operation = create_inventory_return_operation(
         actor=actor,
         hahitantsoa_event_draft=event_draft,
         lines=[
             {
-                "inventory_item": _inventory_item(f"Refund hah item {caution_amount}"),
+                "inventory_item": item,
                 "expected_quantity": 2,
                 "returned_quantity": 0,
                 "damaged_quantity": 0,
@@ -195,12 +207,22 @@ def _pending_refund_obligation(
         username=f"refund-test-{caution_amount}-{unit_amount}", password="test-pass", is_staff=True
     )
     reservation_draft = _reservation_draft_refund()
+    item = _inventory_item(f"Refund test item {caution_amount}")
+    create_inventory_stock_movement(
+        actor=actor,
+        inventory_item=item,
+        reservation_draft=reservation_draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        quantity=2,
+        source_label="test delivery",
+        notes="Issued delivery",
+    )
     return_operation = create_inventory_return_operation(
         actor=actor,
         reservation_draft=reservation_draft,
         lines=[
             {
-                "inventory_item": _inventory_item(f"Refund test item {caution_amount}"),
+                "inventory_item": item,
                 "expected_quantity": 2,
                 "returned_quantity": 0,
                 "damaged_quantity": 0,

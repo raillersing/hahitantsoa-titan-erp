@@ -381,11 +381,13 @@ def test_return_operation_validate_requires_sensitive_access(
     sensitive_client,
     authenticated_client,
 ) -> None:
+    draft = _reservation_draft()
     intact_item = _inventory_item("Return API validate split")
 
     create_response = sensitive_client.post(
         RETURN_OPERATION_LIST_URL,
         data={
+            "reservation_draft": str(draft.id),
             "lines": [
                 {
                     "inventory_item": str(intact_item.id),
@@ -396,7 +398,7 @@ def test_return_operation_validate_requires_sensitive_access(
                     "condition_status": "intact",
                     "notes": "",
                 }
-            ]
+            ],
         },
         content_type="application/json",
     )
@@ -410,11 +412,24 @@ def test_return_operation_validate_requires_sensitive_access(
     assert response.status_code == 403
 
 
-def test_return_operation_validate_rejects_second_validation(sensitive_client) -> None:
+def test_return_operation_validate_rejects_second_validation(
+    sensitive_client, sensitive_user
+) -> None:
+    draft = _reservation_draft()
     item = _inventory_item("Return API revalidate")
+    create_inventory_stock_movement(
+        actor=sensitive_user,
+        inventory_item=item,
+        reservation_draft=draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        quantity=1,
+        source_label="test delivery",
+        notes="Issued delivery",
+    )
     create_response = sensitive_client.post(
         RETURN_OPERATION_LIST_URL,
         data={
+            "reservation_draft": str(draft.id),
             "lines": [
                 {
                     "inventory_item": str(item.id),
@@ -425,7 +440,7 @@ def test_return_operation_validate_rejects_second_validation(sensitive_client) -
                     "condition_status": "intact",
                     "notes": "",
                 }
-            ]
+            ],
         },
         content_type="application/json",
     )
@@ -447,10 +462,12 @@ def test_return_operation_validate_rejects_second_validation(sensitive_client) -
 
 @pytest.mark.parametrize("method", ["put", "patch", "delete"])
 def test_return_operation_detail_rejects_write_methods(sensitive_client, method: str) -> None:
+    draft = _reservation_draft()
     item = _inventory_item("Return API immutable")
     create_response = sensitive_client.post(
         RETURN_OPERATION_LIST_URL,
         data={
+            "reservation_draft": str(draft.id),
             "lines": [
                 {
                     "inventory_item": str(item.id),
@@ -461,7 +478,7 @@ def test_return_operation_detail_rejects_write_methods(sensitive_client, method:
                     "condition_status": "intact",
                     "notes": "",
                 }
-            ]
+            ],
         },
         content_type="application/json",
     )

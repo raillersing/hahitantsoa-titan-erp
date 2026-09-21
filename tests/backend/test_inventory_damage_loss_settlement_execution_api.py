@@ -10,10 +10,12 @@ from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.inventory.models import (
     InventoryDamageLossSettlementExecution,
     InventoryStockMovement,
+    InventoryStockMovementType,
 )
 from apps.inventory.services import (
     create_inventory_damage_loss_settlement,
     create_inventory_return_operation,
+    create_inventory_stock_movement,
     validate_inventory_damage_loss_settlement,
     validate_inventory_return_operation,
 )
@@ -96,12 +98,22 @@ def _validated_settlement(django_user_model, *, caution_amount: Decimal, line_am
         password="test-pass",
     )
     reservation_draft = _reservation_draft()
+    item = _inventory_item("Execution API item")
+    create_inventory_stock_movement(
+        actor=actor,
+        inventory_item=item,
+        reservation_draft=reservation_draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        quantity=1,
+        source_label="test delivery",
+        notes="Issued delivery",
+    )
     return_operation = create_inventory_return_operation(
         actor=actor,
         reservation_draft=reservation_draft,
         lines=[
             {
-                "inventory_item": _inventory_item("Execution API item"),
+                "inventory_item": item,
                 "expected_quantity": 1,
                 "returned_quantity": 0,
                 "damaged_quantity": 0,
@@ -255,12 +267,23 @@ def test_execution_create_rejects_non_validated_settlement(
         username="execution-api-invalid",
         password="test-pass",
     )
+    draft = _reservation_draft()
+    item = _inventory_item("Execution invalid settlement")
+    create_inventory_stock_movement(
+        actor=actor,
+        inventory_item=item,
+        reservation_draft=draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        quantity=1,
+        source_label="test delivery",
+        notes="Issued delivery",
+    )
     return_operation = create_inventory_return_operation(
         actor=actor,
-        reservation_draft=_reservation_draft(),
+        reservation_draft=draft,
         lines=[
             {
-                "inventory_item": _inventory_item("Execution invalid settlement"),
+                "inventory_item": item,
                 "expected_quantity": 1,
                 "returned_quantity": 0,
                 "damaged_quantity": 0,

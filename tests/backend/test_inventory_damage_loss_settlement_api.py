@@ -10,9 +10,11 @@ from apps.inventory.models import (
     InventoryDamageLossSettlement,
     InventoryItem,
     InventoryStockMovement,
+    InventoryStockMovementType,
 )
 from apps.inventory.services import (
     create_inventory_return_operation,
+    create_inventory_stock_movement,
     validate_inventory_return_operation,
 )
 from apps.payments.models import Payment, PaymentKind, PaymentMethod, PaymentStatus
@@ -82,12 +84,22 @@ def _validated_return_operation(django_user_model):
         defaults={"password": "test-pass"},
     )
     reservation_draft = _reservation_draft()
+    item = _inventory_item("Settlement API item")
+    create_inventory_stock_movement(
+        actor=actor,
+        inventory_item=item,
+        reservation_draft=reservation_draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        quantity=2,
+        source_label="test delivery",
+        notes="Issued delivery",
+    )
     return_operation = create_inventory_return_operation(
         actor=actor,
         reservation_draft=reservation_draft,
         lines=[
             {
-                "inventory_item": _inventory_item("Settlement API item"),
+                "inventory_item": item,
                 "expected_quantity": 2,
                 "returned_quantity": 1,
                 "damaged_quantity": 1,
@@ -276,6 +288,7 @@ def test_damage_loss_settlement_create_rejects_draft_return_operation(
     actor = django_user_model.objects.create_user(username="draft-return-api", password="test-pass")
     return_operation = create_inventory_return_operation(
         actor=actor,
+        reservation_draft=_reservation_draft(),
         lines=[
             {
                 "inventory_item": _inventory_item("Draft return settlement API"),
