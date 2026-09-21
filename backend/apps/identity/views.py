@@ -12,16 +12,23 @@ from apps.identity.serializers import (
     ApplicationRoleWriteSerializer,
     AssignRoleRequestSerializer,
     RevokeRoleRequestSerializer,
+    UserCreateSerializer,
+    UserResetPasswordSerializer,
     UserRoleAssignmentSerializer,
     UserRoleAssignmentWriteSerializer,
     UserSerializer,
+    UserUpdateSerializer,
 )
 from apps.identity.services import (
     UNAUTHORIZED_PLATFORM_ROLE,
+    USER_NOT_FOUND,
     IdentityServiceError,
     assign_role,
+    create_user,
+    reset_user_password,
     revoke_role,
     sync_system_roles,
+    update_user,
 )
 
 from .permissions import HasIdentityAdminAccess
@@ -139,12 +146,16 @@ class UserRoleAssignmentListAPIView(generics.ListAPIView):
         return queryset
 
 
-class UserListAPIView(generics.ListAPIView):
-    """List all Django users with their role information."""
+class UserListAPIView(generics.ListCreateAPIView):
+    """List and create users for identity administration."""
 
-    http_method_names = ["get", "head", "options"]
+    http_method_names = ["get", "post", "head", "options"]
     permission_classes = [HasIdentityAdminAccess]
-    serializer_class = UserSerializer
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return UserCreateSerializer
+        return UserSerializer
 
     def get_queryset(self):
         User = get_user_model()
@@ -161,6 +172,110 @@ class UserListAPIView(generics.ListAPIView):
                 | Q(email__icontains=search)
             )
         return queryset
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            user = create_user(
+                actor=request.user,
+                username=serializer.validated_data["username"],
+                email=serializer.validated_data.get("email", ""),
+                first_name=serializer.validated_data.get("first_name", ""),
+                last_name=serializer.validated_data.get("last_name", ""),
+                password=serializer.validated_data["password"],
+                role_slugs=serializer.validated_data.get("role_slugs", []),
+            )
+        except IdentityServiceError as exc:
+            status_code = status.HTTP_400_BAD_REQUEST
+            if exc.code == UNAUTHORIZED_PLATFORM_ROLE:
+                status_code = status.HTTP_403_FORBIDDEN
+            return Response(
+                {"detail": str(exc), "code": exc.code},
+                status=status_code,
+            )
+        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+
+class UserDetailAPIView(generics.RetrieveUpdateAPIView):
+    """Retrieve and update a user with role synchronization."""
+
+    http_method_names = ["get", "patch", "head", "options"]
+    permission_classes = [HasIdentityAdminAccess]
+    queryset = User.objects.all()
+
+    def get_serializer_class(self):
+        if self.request.method == "PATCH":
+            return UserUpdateSerializer
+        return UserSerializer
+
+    def patch(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            updated_user = update_user(
+                actor=request.user,
+                user_id=instance.pk,
+                first_name=serializer.validated_data.get("first_name"),
+                last_name=serializer.validated_data.get("last_name"),
+                email=serializer.validated_data.get("email"),
+                is_active=serializer.validated_data.get("is_active"),
+                role_slugs=serializer.validated_data.get("role_slugs"),
+            )
+        except IdentityServiceError as exc:
+            status_code = status.HTTP_400_BAD_REQUEST
+            if exc.code == UNAUTHORIZED_PLATFORM_ROLE:
+                status_code = status.HTTP_403_FORBIDDEN
+            return Response(
+                {"detail": str(exc), "code": exc.code},
+                status=status_code,
+            )
+
+        return Response(UserSerializer(updated_user).data, status=status.HTTP_200_OK)
+
+
+class UserResetPasswordAPIView(APIView):
+    """Administratively reset user password with audit."""
+
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasIdentityAdminAccess]
+
+    @extend_schema(
+        request=UserResetPasswordSerializer,
+        responses={
+            200: OpenApiResponse(description="Mot de passe réinitialisé avec succès."),
+            400: OpenApiResponse(description="Données ou mot de passe invalide."),
+            403: OpenApiResponse(description="Opération non autorisée."),
+            404: OpenApiResponse(description="Utilisateur introuvable."),
+        },
+    )
+    def post(self, request, pk: int):
+        serializer = UserResetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            reset_user_password(
+                actor=request.user,
+                user_id=pk,
+                new_password=serializer.validated_data["new_password"],
+            )
+        except IdentityServiceError as exc:
+            status_code = status.HTTP_400_BAD_REQUEST
+            if exc.code == USER_NOT_FOUND:
+                status_code = status.HTTP_404_NOT_FOUND
+            elif exc.code == UNAUTHORIZED_PLATFORM_ROLE:
+                status_code = status.HTTP_403_FORBIDDEN
+            return Response(
+                {"detail": str(exc), "code": exc.code},
+                status=status_code,
+            )
+
+        return Response(
+            {"detail": "Mot de passe réinitialisé avec succès."},
+            status=status.HTTP_200_OK,
+        )
 
 
 class UserRoleAssignmentDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
