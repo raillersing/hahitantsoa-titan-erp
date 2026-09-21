@@ -9,6 +9,7 @@ import {
   configureNumberingSequence,
 } from "../api";
 import type { User, ApplicationRole, NumberingSequence, NumberingSequenceBrand, NumberingSequenceType } from "../types";
+import { getRolePresentation, type RolePresentationInfo } from "./rolePresentation";
 
 const DEFAULT_SUFFIX_BY_TYPE: Record<NumberingSequenceType, string> = {
   proforma: "/{year}",
@@ -71,6 +72,8 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   const [newRoleSlug, setNewRoleSlug] = useState("");
   const [newRoleDescription, setNewRoleDescription] = useState("");
   const [selectedRoleDetail, setSelectedRoleDetail] = useState<ApplicationRole | null>(null);
+  const [roleSearch, setRoleSearch] = useState("");
+  const [roleCategoryFilter, setRoleCategoryFilter] = useState<string>("all");
 
   // Numbering sequences state
   const [sequences, setSequences] = useState<NumberingSequence[]>([]);
@@ -355,10 +358,25 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
           )}
 
           {activeTab === 'roles' && (
-            <div className="space-y-4">
-              <div className="flex justify-end mb-4">
+            <div className="space-y-6">
+              {/* Bannière explicative et bouton d'action */}
+              <div className="bg-gradient-to-r from-indigo-50/80 via-purple-50/50 to-slate-50 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-sm shadow-xs">
+                      <i className="fas fa-shield-halved"></i>
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                      Habilitations & Rôles Applicatifs de l'Agence
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 max-w-2xl leading-relaxed pl-10">
+                    Les rôles déterminent avec précision ce que chaque collaborateur peut consulter ou valider (réservations, signature de contrat, caisse, logistique, exports). Les actions sensibles sont vérifiées par le serveur et auditées.
+                  </p>
+                </div>
                 <button 
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm transition-colors"
+                  type="button"
+                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors shadow-sm flex items-center gap-2 shrink-0 self-start sm:self-center"
                   onClick={() => {
                     setRoleError(null);
                     setNewRoleName("");
@@ -367,8 +385,55 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                     setIsRoleModalOpen(true);
                   }}
                 >
-                  <i className="fas fa-plus mr-2"></i>Nouveau Rôle
+                  <i className="fas fa-plus"></i>
+                  <span>Nouveau Rôle</span>
                 </button>
+              </div>
+
+              {/* Filtres et recherche de rôles */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
+                <div className="relative w-full sm:w-72">
+                  <i className="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                  <input
+                    type="text"
+                    placeholder="Filtrer un rôle par nom, métier..."
+                    className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200"
+                    value={roleSearch}
+                    onChange={(e) => setRoleSearch(e.target.value)}
+                  />
+                  {roleSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setRoleSearch("")}
+                      className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs"
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                  {[
+                    { id: "all", label: "Tous les rôles" },
+                    { id: "direction", label: "Direction & Sécurité" },
+                    { id: "commercial", label: "Commerce" },
+                    { id: "caisse", label: "Caisse & Finance" },
+                    { id: "logistique", label: "Logistique" },
+                  ].map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setRoleCategoryFilter(cat.id)}
+                      className={`px-3 py-1.5 rounded-lg font-medium transition ${
+                        roleCategoryFilter === cat.id
+                          ? "bg-slate-900 text-white dark:bg-indigo-600 shadow-xs"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {rolesLoading && (
@@ -376,44 +441,114 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
               )}
 
               {rolesError && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-                  <i className="fas fa-exclamation-circle mr-2"></i>
-                  {rolesError}
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center gap-3">
+                  <i className="fas fa-exclamation-circle text-base text-red-600"></i>
+                  <span>{rolesError}</span>
                 </div>
               )}
 
               {!rolesLoading && !rolesError && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {roles.length === 0 ? (
-                    <div className="col-span-2 p-8 text-center text-slate-400">
-                      <i className="fas fa-shield-halved text-2xl mb-2 block"></i>
-                      Aucun rôle configuré.
+                    <div className="col-span-2 p-12 text-center text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                      <i className="fas fa-shield-halved text-3xl mb-3 block text-slate-300"></i>
+                      <p className="font-medium text-slate-600 dark:text-slate-300">Aucun rôle configuré pour le moment.</p>
+                      <p className="text-xs text-slate-400 mt-1">Cliquez sur « Nouveau Rôle » pour définir un profil métier.</p>
                     </div>
                   ) : (
-                    roles.map((role) => (
-                      <div key={role.id} className="p-4 border border-slate-200 rounded-xl">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-bold text-slate-800">{role.name}</h4>
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            role.is_system_managed
-                              ? "bg-slate-100 text-slate-600"
-                              : "bg-indigo-50 text-indigo-600"
-                          }`}>
-                            {role.is_system_managed ? "Système" : "Personnalisé"}
-                          </span>
-                        </div>
-                        <p className="text-sm text-slate-600 mb-4">
-                          {role.description || "Aucune description disponible."}
-                        </p>
-                        <button
-                          type="button"
-                          className="text-indigo-600 text-sm font-bold hover:underline"
-                          onClick={() => setSelectedRoleDetail(role)}
-                        >
-                          Détails & Permissions →
-                        </button>
-                      </div>
-                    ))
+                    roles
+                      .filter((role) => {
+                        const pres = getRolePresentation(role, users);
+                        const matchCat =
+                          roleCategoryFilter === "all" ||
+                          pres.category === roleCategoryFilter ||
+                          (roleCategoryFilter === "caisse" && (pres.category === "caisse" || pres.category === "comptabilite"));
+                        const query = roleSearch.toLowerCase().trim();
+                        const matchSearch =
+                          !query ||
+                          role.name.toLowerCase().includes(query) ||
+                          role.slug.toLowerCase().includes(query) ||
+                          pres.title.toLowerCase().includes(query) ||
+                          pres.summary.toLowerCase().includes(query);
+                        return matchCat && matchSearch;
+                      })
+                      .map((role) => {
+                        const pres = getRolePresentation(role, users);
+                        return (
+                          <div
+                            key={role.id}
+                            className="p-5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 rounded-2xl hover:shadow-md transition-all flex flex-col justify-between group"
+                          >
+                            <div className="space-y-3">
+                              {/* En-tête de la carte */}
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-3">
+                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 border ${pres.iconBgClass}`}>
+                                    <i className={`fas ${pres.iconClass}`}></i>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                      {pres.title}
+                                    </h4>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                                      {pres.subtitle}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${pres.badgeClass}`}>
+                                    {pres.categoryLabel}
+                                  </span>
+                                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                                    role.is_system_managed
+                                      ? "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                                      : "bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300"
+                                  }`}>
+                                    {role.is_system_managed ? "Système" : "Personnalisé"}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Descriptif métier */}
+                              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3">
+                                {pres.summary}
+                              </p>
+
+                              {/* Habilitations clés résumées */}
+                              <div className="space-y-1 pt-1">
+                                {pres.keyRights.slice(0, 2).map((right, idx) => (
+                                  <div key={idx} className="flex items-center gap-1.5 text-[11px] text-slate-700 dark:text-slate-300">
+                                    <i className="fas fa-check text-emerald-500 text-[10px] shrink-0"></i>
+                                    <span className="truncate">{right}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Pied de carte avec effectif et bouton de consultation */}
+                            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
+                              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                <i className="fas fa-users text-slate-400"></i>
+                                {pres.memberCount === 0 ? (
+                                  "Aucun collaborateur"
+                                ) : (
+                                  <span>
+                                    <strong>{pres.memberCount}</strong> collaborateur{pres.memberCount > 1 ? "s" : ""}
+                                  </span>
+                                )}
+                              </span>
+                              <button
+                                type="button"
+                                className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-xs font-bold transition flex items-center gap-1"
+                                onClick={() => setSelectedRoleDetail(role)}
+                              >
+                                <span>Détails & Permissions</span>
+                                <i className="fas fa-arrow-right text-[10px]"></i>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
                   )}
                 </div>
               )}
@@ -822,67 +957,201 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
         </div>
       )}
 
-      {selectedRoleDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="modal-role-detail-title">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700">
-            <div className="flex justify-between items-center mb-4">
-              <h3 id="modal-role-detail-title" className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                {selectedRoleDetail.name}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setSelectedRoleDetail(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-
-            <div className="space-y-3 text-sm">
-              <div>
-                <span className="text-xs font-bold text-slate-500 uppercase block">Identifiant technique</span>
-                <code className="text-xs font-mono bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-800 dark:text-slate-200">
-                  {selectedRoleDetail.slug}
-                </code>
+      {selectedRoleDetail && (() => {
+        const info = getRolePresentation(selectedRoleDetail, users);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="modal-role-detail-title">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-slate-200 dark:border-slate-700 overflow-hidden">
+              {/* Entête du modal */}
+              <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-start justify-between bg-slate-50 dark:bg-slate-900/40">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${info.iconBgClass}`}>
+                    <i className={`fas ${info.iconClass} text-lg`}></i>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 id="modal-role-detail-title" className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                        {selectedRoleDetail.name}
+                      </h3>
+                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${info.badgeClass}`}>
+                        {info.categoryLabel}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      {info.subtitle}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRoleDetail(null)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg p-1"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
               </div>
 
-              <div>
-                <span className="text-xs font-bold text-slate-500 uppercase block">Type de rôle</span>
-                <span className={`inline-block mt-0.5 text-xs font-bold px-2 py-0.5 rounded ${
-                  selectedRoleDetail.is_system_managed
-                    ? "bg-slate-100 text-slate-700"
-                    : "bg-indigo-50 text-indigo-700"
-                }`}>
-                  {selectedRoleDetail.is_system_managed ? "Rôle système managé" : "Rôle personnalisé"}
-                </span>
+              {/* Contenu défilant */}
+              <div className="p-6 overflow-y-auto space-y-5 text-sm">
+                {/* Métadonnées techniques et type */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-slate-700/30 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div>
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Identifiant technique</span>
+                    <code className="text-xs font-mono bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-200 inline-block mt-0.5">
+                      {selectedRoleDetail.slug}
+                    </code>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Type de rôle</span>
+                    <span className={`inline-block mt-0.5 text-xs font-bold px-2 py-0.5 rounded ${
+                      selectedRoleDetail.is_system_managed
+                        ? "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
+                        : "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
+                    }`}>
+                      {selectedRoleDetail.is_system_managed ? "Rôle système managé" : "Rôle personnalisé"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Description métier */}
+                <div>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-1">
+                    Description & Mission
+                  </span>
+                  <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed bg-slate-50 dark:bg-slate-900/30 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
+                    {selectedRoleDetail.description || info.summary || "Aucune description renseignée."}
+                  </p>
+                </div>
+
+                {/* Public cible */}
+                <div>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-1">
+                    Profil type / Public cible
+                  </span>
+                  <div className="flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40 p-3 rounded-lg">
+                    <i className="fas fa-id-badge text-amber-600 dark:text-amber-400 mt-0.5"></i>
+                    <span>{info.targetAudience}</span>
+                  </div>
+                </div>
+
+                {/* Matrice des permissions par domaine */}
+                <div>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-2">
+                    Matrice d'habilitation par domaine métier
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {info.matrix.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className={`p-3 rounded-xl border text-xs flex flex-col justify-between ${
+                          item.allowed
+                            ? "bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/50"
+                            : "bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 text-slate-400"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-bold flex items-center gap-1.5 text-slate-800 dark:text-slate-200">
+                            <i className={`fas ${item.icon} text-slate-500`}></i>
+                            {item.domain}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                              item.allowed
+                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300"
+                                : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
+                            }`}
+                          >
+                            {item.allowed ? "Autorisé" : "Restreint"}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                          {item.actionText}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Droits clés et garde-fous */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-1.5">
+                      Droits clés accordés
+                    </span>
+                    <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                      {info.keyRights.map((kr, idx) => (
+                        <li key={idx} className="flex items-start gap-1.5">
+                          <i className="fas fa-check-circle text-emerald-500 mt-0.5"></i>
+                          <span>{kr}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  {info.restrictions && info.restrictions.length > 0 && (
+                    <div>
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-1.5">
+                        Contraintes & Garde-fous
+                      </span>
+                      <ul className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+                        {info.restrictions.map((res, idx) => (
+                          <li key={idx} className="flex items-start gap-1.5">
+                            <i className="fas fa-shield-halved text-amber-500 mt-0.5"></i>
+                            <span>{res}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Collaborateurs assignés */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      Collaborateurs assignés ({info.memberCount})
+                    </span>
+                  </div>
+                  {info.memberCount > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {info.memberNames.map((name, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-600"
+                        >
+                          <i className="fas fa-user text-slate-400 text-[10px]"></i>
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic">
+                      Aucun collaborateur n'a encore ce rôle assigné dans l'organisation.
+                    </p>
+                  )}
+                </div>
+
+                {/* Explication système */}
+                <div className="p-3 bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-600 rounded-xl text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  {selectedRoleDetail.is_system_managed
+                    ? "Les habilitations de ce rôle système sont définies directement par la politique RBAC du serveur d'application."
+                    : "Rôle personnalisé administrable. Ses attributions sont gérées au niveau des profils utilisateurs."}
+                </div>
               </div>
 
-              <div>
-                <span className="text-xs font-bold text-slate-500 uppercase block">Description</span>
-                <p className="text-slate-700 dark:text-slate-300 text-xs mt-0.5">
-                  {selectedRoleDetail.description || "Aucune description renseignée."}
-                </p>
+              {/* Pied de modal */}
+              <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex justify-end bg-slate-50 dark:bg-slate-900/40">
+                <button
+                  type="button"
+                  onClick={() => setSelectedRoleDetail(null)}
+                  className="px-5 py-2 bg-slate-900 text-white font-bold rounded-lg text-xs hover:bg-slate-800 transition-colors shadow-sm"
+                >
+                  Fermer
+                </button>
               </div>
-
-              <div className="p-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                {selectedRoleDetail.is_system_managed
-                  ? "Les habilitations de ce rôle système sont définies directement par la politique RBAC du serveur d'application."
-                  : "Rôle personnalisé administrable. Ses attributions sont gérées au niveau des profils utilisateurs."}
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-4 mt-4 border-t border-slate-100 dark:border-slate-700">
-              <button
-                type="button"
-                onClick={() => setSelectedRoleDetail(null)}
-                className="px-4 py-2 bg-slate-900 text-white font-bold rounded-lg text-xs hover:bg-slate-800 transition-colors"
-              >
-                Fermer
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {toast && (
         <div className="fixed bottom-6 right-6 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-lg font-medium text-sm z-50 flex items-center gap-3 animate-fade-in">
