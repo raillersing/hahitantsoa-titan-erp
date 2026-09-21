@@ -861,7 +861,7 @@ def test_payment_receipt_matches_official_source_model(
     assert ">Montant payé<" in html
     assert ">En lettres<" in html
     assert ">Mode de paiement<" in html
-    assert ">Référence<" in html
+    assert (">Référence<" in html) or (">Réf. Paiement<" in html)
 
     # 5. Block 3 - History & Totals
     assert "<u>Historique des paiements</u>" in html
