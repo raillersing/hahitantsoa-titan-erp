@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -18,6 +20,11 @@ UNAUTHORIZED_PLATFORM_ROLE = "unauthorized_platform_role"
 COMPANY_ROLE_NAME_CONFLICT = "company_role_name_conflict"
 COMPANY_ROLE_DEFINITION_CONFLICT = "company_role_definition_conflict"
 COMPANY_ROLE_CATALOG_SYSTEM_ACTOR = "sync_company_role_catalog"
+USER_ALREADY_EXISTS = "user_already_exists"
+USER_NOT_FOUND = "user_not_found"
+CANNOT_DEACTIVATE_SELF = "cannot_deactivate_self"
+INVALID_PASSWORD = "invalid_password"
+ROLE_NOT_FOUND = "role_not_found"
 
 User = get_user_model()
 
@@ -244,3 +251,230 @@ def revoke_role(
         )
 
     return assignment
+
+
+def create_user(
+    *,
+    actor: object | None,
+    username: str,
+    email: str = "",
+    first_name: str = "",
+    last_name: str = "",
+    password: str,
+    role_slugs: list[str] | None = None,
+) -> User:
+    _require_identity_admin(actor=actor)
+
+    clean_username = username.strip()
+    if not clean_username:
+        raise IdentityServiceError("Le nom d'utilisateur est obligatoire.", code="invalid_username")
+
+    if User.objects.filter(username__iexact=clean_username).exists():
+        raise IdentityServiceError(
+            f"Un utilisateur avec le nom d'utilisateur '{clean_username}' existe déjà.",
+            code=USER_ALREADY_EXISTS,
+        )
+
+    clean_email = email.strip()
+    if clean_email and User.objects.filter(email__iexact=clean_email).exists():
+        raise IdentityServiceError(
+            f"Un utilisateur avec l'adresse e-mail '{clean_email}' existe déjà.",
+            code="email_already_exists",
+        )
+
+    temp_user = User(
+        username=clean_username,
+        email=clean_email,
+        first_name=first_name.strip(),
+        last_name=last_name.strip(),
+    )
+    try:
+        validate_password(password, user=temp_user)
+    except DjangoValidationError as exc:
+        raise IdentityServiceError(
+            "; ".join(exc.messages),
+            code=INVALID_PASSWORD,
+        ) from exc
+
+    with transaction.atomic():
+        user = User.objects.create_user(
+            username=clean_username,
+            email=clean_email,
+            first_name=first_name.strip(),
+            last_name=last_name.strip(),
+            password=password,
+            is_active=True,
+        )
+
+        assigned_roles: list[str] = []
+        if role_slugs:
+            for slug in role_slugs:
+                slug_clean = slug.strip()
+                if not slug_clean:
+                    continue
+                try:
+                    role_obj = ApplicationRole.objects.get(slug=slug_clean)
+                except ApplicationRole.DoesNotExist as exc:
+                    raise IdentityServiceError(
+                        f"Rôle introuvable : {slug_clean}.",
+                        code=ROLE_NOT_FOUND,
+                    ) from exc
+                assign_role(actor=actor, user=user, role=role_obj)
+                assigned_roles.append(slug_clean)
+
+        record_audit_event_on_commit(
+            actor=actor,
+            action="identity.user_created",
+            target_type="user",
+            target_id=str(user.pk),
+            metadata={
+                "username": user.username,
+                "email": user.email,
+                "role_slugs": assigned_roles,
+            },
+        )
+
+    return user
+
+
+def update_user(
+    *,
+    actor: object | None,
+    user_id: int | str,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    email: str | None = None,
+    is_active: bool | None = None,
+    role_slugs: list[str] | None = None,
+) -> User:
+    _require_identity_admin(actor=actor)
+
+    with transaction.atomic():
+        try:
+            target_user = User.objects.select_for_update().get(pk=user_id)
+        except User.DoesNotExist as exc:
+            raise IdentityServiceError(
+                f"Utilisateur introuvable avec l'ID {user_id}.",
+                code=USER_NOT_FOUND,
+            ) from exc
+
+        actor_pk = getattr(actor, "pk", None)
+        if is_active is False and actor_pk is not None and str(actor_pk) == str(target_user.pk):
+            raise IdentityServiceError(
+                "Vous ne pouvez pas désactiver votre propre compte utilisateur.",
+                code=CANNOT_DEACTIVATE_SELF,
+            )
+
+        update_fields: list[str] = []
+        if first_name is not None:
+            target_user.first_name = first_name.strip()
+            update_fields.append("first_name")
+
+        if last_name is not None:
+            target_user.last_name = last_name.strip()
+            update_fields.append("last_name")
+
+        if email is not None:
+            clean_email = email.strip()
+            if clean_email and (
+                User.objects.filter(email__iexact=clean_email).exclude(pk=target_user.pk).exists()
+            ):
+                raise IdentityServiceError(
+                    f"Un utilisateur avec l'adresse e-mail '{clean_email}' existe déjà.",
+                    code="email_already_exists",
+                )
+            target_user.email = clean_email
+            update_fields.append("email")
+
+        if is_active is not None:
+            target_user.is_active = is_active
+            update_fields.append("is_active")
+
+        if update_fields:
+            target_user.save(update_fields=update_fields)
+
+        if role_slugs is not None:
+            target_slugs = {s.strip() for s in role_slugs if s.strip()}
+            current_assignments = {
+                a.role.slug: a
+                for a in UserRoleAssignment.objects.filter(
+                    user=target_user,
+                    is_active=True,
+                ).select_related("role")
+            }
+
+            # Revoke unselected roles
+            for slug, assignment in current_assignments.items():
+                if slug not in target_slugs:
+                    revoke_role(
+                        actor=actor,
+                        assignment_id=str(assignment.id),
+                        notes="Rôle retiré lors de la mise à jour du profil collaborateur",
+                    )
+
+            # Assign newly selected roles
+            for slug in target_slugs:
+                if slug not in current_assignments:
+                    try:
+                        role_obj = ApplicationRole.objects.get(slug=slug)
+                    except ApplicationRole.DoesNotExist as exc:
+                        raise IdentityServiceError(
+                            f"Rôle introuvable : {slug}.",
+                            code=ROLE_NOT_FOUND,
+                        ) from exc
+                    assign_role(actor=actor, user=target_user, role=role_obj)
+
+        record_audit_event_on_commit(
+            actor=actor,
+            action="identity.user_updated",
+            target_type="user",
+            target_id=str(target_user.pk),
+            metadata={
+                "username": target_user.username,
+                "is_active": target_user.is_active,
+                "role_slugs": role_slugs,
+            },
+        )
+
+    return target_user
+
+
+def reset_user_password(
+    *,
+    actor: object | None,
+    user_id: int | str,
+    new_password: str,
+) -> User:
+    _require_identity_admin(actor=actor)
+
+    with transaction.atomic():
+        try:
+            target_user = User.objects.select_for_update().get(pk=user_id)
+        except User.DoesNotExist as exc:
+            raise IdentityServiceError(
+                f"Utilisateur introuvable avec l'ID {user_id}.",
+                code=USER_NOT_FOUND,
+            ) from exc
+
+        try:
+            validate_password(new_password, user=target_user)
+        except DjangoValidationError as exc:
+            raise IdentityServiceError(
+                "; ".join(exc.messages),
+                code=INVALID_PASSWORD,
+            ) from exc
+
+        target_user.set_password(new_password)
+        target_user.save(update_fields=["password"])
+
+        record_audit_event_on_commit(
+            actor=actor,
+            action="identity.user_password_reset",
+            target_type="user",
+            target_id=str(target_user.pk),
+            metadata={
+                "username": target_user.username,
+            },
+        )
+
+    return target_user

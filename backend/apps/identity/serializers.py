@@ -11,6 +11,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     display_name = serializers.SerializerMethodField()
     role_names = serializers.SerializerMethodField()
+    role_slugs = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -26,6 +27,7 @@ class UserSerializer(serializers.ModelSerializer):
             "last_login",
             "date_joined",
             "role_names",
+            "role_slugs",
         )
         read_only_fields = fields
 
@@ -38,6 +40,12 @@ class UserSerializer(serializers.ModelSerializer):
             "role"
         )
         return [a.role.name for a in assignments]
+
+    def get_role_slugs(self, obj):
+        assignments = UserRoleAssignment.objects.filter(user=obj, is_active=True).select_related(
+            "role"
+        )
+        return [a.role.slug for a in assignments]
 
 
 class ApplicationRoleSerializer(serializers.ModelSerializer):
@@ -157,3 +165,31 @@ class UserRoleAssignmentWriteSerializer(serializers.ModelSerializer):
 
 class RevokeRoleRequestSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+
+
+class UserCreateSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=150)
+    email = serializers.EmailField(required=False, allow_blank=True, default="")
+    first_name = serializers.CharField(required=False, allow_blank=True, max_length=150, default="")
+    last_name = serializers.CharField(required=False, allow_blank=True, max_length=150, default="")
+    password = serializers.CharField(write_only=True, min_length=8)
+    role_slugs = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+    )
+
+
+class UserUpdateSerializer(serializers.Serializer):
+    first_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    last_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    is_active = serializers.BooleanField(required=False)
+    role_slugs = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+    )
+
+
+class UserResetPasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(write_only=True, min_length=8)
