@@ -424,7 +424,7 @@ class HahitantsoaEventDraftAmendmentRequest(UUIDModel, TimestampedModel, Auditab
     )
     changed_venue_name = models.CharField(max_length=255, blank=True)
     changed_location_details = models.TextField(blank=True)
-    changed_service_notes = models.TextField(blank=True)
+    changed_service_notes = models.TextField(blank=True, null=True, default=None)
     changed_notes = models.TextField(blank=True)
     amendment_sequence = models.PositiveSmallIntegerField(null=True, blank=True)
     document_instance_id = models.UUIDField(null=True, blank=True)
