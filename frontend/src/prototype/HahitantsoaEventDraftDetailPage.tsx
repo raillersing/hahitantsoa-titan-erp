@@ -343,7 +343,6 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [amendmentGuestCount, setAmendmentGuestCount] = useState(1);
   const [amendmentVenueName, setAmendmentVenueName] = useState("");
   const [amendmentVenuePrice, setAmendmentVenuePrice] = useState(0);
-  const [amendmentLogisticsPrice, setAmendmentLogisticsPrice] = useState(0);
   const [amendmentLocationDetails, setAmendmentLocationDetails] = useState("");
 
   // Step 3: Prestations & Services scénographiques
@@ -872,8 +871,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     setAmendmentRentalType(rentalTypeStr);
     setAmendmentGuestCount(draft.guest_count ?? 1);
     setAmendmentVenueName(draft.venue_name || "");
-    setAmendmentVenuePrice(Number(draft.space_rental_amount));
-    setAmendmentLogisticsPrice(0);
+    setAmendmentVenuePrice(Number(draft.space_rental_amount) || 0);
     setAmendmentLocationDetails(draft.location_details || "");
     setAmendmentServiceNotes("");
 
@@ -914,12 +912,14 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       setPackages(apiPacks);
       setCatalogItems(apiItems);
 
-      let baseVenue = Number(draft.space_rental_amount);
-      const matchedVenue = apiVenues.find((v) => v.name === draft.venue_name);
-      if (matchedVenue && matchedVenue.price) {
-        baseVenue = matchedVenue.price;
-      } else if (apiTerms && apiTerms.base_space_rental_amount) {
-        baseVenue = Number(apiTerms.base_space_rental_amount);
+      let baseVenue = Number(draft.space_rental_amount) || 0;
+      if (baseVenue <= 0) {
+        const matchedVenue = apiVenues.find((v) => v.name === draft.venue_name);
+        if (matchedVenue && matchedVenue.price) {
+          baseVenue = matchedVenue.price;
+        } else if (apiTerms && apiTerms.base_space_rental_amount) {
+          baseVenue = Number(apiTerms.base_space_rental_amount);
+        }
       }
       setAmendmentVenuePrice(baseVenue);
 
@@ -933,7 +933,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         }
         return current;
       });
-      setAmendmentServiceNotes((current) => current || remainingNotes);
+      setAmendmentServiceNotes((current) => (current === initialNotes ? remainingNotes : current));
     } catch {
       // Keep fallbacks
     }
@@ -1006,11 +1006,6 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
     const baseVenuePrice = Number(amendmentVenuePrice) || 0;
     const durationTotal = 0;
-    const logisticsTotal =
-      amendmentRentalType === "Location + logistique" ? Number(amendmentLogisticsPrice) || 0 : 0;
-
-    const newSpaceTotal = baseVenuePrice + excessGuestsTotal + durationTotal + logisticsTotal;
-    const newServicesTotal = amendmentSelectedServices.reduce((sum, s) => sum + s.price * s.quantity, 0);
 
     let newExistingLinesTotal = 0;
     if (amendmentRentalType === "Location + logistique") {
@@ -1030,6 +1025,10 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         : 0;
 
     const newLinesTotal = newExistingLinesTotal + newAddedLinesTotal;
+    const logisticsTotal = newLinesTotal;
+    const newSpaceTotal = baseVenuePrice;
+    const newServicesTotal = amendmentSelectedServices.reduce((sum, s) => sum + s.price * s.quantity, 0);
+
     const newTotal = newSpaceTotal + newServicesTotal + newLinesTotal;
     const oldTotal = totalDossierAmount;
     const delta = newTotal - oldTotal;
@@ -1062,7 +1061,6 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     amendmentGuestCount,
     amendmentVenuePrice,
     amendmentRentalType,
-    amendmentLogisticsPrice,
     amendmentSelectedServices,
     draft,
     amendmentQuantities,
@@ -1134,22 +1132,25 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         .filter(Boolean)
         .join(" · ");
 
-      const allLinesInput = [
-        ...draft.lines
-          .map((line) => ({
-            inventory_item_id: line.inventory_item_id,
-            quantity: amendmentQuantities[line.id] !== undefined ? amendmentQuantities[line.id] : line.quantity,
-            notes: line.notes || "",
-          }))
-          .filter((l) => l.quantity > 0),
-        ...amendmentAddedLines
-          .map((added) => ({
-            inventory_item_id: added.inventory_item_id,
-            quantity: added.quantity,
-            notes: added.notes || "",
-          }))
-          .filter((l) => l.quantity > 0),
-      ];
+      const allLinesInput =
+        amendmentRentalType === "Location nue"
+          ? []
+          : [
+              ...draft.lines
+                .map((line) => ({
+                  inventory_item_id: line.inventory_item_id,
+                  quantity: amendmentQuantities[line.id] !== undefined ? amendmentQuantities[line.id] : line.quantity,
+                  notes: line.notes || "",
+                }))
+                .filter((l) => l.quantity > 0),
+              ...amendmentAddedLines
+                .map((added) => ({
+                  inventory_item_id: added.inventory_item_id,
+                  quantity: added.quantity,
+                  notes: added.notes || "",
+                }))
+                .filter((l) => l.quantity > 0),
+            ];
 
       let amendmentApplied = false;
       let createdAmendmentId: string | null = null;
@@ -1180,6 +1181,8 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           ...(amendmentDurationOption !== currentHahitantsoaDurationOption(draft)
             ? { changed_duration_option: amendmentDurationOption }
             : {}),
+          changed_space_rental_amount:
+            amendmentVenuePrice > 0 ? amendmentVenuePrice.toFixed(2) : "0.00",
           changed_venue_name: amendmentVenueName.trim(),
           changed_location_details: amendmentLocationDetails.trim(),
           changed_service_notes: combinedServiceNotes,
@@ -1203,6 +1206,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         await updateHahitantsoaEventDraft(param, {
           rental_type: backendRentalType,
           duration_option: amendmentDurationOption,
+          space_rental_amount: amendmentVenuePrice,
           venue_name: amendmentVenueName.trim(),
           location_details: amendmentLocationDetails.trim(),
           service_notes: combinedServiceNotes,
@@ -4230,23 +4234,13 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     {amendmentRentalType === "Location + logistique" && (
                       <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3.5 flex items-center justify-between gap-4">
                         <div>
-                          <span className="text-xs font-bold text-indigo-950 block">Forfait Logistique Hahitantsoa</span>
+                          <span className="text-xs font-bold text-indigo-950 block">Logistique & Matériel Hahitantsoa</span>
                           <span className="text-[11px] text-slate-500">
-                            Transport, installation, montage et démontage inclus
+                            Calculé automatiquement à partir des articles et packs sélectionnés à l'étape 4
                           </span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="number"
-                            min="0"
-                            step="50000"
-                            value={amendmentLogisticsPrice}
-                            onChange={(e) =>
-                              setAmendmentLogisticsPrice(Math.max(0, parseInt(e.target.value || "0", 10)))
-                            }
-                            className="w-32 rounded-lg border border-indigo-200 p-1.5 text-sm font-bold text-right bg-white"
-                          />
-                          <span className="text-xs font-bold text-indigo-700">Ar</span>
+                        <div className="flex items-center gap-1.5 font-bold text-indigo-900 text-sm">
+                          <span>{formatMoney(amendmentFinancialPreview.newLinesTotal)}</span>
                         </div>
                       </div>
                     )}
@@ -4568,6 +4562,8 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                               />
                               <button
                                 type="button"
+                                aria-label={`Supprimer ${srv.name}`}
+                                title={`Supprimer ${srv.name}`}
                                 onClick={() =>
                                   setAmendmentSelectedServices(
                                     amendmentSelectedServices.filter((s) => s.id !== srv.id),
@@ -4602,28 +4598,36 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
               {/* ── STEP 4: Matériels & Articles du Catalogue ─────────────────── */}
               {amendmentStep === 4 && (
                 <div className="space-y-4 animate-in fade-in duration-150">
-                  {amendmentRentalType === "Location nue" && (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2 font-bold text-sm text-amber-950">
-                          <i className="fa-solid fa-circle-info text-amber-600"></i> Formule actuelle : Location Nue
+                  {amendmentRentalType === "Location nue" ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 space-y-3">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 font-bold text-sm text-amber-950">
+                            <i className="fa-solid fa-circle-info text-amber-600"></i> Formule sélectionnée : Location Nue
+                          </div>
+                          <p className="mt-1 text-slate-600 leading-relaxed">
+                            La location nue n'inclut aucun matériel ni mobilier. Les articles actuellement présents dans le dossier ({draft.lines.length}) seront automatiquement retirés et le stock réservé sera libéré à l'application de cet avenant.
+                          </p>
                         </div>
-                        <p className="mt-0.5 text-slate-600">
-                          Pour facturer et installer des matériels (chaises, tables, tentes, vaisselle), basculez en formule <strong>Location + logistique</strong>.
-                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setAmendmentRentalType("Location + logistique")}
+                          className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs shrink-0 whitespace-nowrap"
+                        >
+                          <i className="fa-solid fa-truck-ramp-box mr-1.5"></i> Passer en Location + logistique
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setAmendmentRentalType("Location + logistique")}
-                        className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs shrink-0 whitespace-nowrap"
-                      >
-                        <i className="fa-solid fa-truck-ramp-box mr-1.5"></i> Passer en Location + logistique
-                      </button>
+                      {draft.lines.length > 0 && (
+                        <div className="pt-2 border-t border-amber-200/60 text-[11px] text-amber-800">
+                          <span className="font-semibold">Articles retirés lors de l'application de l'avenant :</span>{" "}
+                          {draft.lines.map((l) => `${l.quantity}x ${l.inventory_item_name}`).join(", ")}
+                        </div>
+                      )}
                     </div>
-                  )}
-
-                  {/* Existing Lines */}
-                  <div>
+                  ) : (
+                    <>
+                      {/* Existing Lines */}
+                      <div>
                     <span className="text-xs font-bold text-slate-700 uppercase block mb-2">
                       Articles déjà prévus dans le dossier ({draft.lines.length}) :
                     </span>
@@ -4838,8 +4842,10 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                       </div>
                     )}
                   </div>
-                </div>
+                </>
               )}
+            </div>
+          )}
 
               {/* ── STEP 5: Bilan Financier & Confirmation ──────────────────── */}
               {amendmentStep === 5 && (
@@ -4854,38 +4860,25 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
                       <div className="rounded-xl bg-white p-3 border border-slate-200">
                         <span className="text-slate-400 font-semibold block uppercase text-[10px]">
-                          Espace & Convives ({amendmentGuestCount})
+                          Espace / Local ({amendmentVenueName || "Espace Hahitantsoa"})
                         </span>
                         <span className="font-bold text-slate-900 text-sm block mt-1">
-                          {formatMoney(
-                            amendmentFinancialPreview.baseVenuePrice + amendmentFinancialPreview.excessGuestsTotal,
-                          )}
+                          {formatMoney(amendmentFinancialPreview.newSpaceTotal)}
                         </span>
                       </div>
 
                       <div className="rounded-xl bg-white p-3 border border-slate-200">
                         <span className="text-slate-400 font-semibold block uppercase text-[10px]">
-                          Formule & Logistique
-                        </span>
-                        <span className="font-bold text-slate-900 text-sm block mt-1">
-                          {formatMoney(
-                            amendmentFinancialPreview.durationTotal + amendmentFinancialPreview.logisticsTotal,
-                          )}
-                        </span>
-                      </div>
-
-                      <div className="rounded-xl bg-white p-3 border border-slate-200">
-                        <span className="text-slate-400 font-semibold block uppercase text-[10px]">
-                          Prestations Scéniques
+                          Prestations Scéniques ({amendmentSelectedServices.length})
                         </span>
                         <span className="font-bold text-slate-900 text-sm block mt-1">
                           {formatMoney(amendmentFinancialPreview.newServicesTotal)}
                         </span>
                       </div>
 
-                      <div className="rounded-xl bg-white p-3 border border-slate-200 sm:col-span-3">
+                      <div className="rounded-xl bg-white p-3 border border-slate-200 col-span-2 sm:col-span-1">
                         <span className="text-slate-400 font-semibold block uppercase text-[10px]">
-                          Matériels & Articles ({amendmentRentalType})
+                          Matériels & Logistique ({amendmentRentalType})
                         </span>
                         <span className="font-bold text-slate-900 text-sm block mt-1">
                           {formatMoney(amendmentFinancialPreview.newLinesTotal)}
