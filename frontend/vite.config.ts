@@ -3,7 +3,8 @@ import { loadEnv, type ProxyOptions } from "vite";
 import { defineConfig, configDefaults } from "vitest/config";
 
 export default defineConfig(({ mode }) => {
-  const backendOrigin = loadEnv(mode, ".", "").VITE_BACKEND_ORIGIN || "http://127.0.0.1:8000";
+  const runtimeBackendOrigin = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.VITE_BACKEND_ORIGIN;
+  const backendOrigin = runtimeBackendOrigin || loadEnv(mode, ".", "").VITE_BACKEND_ORIGIN || "http://127.0.0.1:8000";
   const backendProxy: ProxyOptions = {
     target: backendOrigin,
     changeOrigin: true,
