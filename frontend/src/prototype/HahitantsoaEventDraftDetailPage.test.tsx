@@ -1306,4 +1306,153 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     // Verify mockGenerateDocumentInstance was NOT called for shared.payment_refund_receipt.v1
     expect(mockGenerateDocumentInstance).not.toHaveBeenCalledWith("shared.payment_refund_receipt.v1", expect.anything());
   });
+
+  it("F09: transmits changed_space_rental_amount and displays accurate preview without phantom logistics fee", async () => {
+    currentDraft = { ...DRAFT, status: "confirmed", space_rental_amount: "2000000" };
+    mockCreateAmendment.mockResolvedValue({
+      amendment_request: { id: "amend-f09", status: "draft" },
+    });
+    mockApplyAmendment.mockResolvedValue({
+      amendment_request: { id: "amend-f09", status: "applied" },
+    });
+
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /demander un avenant/i }));
+    expect(screen.getByText("Studio d'Avenant Événementiel")).toBeInTheDocument();
+
+    // Step 1
+    fireEvent.change(screen.getByPlaceholderText(/Ex: Rajout de 50 convives/i), {
+      target: { value: "Négociation tarif salle" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Step 2: Edit Prix location local to 1800000
+    const venuePriceInput = screen.getByDisplayValue("2000000");
+    fireEvent.change(venuePriceInput, { target: { value: "1800000" } });
+
+    // Step 2 -> Step 3 -> Step 4 -> Step 5
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Step 5: Bilan Comparatif Financier
+    expect(screen.getByText(/Bilan Comparatif Financier de l'Avenant/i)).toBeInTheDocument();
+
+    // Submit
+    fireEvent.click(screen.getByRole("button", { name: /valider et créer l'avenant/i }));
+
+    await waitFor(() => {
+      expect(mockCreateAmendment).toHaveBeenCalledWith(
+        DRAFT.id,
+        expect.objectContaining({
+          reason: "Négociation tarif salle",
+          changed_space_rental_amount: "1800000.00",
+        }),
+      );
+    });
+  });
+
+  it("F10: disables material line controls when in Location nue and transmits bare rental", async () => {
+    currentDraft = { ...DRAFT, status: "confirmed", rental_type: "logistics" };
+    mockCreateAmendment.mockResolvedValue({
+      amendment_request: { id: "amend-f10", status: "draft" },
+    });
+    mockApplyAmendment.mockResolvedValue({
+      amendment_request: { id: "amend-f10", status: "applied" },
+    });
+
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /demander un avenant/i }));
+
+    // Step 1
+    fireEvent.change(screen.getByPlaceholderText(/Ex: Rajout de 50 convives/i), {
+      target: { value: "Bascule en location nue" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Step 2: Switch to Location nue
+    const bareRadio = screen.getByLabelText(/Location nue/i);
+    fireEvent.click(bareRadio);
+
+    // Step 2 -> Step 3 -> Step 4
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Step 4: Verify Location Nue banner is shown
+    expect(screen.getByText(/Formule sélectionnée : Location Nue/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/La location nue n'inclut aucun matériel ni mobilier/i),
+    ).toBeInTheDocument();
+
+    // Step 4 -> Step 5
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Submit
+    fireEvent.click(screen.getByRole("button", { name: /valider et créer l'avenant/i }));
+
+    await waitFor(() => {
+      expect(mockCreateAmendment).toHaveBeenCalledWith(
+        DRAFT.id,
+        expect.objectContaining({
+          reason: "Bascule en location nue",
+          changed_rental_type: "bare",
+        }),
+      );
+      // No lines must be created on bare rental
+      expect(mockCreateAmendmentLine).not.toHaveBeenCalled();
+    });
+  });
+
+  it("F11: transmits empty changed_service_notes when services are cleared", async () => {
+    currentDraft = {
+      ...DRAFT,
+      status: "confirmed",
+      service_notes: "DJ - 100000 Ar",
+    };
+    mockCreateAmendment.mockResolvedValue({
+      amendment_request: { id: "amend-f11", status: "draft" },
+    });
+    mockApplyAmendment.mockResolvedValue({
+      amendment_request: { id: "amend-f11", status: "applied" },
+    });
+
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /demander un avenant/i }));
+
+    // Step 1
+    fireEvent.change(screen.getByPlaceholderText(/Ex: Rajout de 50 convives/i), {
+      target: { value: "Suppression des services" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Step 2 -> Step 3
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Step 3: Remove the selected service DJ
+    const deleteBtn = screen.getByRole("button", { name: /Supprimer DJ/i });
+    fireEvent.click(deleteBtn);
+
+    const notesTextarea = screen.getByPlaceholderText(/Ex: Emplacement de la piste LED/i);
+    fireEvent.change(notesTextarea, { target: { value: "" } });
+
+    // Step 3 -> Step 4 -> Step 5
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Submit
+    fireEvent.click(screen.getByRole("button", { name: /valider et créer l'avenant/i }));
+
+    await waitFor(() => {
+      expect(mockCreateAmendment).toHaveBeenCalledWith(
+        DRAFT.id,
+        expect.objectContaining({
+          reason: "Suppression des services",
+          changed_service_notes: "",
+        }),
+      );
+    });
+  });
 });
