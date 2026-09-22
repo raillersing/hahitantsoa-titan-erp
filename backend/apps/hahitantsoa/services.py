@@ -297,7 +297,23 @@ def apply_hahitantsoa_event_draft_amendment_request(
 
         target_rental_type = locked_request.changed_rental_type or locked_event_draft.rental_type
         requested_lines = list(locked_request.lines.filter(is_deleted=False))
-        if requested_lines:
+        now = timezone.now()
+
+        # F10: If explicitly switching to bare rental, material lines must be empty and cleared
+        if locked_request.changed_rental_type == "bare":
+            if requested_lines:
+                raise ReservationLifecycleStateError(
+                    "Location nue ne peut contenir aucun article.",
+                    code="bare_rental_lines_forbidden",
+                )
+            active_lines = ()
+            locked_event_draft.lines.filter(is_deleted=False).update(
+                is_deleted=True,
+                deleted_at=now,
+                updated_by=actor,
+                updated_at=now,
+            )
+        elif requested_lines:
             item_ids = {line.inventory_item_id for line in requested_lines}
             locked_items = {
                 item.id: item
@@ -355,13 +371,22 @@ def apply_hahitantsoa_event_draft_amendment_request(
             "changed_duration_option",
             "changed_venue_name",
             "changed_location_details",
-            "changed_service_notes",
             "changed_notes",
         ):
             value = getattr(locked_request, field, None)
             if value is not None and value != "":
                 setattr(locked_event_draft, field.removeprefix("changed_"), value)
-        if locked_request.changed_duration_option:
+
+        # F11: Explicitly clear or update service_notes when changed_service_notes is specified
+        if locked_request.changed_service_notes is not None:
+            locked_event_draft.service_notes = locked_request.changed_service_notes
+
+        # F09: If duration option changed, recalculate space_rental_amount
+        # only if no explicit space_rental_amount was provided.
+        if (
+            locked_request.changed_duration_option
+            and locked_request.changed_space_rental_amount is None
+        ):
             locked_event_draft.space_rental_amount = calculate_space_rental_amount(
                 terms=get_hahitantsoa_commercial_terms(),
                 guest_count=locked_event_draft.guest_count,
@@ -380,8 +405,7 @@ def apply_hahitantsoa_event_draft_amendment_request(
             ) from error
         locked_event_draft.save()
 
-        if requested_lines:
-            now = timezone.now()
+        if locked_request.changed_rental_type != "bare" and requested_lines:
             requested_item_ids = {line.inventory_item_id for line in active_lines}
             locked_event_draft.lines.filter(is_deleted=False).exclude(
                 inventory_item_id__in=requested_item_ids
@@ -390,14 +414,13 @@ def apply_hahitantsoa_event_draft_amendment_request(
                 line.inventory_item_id: line for line in locked_event_draft.lines.all()
             }
             for line in active_lines:
-                unit_price = (
-                    getattr(line.inventory_item, "rental_price", None)
-                    or getattr(line.inventory_item, "rental_price_per_day", None)
-                    or getattr(line, "unit_rental_price", None)
-                    or Decimal("0.00")
-                )
                 existing_line = existing_lines_by_item_id.get(line.inventory_item_id)
                 if existing_line is None:
+                    unit_price = (
+                        getattr(line.inventory_item, "rental_price", None)
+                        or getattr(line.inventory_item, "rental_price_per_day", None)
+                        or Decimal("0.00")
+                    )
                     HahitantsoaEventDraftLine.objects.create(
                         event_draft=locked_event_draft,
                         inventory_item=line.inventory_item,
@@ -410,7 +433,7 @@ def apply_hahitantsoa_event_draft_amendment_request(
                 else:
                     existing_line.quantity = line.quantity
                     existing_line.notes = line.notes
-                    existing_line.unit_rental_price = unit_price
+                    # ponytail: preserve existing contractual unit price (F12)
                     existing_line.is_deleted = False
                     existing_line.deleted_at = None
                     existing_line.updated_by = actor
@@ -418,7 +441,6 @@ def apply_hahitantsoa_event_draft_amendment_request(
                         update_fields=[
                             "quantity",
                             "notes",
-                            "unit_rental_price",
                             "is_deleted",
                             "deleted_at",
                             "updated_by",
@@ -900,7 +922,7 @@ def create_hahitantsoa_event_draft_amendment_request(
     changed_space_rental_amount=None,
     changed_venue_name: str = "",
     changed_location_details: str = "",
-    changed_service_notes: str = "",
+    changed_service_notes: str | None = None,
     changed_notes: str = "",
 ) -> HahitantsoaEventDraftAmendmentRequestResult:
     capture_reservation_sensitive_actor_attribution(actor=actor)

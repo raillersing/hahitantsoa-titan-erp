@@ -1124,6 +1124,8 @@ def revise_hahitantsoa_preparation_document_for_amendment(
             "amendment_sequence": amendment_sequence,
         },
     )
+    if not event_draft.lines.filter(is_deleted=False).exists():
+        return None
     replacement = create_document_instance_from_hahitantsoa_event_draft(
         event_draft=event_draft,
         template_key="hahitantsoa.preparation_sheet.v1",

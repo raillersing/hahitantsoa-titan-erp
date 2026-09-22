@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import transaction
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
@@ -521,6 +523,10 @@ class HahitantsoaEventDraftAmendmentRequestLineCreateSerializer(serializers.Seri
         actor = self.context["actor"]
         if amendment_request.status != "draft":
             raise serializers.ValidationError("An applied amendment request is immutable.")
+        if amendment_request.changed_rental_type == "bare":
+            raise serializers.ValidationError(
+                "Location nue ne peut contenir aucun article ni pack."
+            )
         inventory_item = validated_data["inventory_item"]
 
         with transaction.atomic():
@@ -613,11 +619,11 @@ class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializ
     )
     changed_guest_count = serializers.IntegerField(required=False, allow_null=True, min_value=0)
     changed_space_rental_amount = serializers.DecimalField(
-        required=False, allow_null=True, max_digits=14, decimal_places=2
+        required=False, allow_null=True, max_digits=14, decimal_places=2, min_value=Decimal("0.00")
     )
     changed_venue_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
     changed_location_details = serializers.CharField(required=False, allow_blank=True)
-    changed_service_notes = serializers.CharField(required=False, allow_blank=True)
+    changed_service_notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     changed_notes = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, attrs):
@@ -649,7 +655,7 @@ class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializ
             changed_space_rental_amount=validated_data.get("changed_space_rental_amount"),
             changed_venue_name=validated_data.get("changed_venue_name", ""),
             changed_location_details=validated_data.get("changed_location_details", ""),
-            changed_service_notes=validated_data.get("changed_service_notes", ""),
+            changed_service_notes=validated_data.get("changed_service_notes"),
             changed_notes=validated_data.get("changed_notes", ""),
         )
         self.context["result"] = result
@@ -680,6 +686,13 @@ class HahitantsoaEventDraftAmendmentRequestUpdateSerializer(serializers.ModelSer
         if attrs.get("changed_guest_count") is not None:
             raise serializers.ValidationError(
                 {"guest_count": "Le nombre de convives ne peut pas être modifié par avenant."}
+            )
+        if (
+            attrs.get("changed_rental_type") == "bare"
+            and self.instance.lines.filter(is_deleted=False).exists()
+        ):
+            raise serializers.ValidationError(
+                {"changed_rental_type": "Location nue ne peut contenir aucun article ni pack."}
             )
         return attrs
 
