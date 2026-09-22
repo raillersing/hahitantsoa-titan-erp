@@ -2628,7 +2628,30 @@ export function previewPayrollRuleSet(
   return postAuthenticatedJson(`/api/v1/hr/rule-sets/${id}/preview/`, { gross_salary }, signal);
 }
 
-export function getEmployees(
+export function normalizeEmployee(raw: any): Employee {
+  return {
+    ...raw,
+    salary: raw.salary != null ? Number(raw.salary) || 0 : undefined,
+  };
+}
+
+export function normalizePaySlip(raw: any): PaySlip {
+  return {
+    ...raw,
+    gross_salary: Number(raw.gross_salary) || 0,
+    deductions: Number(raw.deductions) || 0,
+    net_salary: Number(raw.net_salary) || 0,
+  };
+}
+
+export function normalizeAdvanceRequest(raw: any): AdvanceRequest {
+  return {
+    ...raw,
+    amount: Number(raw.amount) || 0,
+  };
+}
+
+export async function getEmployees(
   params?: { status?: string; role?: string; assignment?: string },
   signal?: AbortSignal,
 ): Promise<Employee[]> {
@@ -2641,14 +2664,16 @@ export function getEmployees(
     const qsStr = qs.toString();
     if (qsStr) url += `?${qsStr}`;
   }
-  return getAuthenticatedJson(url, signal);
+  const data = await getAuthenticatedJson<Employee[]>(url, signal);
+  return Array.isArray(data) ? data.map(normalizeEmployee) : [];
 }
 
-export function getEmployee(
+export async function getEmployee(
   id: string,
   signal?: AbortSignal,
 ): Promise<Employee> {
-  return getAuthenticatedJson(`/api/v1/hr/employees/${id}/`, signal);
+  const data = await getAuthenticatedJson<Employee>(`/api/v1/hr/employees/${id}/`, signal);
+  return normalizeEmployee(data);
 }
 
 export function createEmployee(
@@ -2677,7 +2702,7 @@ export async function deleteEmployee(
   }, signal);
 }
 
-export function getPaySlips(
+export async function getPaySlips(
   params?: { employee?: string; period?: string },
   signal?: AbortSignal,
 ): Promise<PaySlip[]> {
@@ -2689,7 +2714,8 @@ export function getPaySlips(
     const qsStr = qs.toString();
     if (qsStr) url += `?${qsStr}`;
   }
-  return getAuthenticatedJson(url, signal);
+  const data = await getAuthenticatedJson<PaySlip[]>(url, signal);
+  return Array.isArray(data) ? data.map(normalizePaySlip) : [];
 }
 
 export function createPaySlip(
@@ -2699,7 +2725,7 @@ export function createPaySlip(
   return postAuthenticatedJson("/api/v1/hr/payslips/", payload, signal);
 }
 
-export function getAdvanceRequests(
+export async function getAdvanceRequests(
   params?: { employee?: string; status?: string },
   signal?: AbortSignal,
 ): Promise<AdvanceRequest[]> {
@@ -2711,7 +2737,8 @@ export function getAdvanceRequests(
     const qsStr = qs.toString();
     if (qsStr) url += `?${qsStr}`;
   }
-  return getAuthenticatedJson(url, signal);
+  const data = await getAuthenticatedJson<AdvanceRequest[]>(url, signal);
+  return Array.isArray(data) ? data.map(normalizeAdvanceRequest) : [];
 }
 
 export function createAdvanceRequest(
