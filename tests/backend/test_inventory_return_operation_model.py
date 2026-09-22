@@ -118,6 +118,7 @@ def test_return_operation_line_derives_compatibility_status_when_omitted() -> No
 
 def test_validated_return_operation_requires_validated_by(django_user_model) -> None:
     return_operation = InventoryReturnOperation(
+        reservation_draft=_reservation_draft(),
         status=InventoryReturnOperationStatus.VALIDATED,
         validated_at=timezone.now(),
     )

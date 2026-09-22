@@ -12,6 +12,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.billing.services import (
+    issue_billing_invoice_for_commercial_closeout,
     issue_billing_invoice_for_excess_receivable,
     settle_billing_invoice,
 )
@@ -561,6 +562,49 @@ class Command(BaseCommand):
             notes="Retour contrôlé conforme.",
         )
         self._emit_titan_document(draft=draft, actor=actor, template_key="titan.invoice.v1")
+        deposit_payment = draft.payments.filter(
+            payment_kind=PaymentKind.DEPOSIT,
+            payment_status=PaymentStatus.CONFIRMED,
+        ).first()
+        balance_amount = draft.total_amount - draft.required_deposit_amount
+        balance_payment = create_payment(
+            actor=actor,
+            reservation_draft=draft,
+            payment_kind=PaymentKind.BALANCE,
+            payment_method=PaymentMethod.CASH,
+            payment_status=PaymentStatus.PENDING,
+            amount=balance_amount,
+            source_label="Règlement du solde Titan",
+        )
+        confirm_payment(
+            payment=balance_payment,
+            actor=actor,
+            external_reference=f"ESP-SOLDE-{draft.public_reference}",
+        )
+        self._emit_payment_receipt_pdf(payment=balance_payment, actor=actor)
+
+        deposit_invoice = issue_billing_invoice_for_commercial_closeout(
+            reservation_draft=draft,
+            amount=draft.required_deposit_amount,
+            actor=actor,
+            notes="Facture d'acompte commerciale",
+        )
+        settle_billing_invoice(
+            invoice=deposit_invoice,
+            payment=deposit_payment,
+            actor=actor,
+        )
+        balance_invoice = issue_billing_invoice_for_commercial_closeout(
+            reservation_draft=draft,
+            amount=balance_amount,
+            actor=actor,
+            notes="Facture de solde commerciale",
+        )
+        settle_billing_invoice(
+            invoice=balance_invoice,
+            payment=balance_payment,
+            actor=actor,
+        )
         closeout_reservation_draft(
             reservation_draft=draft,
             actor=actor,

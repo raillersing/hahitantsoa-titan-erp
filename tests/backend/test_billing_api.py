@@ -183,10 +183,11 @@ def test_inventory_excess_receivable_generate_invoice_hahitantsoa_event(
 
     from apps.customers.models import Customer
     from apps.hahitantsoa.models import HahitantsoaEventDraft
-    from apps.inventory.models import InventoryItem
+    from apps.inventory.models import InventoryItem, InventoryStockMovementType
     from apps.inventory.services import (
         create_inventory_damage_loss_settlement,
         create_inventory_return_operation,
+        create_inventory_stock_movement,
         validate_inventory_damage_loss_settlement,
         validate_inventory_return_operation,
     )
@@ -212,6 +213,15 @@ def test_inventory_excess_receivable_generate_invoice_hahitantsoa_event(
         name="Assiette cassée test",
         kind="material",
         breakage_price=Decimal("15000.00"),
+    )
+    create_inventory_stock_movement(
+        actor=actor,
+        inventory_item=item,
+        hahitantsoa_event_draft=event_draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        quantity=5,
+        source_label="Livraison hahitantsoa test",
+        notes="Sortie pour événement",
     )
     return_op = create_inventory_return_operation(
         actor=actor,
