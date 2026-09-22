@@ -24,9 +24,11 @@ class MaterialPackageListCreateAPIView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         qs = MaterialPackage.objects.all().order_by("name")
-        include_inactive = self.request.query_params.get(
-            "include_inactive", ""
-        ).lower() in ("true", "1", "yes")
+        include_inactive = self.request.query_params.get("include_inactive", "").lower() in (
+            "true",
+            "1",
+            "yes",
+        )
         is_active_param = self.request.query_params.get("is_active")
         if is_active_param is not None:
             if is_active_param.lower() in ("true", "1", "yes"):
