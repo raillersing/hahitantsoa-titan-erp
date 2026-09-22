@@ -132,6 +132,7 @@ export default function CustomerDetailPage({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState<Client | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
   const [attachmentsLoading, setAttachmentsLoading] = useState(true);
@@ -251,31 +252,49 @@ export default function CustomerDetailPage({
     }
   };
 
+  const handleStartEdit = () => {
+    setEditDraft({ ...client });
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setEditDraft(null);
+    setIsEditing(false);
+  };
+
+  const updateEditField = (updates: Partial<Client>) => {
+    setEditDraft((prev) => (prev ? { ...prev, ...updates } : { ...client, ...updates }));
+  };
+
+  const editValue = editDraft || client;
+
   const handleSave = async () => {
     if (!canSensitiveWrite || isSaving) return;
+    const currentDraft = editDraft || client;
     setIsSaving(true);
     setEditFeedback(null);
     try {
       const updated = await updateCustomer(client.id, {
-        display_name: client.name.trim(),
-        email: client.email,
-        phone: client.phone,
-        address: client.address,
-        id_type: client.idType,
-        id_number: client.idNumber,
-        id_issue_date: client.idIssueDate || null,
-        id_issue_place: client.idIssuePlace,
-        id_duplicata_date: client.idDuplicataDate || null,
-        id_duplicata_place: client.idDuplicataPlace,
-        birth_date: client.birthDate || null,
-        nif: client.nif,
-        stat: client.stat,
-        rcs: client.rcs,
-        representative_name: client.repFirstName,
-        representative_role: client.repRole,
-        notes: client.notes,
+        display_name: currentDraft.name.trim(),
+        email: currentDraft.email,
+        phone: currentDraft.phone,
+        address: currentDraft.address,
+        id_type: currentDraft.idType,
+        id_number: currentDraft.idNumber,
+        id_issue_date: currentDraft.idIssueDate || null,
+        id_issue_place: currentDraft.idIssuePlace,
+        id_duplicata_date: currentDraft.idDuplicataDate || null,
+        id_duplicata_place: currentDraft.idDuplicataPlace,
+        birth_date: currentDraft.birthDate || null,
+        nif: currentDraft.nif,
+        stat: currentDraft.stat,
+        rcs: currentDraft.rcs,
+        representative_name: currentDraft.repFirstName,
+        representative_role: currentDraft.repRole,
+        notes: currentDraft.notes,
       });
       setClient(mapApiCustomer(updated));
+      setEditDraft(null);
       setIsEditing(false);
       setEditFeedback("Modifications enregistrées.");
     } catch (error: unknown) {
@@ -285,10 +304,6 @@ export default function CustomerDetailPage({
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
   };
 
   const handleAttachmentSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -764,7 +779,7 @@ export default function CustomerDetailPage({
                 {isEditing && (
                   <button onClick={handleCancel} className="text-xs font-semibold text-slate-500 hover:text-slate-700">Annuler</button>
                 )}
-                <button onClick={() => isEditing ? void handleSave() : setIsEditing(true)} disabled={isSaving || (!isEditing && !canSensitiveWrite)} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:cursor-not-allowed disabled:text-slate-400">
+                <button onClick={() => isEditing ? void handleSave() : handleStartEdit()} disabled={isSaving || (!isEditing && !canSensitiveWrite)} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:cursor-not-allowed disabled:text-slate-400">
                   {isSaving ? "Enregistrement…" : isEditing ? "Enregistrer" : canSensitiveWrite ? "Modifier" : "Modification non autorisée"}
                 </button>
               </div>
@@ -778,7 +793,7 @@ export default function CustomerDetailPage({
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Nom complet</label>
                     {isEditing ? (
-                      <input type="text" value={client.name} onChange={e => setClient({ ...client, name: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="text" value={editValue.name} onChange={e => updateEditField({ name: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.name}</div>
                     )}
@@ -786,7 +801,7 @@ export default function CustomerDetailPage({
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Email</label>
                     {isEditing ? (
-                      <input type="email" value={client.email} onChange={e => setClient({ ...client, email: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="email" value={editValue.email} onChange={e => updateEditField({ email: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.email || "Non renseigné"}</div>
                     )}
@@ -794,7 +809,7 @@ export default function CustomerDetailPage({
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Téléphone</label>
                     {isEditing ? (
-                      <input type="tel" value={client.phone} onChange={e => setClient({ ...client, phone: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="tel" value={editValue.phone} onChange={e => updateEditField({ phone: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.phone}</div>
                     )}
@@ -802,7 +817,7 @@ export default function CustomerDetailPage({
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Adresse</label>
                     {isEditing ? (
-                      <input type="text" value={client.address || ""} onChange={e => setClient({ ...client, address: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Adresse du client" />
+                      <input type="text" value={editValue.address || ""} onChange={e => updateEditField({ address: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Adresse du client" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.address || "Non renseignée"}</div>
                     )}
@@ -811,11 +826,11 @@ export default function CustomerDetailPage({
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">CIN / Passeport</label>
                     {isEditing ? (
                       <div className="flex gap-2">
-                        <select value={client.idType || "CIN"} onChange={e => setClient({ ...client, idType: e.target.value as any })} className="w-1/3 border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <select value={editValue.idType || "CIN"} onChange={e => updateEditField({ idType: e.target.value as any })} className="w-1/3 border border-slate-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                           <option value="CIN">CIN</option>
                           <option value="Passeport">Passeport</option>
                         </select>
-                        <input type="text" value={client.idNumber || ""} onChange={e => setClient({ ...client, idNumber: e.target.value })} className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Numéro" />
+                        <input type="text" value={editValue.idNumber || ""} onChange={e => updateEditField({ idNumber: e.target.value })} className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Numéro" />
                       </div>
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">
@@ -826,7 +841,7 @@ export default function CustomerDetailPage({
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Délivré le</label>
                     {isEditing ? (
-                      <input type="date" value={client.idIssueDate || ""} onChange={e => setClient({ ...client, idIssueDate: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="date" value={editValue.idIssueDate || ""} onChange={e => updateEditField({ idIssueDate: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.idIssueDate || "Non renseigné"}</div>
                     )}
@@ -834,17 +849,17 @@ export default function CustomerDetailPage({
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Délivré à</label>
                     {isEditing ? (
-                      <input type="text" value={client.idIssuePlace || ""} onChange={e => setClient({ ...client, idIssuePlace: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="text" value={editValue.idIssuePlace || ""} onChange={e => updateEditField({ idIssuePlace: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.idIssuePlace || "Non renseigné"}</div>
                     )}
                   </div>
-                  {(isEditing || client.idDuplicataDate || client.idDuplicataPlace) && (
+                  {(isEditing || editValue.idDuplicataDate || editValue.idDuplicataPlace) && (
                     <>
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Duplicata du (Date)</label>
                         {isEditing ? (
-                          <input type="date" value={client.idDuplicataDate || ""} onChange={e => setClient({ ...client, idDuplicataDate: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                          <input type="date" value={editValue.idDuplicataDate || ""} onChange={e => updateEditField({ idDuplicataDate: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                         ) : (
                           <div className="text-sm text-slate-800 font-medium">{client.idDuplicataDate || "Non renseigné"}</div>
                         )}
@@ -852,7 +867,7 @@ export default function CustomerDetailPage({
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Duplicata à (Lieu)</label>
                         {isEditing ? (
-                          <input type="text" value={client.idDuplicataPlace || ""} onChange={e => setClient({ ...client, idDuplicataPlace: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                          <input type="text" value={editValue.idDuplicataPlace || ""} onChange={e => updateEditField({ idDuplicataPlace: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                         ) : (
                           <div className="text-sm text-slate-800 font-medium">{client.idDuplicataPlace || "Non renseigné"}</div>
                         )}
@@ -862,7 +877,7 @@ export default function CustomerDetailPage({
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Date de naissance</label>
                     {isEditing ? (
-                      <input type="date" value={client.birthDate || ""} onChange={e => setClient({ ...client, birthDate: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="date" value={editValue.birthDate || ""} onChange={e => updateEditField({ birthDate: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.birthDate || "Non renseignée"}</div>
                     )}
@@ -873,7 +888,7 @@ export default function CustomerDetailPage({
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Raison sociale</label>
                     {isEditing ? (
-                      <input type="text" value={client.name} onChange={e => setClient({ ...client, name: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="text" value={editValue.name} onChange={e => updateEditField({ name: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.name}</div>
                     )}
@@ -881,7 +896,7 @@ export default function CustomerDetailPage({
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Email Pro</label>
                     {isEditing ? (
-                      <input type="email" value={client.email} onChange={e => setClient({ ...client, email: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="email" value={editValue.email} onChange={e => updateEditField({ email: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.email || "Non renseigné"}</div>
                     )}
@@ -889,7 +904,7 @@ export default function CustomerDetailPage({
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Téléphone Pro</label>
                     {isEditing ? (
-                      <input type="tel" value={client.phone} onChange={e => setClient({ ...client, phone: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="tel" value={editValue.phone} onChange={e => updateEditField({ phone: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.phone}</div>
                     )}
@@ -897,7 +912,7 @@ export default function CustomerDetailPage({
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">NIF</label>
                     {isEditing ? (
-                      <input type="text" value={client.nif || ""} onChange={e => setClient({ ...client, nif: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="text" value={editValue.nif || ""} onChange={e => updateEditField({ nif: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.nif || "Non renseigné"}</div>
                     )}
@@ -905,7 +920,7 @@ export default function CustomerDetailPage({
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">STAT</label>
                     {isEditing ? (
-                      <input type="text" value={client.stat || ""} onChange={e => setClient({ ...client, stat: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="text" value={editValue.stat || ""} onChange={e => updateEditField({ stat: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.stat || "Non renseigné"}</div>
                     )}
@@ -913,7 +928,7 @@ export default function CustomerDetailPage({
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">RCS</label>
                     {isEditing ? (
-                      <input type="text" value={client.rcs || ""} onChange={e => setClient({ ...client, rcs: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="text" value={editValue.rcs || ""} onChange={e => updateEditField({ rcs: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.rcs || "Non renseigné"}</div>
                     )}
@@ -921,7 +936,7 @@ export default function CustomerDetailPage({
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Représentant</label>
                     {isEditing ? (
-                      <input type="text" value={client.repFirstName || ""} onChange={e => setClient({ ...client, repFirstName: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Nom du représentant" />
+                      <input type="text" value={editValue.repFirstName || ""} onChange={e => updateEditField({ repFirstName: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Nom du représentant" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.repFirstName || "Non renseigné"}</div>
                     )}
@@ -929,7 +944,7 @@ export default function CustomerDetailPage({
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Fonction représentant</label>
                     {isEditing ? (
-                      <input type="text" value={client.repRole || ""} onChange={e => setClient({ ...client, repRole: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      <input type="text" value={editValue.repRole || ""} onChange={e => updateEditField({ repRole: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.repRole || "Non renseignée"}</div>
                     )}
@@ -939,7 +954,7 @@ export default function CustomerDetailPage({
               <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Notes internes</label>
                 {isEditing ? (
-                  <textarea value={client.notes || ""} onChange={e => setClient({ ...client, notes: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 h-20" placeholder="Remarques..." />
+                  <textarea value={editValue.notes || ""} onChange={e => updateEditField({ notes: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 h-20" placeholder="Remarques..." />
                 ) : (
                   <div className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100">{client.notes || "Aucune note."}</div>
                 )}

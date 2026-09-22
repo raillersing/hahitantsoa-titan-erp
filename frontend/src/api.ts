@@ -2508,8 +2508,17 @@ export function deleteBlacklistedIntervenant(
 
 export function getMaterialPackages(
   signal?: AbortSignal,
+  params?: { include_inactive?: boolean; is_active?: boolean },
 ): Promise<MaterialPackage[]> {
-  return getAuthenticatedJson("/api/v1/material-packages/", signal);
+  const query = new URLSearchParams();
+  if (params?.include_inactive !== undefined) {
+    query.set("include_inactive", String(params.include_inactive));
+  }
+  if (params?.is_active !== undefined) {
+    query.set("is_active", String(params.is_active));
+  }
+  const queryString = query.toString() ? `?${query.toString()}` : "";
+  return getAuthenticatedJson(`/api/v1/material-packages/${queryString}`, signal);
 }
 
 export function getMaterialPackage(

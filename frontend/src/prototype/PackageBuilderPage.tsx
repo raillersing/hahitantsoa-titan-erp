@@ -75,7 +75,7 @@ export default function PackageBuilderPage() {
     const controller = new AbortController();
     try {
       const [pkgData, catData] = await Promise.all([
-        getMaterialPackages(controller.signal),
+        getMaterialPackages(controller.signal, { include_inactive: true }),
         getInventoryItems(controller.signal),
       ]);
       if (!cancelled) {

@@ -385,11 +385,11 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
         logistics,
         closedDays,
       ] = await Promise.all([
-        getReservationDrafts().catch(() => [] as ReservationDraft[]),
-        getHahitantsoaEventDrafts().catch(() => [] as HahitantsoaEventDraft[]),
-        getVisitAppointments().catch(() => [] as VisitAppointment[]),
-        getLogisticsEvents().catch(() => [] as LogisticsEvent[]),
-        getTitanClosedDays().catch(() => [] as TitanClosedDay[]),
+        getReservationDrafts(),
+        getHahitantsoaEventDrafts(),
+        getVisitAppointments(),
+        getLogisticsEvents(),
+        getTitanClosedDays(),
       ]);
 
       const events: UnifiedPlanningEvent[] = [];

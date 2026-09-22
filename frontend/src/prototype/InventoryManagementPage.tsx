@@ -8,6 +8,7 @@ import { useTableSort, SortableHeader } from "./tableSortUtils";
 interface DisplayItem {
   id: string;
   name: string;
+  kind: InventoryItem["kind"];
   type: "Location" | "Consommable" | "Uniforme";
   category: string;
   totalStock: number;
@@ -63,6 +64,7 @@ function toDisplayItem(item: InventoryItem): DisplayItem {
   return {
     id: item.id,
     name: item.name,
+    kind: item.kind,
     type: typeMap[item.kind] ?? "Location",
     category: item.section || item.kind,
     totalStock,
@@ -79,6 +81,7 @@ function toDisplayItem(item: InventoryItem): DisplayItem {
       : totalStock <= 0
         ? "Rupture"
         : "OK",
+    imageUrl: item.image_url || "",
     description: item.description,
     code: item.code,
   };
@@ -317,7 +320,19 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
 
     setIsSaving(true);
     try {
-      const kind: InventoryItem["kind"] = editForm.type === "Location" ? "material" : "article";
+      let kind: InventoryItem["kind"];
+      if (formMode === "edit" && editForm.kind) {
+        if (editForm.type === "Consommable" || editForm.type === "Uniforme") {
+          kind = "article";
+        } else {
+          kind = editForm.kind;
+        }
+      } else {
+        kind = editForm.type === "Location" ? "material" : "article";
+      }
+
+      const isBlob = typeof editForm.imageUrl === "string" && editForm.imageUrl.startsWith("blob:");
+      const imageUrl = isBlob ? "" : (editForm.imageUrl || "");
       const payload = {
         name: editForm.name,
         kind,
@@ -327,6 +342,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
         purchase_price: String(editForm.purchasePrice || 0),
         breakage_price: String(editForm.breakagePrice || 0),
         description: editForm.description || "",
+        image_url: imageUrl,
         reported_inventory_quantity: formMode === "create" ? editForm.totalStock : undefined,
         is_active: editForm.status !== "Rupture",
       };
@@ -351,7 +367,11 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
         const next = refreshed.find(candidate => candidate.id === i.id);
         return next ?? i;
       }));
-      setToast(formMode === "create" ? "Article créé avec succès." : "Article mis à jour.");
+      if (isBlob) {
+        setToast((formMode === "create" ? "Article créé." : "Article mis à jour.") + " Note : l'image locale temporaire n'est pas persistée sur le serveur. Renseignez une URL pour conserver l'image.");
+      } else {
+        setToast(formMode === "create" ? "Article créé avec succès." : "Article mis à jour.");
+      }
       setIsFormOpen(false);
     } catch (err) {
       setToast(err instanceof ApiError ? err.message : "La sauvegarde de l'article a échoué.");
@@ -794,6 +814,10 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                           <button type="button" onClick={() => setEditForm({ ...editForm, imageUrl: '' })} className="text-xs text-rose-500 hover:text-rose-700 font-bold px-2 py-1">Retirer</button>
                         )}
                       </div>
+                      <p className="text-[11px] text-slate-500">L'ERP enregistre les URLs d'images (ex: https://... ou /brand/...). Le fichier local sert d'aperçu temporaire.</p>
+                      {editForm.imageUrl && editForm.imageUrl.startsWith("blob:") && (
+                        <p className="text-[11px] text-amber-600 font-medium">Aperçu local temporaire actif : saisissez une URL hébergée pour persister l'image après rechargement.</p>
+                      )}
                     </div>
                   </div>
                 </div>

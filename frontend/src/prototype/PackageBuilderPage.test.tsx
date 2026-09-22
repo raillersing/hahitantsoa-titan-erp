@@ -270,4 +270,45 @@ describe('PackageBuilderPage', () => {
     });
     expect(screen.queryByDisplayValue('Brouillon du premier pack')).not.toBeInTheDocument();
   });
+
+  it("10. Charge les packages inactifs avec include_inactive et permet de les afficher (F27)", async () => {
+    const inactivePkg = {
+      id: "pkg-inactive",
+      name: "Pack Historique Archivé",
+      description: "Pack désactivé",
+      price: "200000.00",
+      image_url: "",
+      is_active: false,
+      lines: [],
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+    };
+    mockGetMaterialPackages.mockResolvedValue([...mockPackages, inactivePkg]);
+
+    render(<PackageBuilderPage />);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Chargement des packages…')).not.toBeInTheDocument();
+    });
+
+    expect(mockGetMaterialPackages).toHaveBeenCalledWith(
+      expect.anything(),
+      { include_inactive: true },
+    );
+
+    // Filter by inactive packages
+    const inactifsBtn = screen.getByRole("button", { name: /Inactifs/i });
+    fireEvent.click(inactifsBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText("Pack Historique Archivé")).toBeInTheDocument();
+    });
+
+    // Select the inactive package and verify its details can be viewed and edited
+    fireEvent.click(screen.getByText("Pack Historique Archivé"));
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("Pack Historique Archivé")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("Pack désactivé")).toBeInTheDocument();
+    });
+  });
 });
