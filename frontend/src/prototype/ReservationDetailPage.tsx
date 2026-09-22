@@ -454,11 +454,12 @@ export default function ReservationDetailPage({
       // Regenerate proforma if it was previously generated to keep amounts in sync
       if (proformaInstance) {
         try {
-          const newProforma = await createReservationDraftDocumentInstance(draft.id, { template_key: "titan.material_proforma.v1" });
+          const newProforma = await createReservationDraftDocumentInstance(draft.id, { template_key: "titan.proforma.v1" });
           await generateReservationDraftDocumentInstance(draft.id, newProforma.id);
           await generateReservationDraftDocumentInstancePdf(draft.id, newProforma.id);
         } catch (docErr) {
           console.warn("Could not regenerate Titan proforma:", docErr);
+          showToast("Avenant appliqué, mais la régénération du devis/proforma a rencontré une erreur.", "warning");
         }
       }
 
@@ -563,11 +564,12 @@ export default function ReservationDetailPage({
       if (!hasContract) {
         try {
           const inst = await createReservationDraftDocumentInstance(draft.id, {
-            template_key: "titan.contract.v1",
+            template_key: "titan.material_contract.v1",
           });
           await generateReservationDraftDocumentInstance(draft.id, inst.id);
         } catch (cErr) {
           console.warn("Auto titan contract generation after payment:", cErr);
+          showToast("Paiement enregistré, mais la génération automatique du contrat a rencontré une erreur.", "warning");
         }
       }
 
@@ -621,8 +623,8 @@ export default function ReservationDetailPage({
       await refreshLifecycle(draft.id);
       if (result.blocked_item_count > 0) {
         showToast(
-          `Réservation confirmée (${result.blocked_item_count} article(s) en conflit).`,
-          "warning",
+          `Réservation confirmée avec succès (${result.blocked_item_count} article(s) réservé(s)).`,
+          "success",
         );
       } else {
         showToast("Réservation confirmée avec succès.", "success");

@@ -731,4 +731,95 @@ describe('ReservationDetailPage', () => {
       });
     });
   });
+
+  it("régénère le proforma Titan avec le template valide titan.proforma.v1 lors de l'application d'un avenant (F21)", async () => {
+    mockGetReservationDraftDocumentInstances.mockResolvedValue([
+      {
+        id: "doc-pf-1",
+        reservation_draft: "draft-loc-089",
+        document_type: "proforma",
+        template_key: "titan.proforma.v1",
+        status: "generated",
+      },
+    ]);
+    mockCreateReservationDraftDocumentInstance.mockResolvedValue({ id: "doc-pf-2" });
+    mockGenerateReservationDraftDocumentInstance.mockResolvedValue({});
+    mockGenerateReservationDraftDocumentInstancePdf.mockResolvedValue({});
+
+    render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
+    await waitForDraftLoad();
+
+    // Switch to avenants tab
+    const avenantsTab = screen.getByRole("button", { name: /Avenants/i });
+    fireEvent.click(avenantsTab);
+
+    // Click on Nouvel avenant Titan
+    const openBtn = screen.getByRole("button", { name: /Créer un avenant|Nouvel avenant/i });
+    fireEvent.click(openBtn);
+
+    // Step 1: Motif
+    const reasonInput = screen.getByLabelText(/Motif de l’avenant/i);
+    fireEvent.change(reasonInput, { target: { value: "Ajustement chaises" } });
+
+    // Step 1 -> Step 2
+    fireEvent.click(screen.getByRole("button", { name: /Continuer/i }));
+    // Step 2 -> Step 3
+    fireEvent.click(screen.getByRole("button", { name: /Continuer/i }));
+    // Step 3 -> Step 4
+    fireEvent.click(screen.getByRole("button", { name: /Continuer/i }));
+
+    // Step 4: Submit
+    const submitBtn = screen.getByRole("button", { name: /Générer l’avenant/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockCreateReservationDraftAmendment).toHaveBeenCalled();
+      expect(mockCreateReservationDraftDocumentInstance).toHaveBeenCalledWith(
+        "draft-loc-089",
+        expect.objectContaining({ template_key: "titan.proforma.v1" }),
+      );
+      expect(mockCreateReservationDraftDocumentInstance).not.toHaveBeenCalledWith(
+        "draft-loc-089",
+        expect.objectContaining({ template_key: "titan.material_proforma.v1" }),
+      );
+    });
+  });
+
+  it("affiche un toast de succès mentionnant les articles réservés et non des conflits lors de la confirmation (F23)", async () => {
+    mockConfirmReservationDraft.mockResolvedValue({
+      status: "confirmed",
+      public_reference: "LOC-2026-0089",
+      reservation_draft: {
+        ...MOCK_DRAFT,
+        status: "confirmed",
+        contract_signed_at: "2026-07-01T10:00:00Z",
+        required_deposit_received_at: "2026-07-02T10:00:00Z",
+        confirmed_at: "2026-07-03T10:00:00Z",
+      },
+      blocked_item_count: 5,
+    });
+
+    mockGetReservationDraft.mockReset();
+    mockGetReservationDraft.mockResolvedValue({
+      ...MOCK_DRAFT,
+      status: "draft",
+      contract_signed_at: "2026-07-01T10:00:00Z",
+      required_deposit_received_at: "2026-07-02T10:00:00Z",
+    });
+    mockGetCustomer.mockResolvedValue(MOCK_CUSTOMER);
+    mockGetReservationDraftDocumentInstances.mockResolvedValue([]);
+    mockGetPayments.mockResolvedValue([]);
+    mockGetLifecycle.mockResolvedValue(null);
+
+    render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
+    await waitForDraftLoad();
+
+    const confirmBtn = screen.getAllByRole("button", { name: /Confirmer la réservation/i })[0];
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Réservation confirmée avec succès \(5 article\(s\) réservé\(s\)\)\./i)).toBeInTheDocument();
+      expect(screen.queryByText(/en conflit/i)).not.toBeInTheDocument();
+    });
+  });
 });
