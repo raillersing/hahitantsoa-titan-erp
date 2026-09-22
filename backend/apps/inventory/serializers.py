@@ -113,6 +113,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             "breakage_price",
             "reported_inventory_quantity",
             "reported_damaged_quantity",
+            "image_url",
             "stock_summary",
             "is_active",
             "created_at",

@@ -23,7 +23,21 @@ class MaterialPackageListCreateAPIView(generics.ListCreateAPIView):
         return MaterialPackageSerializer
 
     def get_queryset(self):
-        return MaterialPackage.objects.filter(is_active=True).order_by("name")
+        qs = MaterialPackage.objects.all().order_by("name")
+        include_inactive = self.request.query_params.get("include_inactive", "").lower() in (
+            "true",
+            "1",
+            "yes",
+        )
+        is_active_param = self.request.query_params.get("is_active")
+        if is_active_param is not None:
+            if is_active_param.lower() in ("true", "1", "yes"):
+                qs = qs.filter(is_active=True)
+            elif is_active_param.lower() in ("false", "0", "no"):
+                qs = qs.filter(is_active=False)
+        elif not include_inactive:
+            qs = qs.filter(is_active=True)
+        return qs
 
 
 class MaterialPackageRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):

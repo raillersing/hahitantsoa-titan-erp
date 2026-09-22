@@ -135,6 +135,40 @@ def test_list_returns_only_active_packages(authenticated_client):
     assert payload[0]["is_active"] is True
 
 
+def test_list_include_inactive_returns_both_active_and_inactive_packages(authenticated_client):
+    active = _create_package("Active Package")
+    inactive = _create_package("Inactive Package", is_active=False)
+
+    response = authenticated_client.get(f"{MATERIAL_PACKAGE_LIST_URL}?include_inactive=true")
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert len(payload) == 2
+    ids = {p["id"] for p in payload}
+    assert ids == {str(active.id), str(inactive.id)}
+
+
+def test_list_filter_is_active_returns_filtered_packages(authenticated_client):
+    active = _create_package("Active Package")
+    inactive = _create_package("Inactive Package", is_active=False)
+
+    # is_active=false returns only inactive packages
+    response_inactive = authenticated_client.get(f"{MATERIAL_PACKAGE_LIST_URL}?is_active=false")
+    assert response_inactive.status_code == 200
+    payload_inactive = response_inactive.json()
+    assert len(payload_inactive) == 1
+    assert payload_inactive[0]["id"] == str(inactive.id)
+    assert payload_inactive[0]["is_active"] is False
+
+    # is_active=true returns only active packages
+    response_active = authenticated_client.get(f"{MATERIAL_PACKAGE_LIST_URL}?is_active=true")
+    assert response_active.status_code == 200
+    payload_active = response_active.json()
+    assert len(payload_active) == 1
+    assert payload_active[0]["id"] == str(active.id)
+    assert payload_active[0]["is_active"] is True
+
+
 def test_list_returns_empty_when_no_active_packages(authenticated_client):
     _create_package("Gone Package", is_active=False)
 

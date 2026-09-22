@@ -118,6 +118,7 @@ class InventoryItem(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel
     breakage_price = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     reported_inventory_quantity = models.PositiveIntegerField(default=0)
     reported_damaged_quantity = models.PositiveIntegerField(default=0)
+    image_url = models.CharField(max_length=500, blank=True, default="")
     is_active = models.BooleanField(default=True)
 
     class Meta:

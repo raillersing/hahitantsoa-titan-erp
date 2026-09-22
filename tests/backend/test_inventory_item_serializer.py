@@ -22,6 +22,7 @@ def test_inventory_item_serializer_fields() -> None:
         "breakage_price",
         "reported_inventory_quantity",
         "reported_damaged_quantity",
+        "image_url",
         "stock_summary",
         "is_active",
         "created_at",
@@ -117,4 +118,18 @@ def test_inventory_item_serializer_serializes_unsaved_instance() -> None:
         "return_stock": 0,
         "damaged_lost_stock": 0,
     }
+    assert data["image_url"] == ""
     assert data["is_active"] is True
+
+
+def test_inventory_item_serializer_supports_image_url() -> None:
+    serializer = InventoryItemSerializer(
+        data={
+            "name": "Projecteur LED",
+            "kind": "material",
+            "image_url": "https://example.com/photos/projecteur.jpg",
+            "is_active": True,
+        }
+    )
+    assert serializer.is_valid() is True
+    assert serializer.validated_data["image_url"] == "https://example.com/photos/projecteur.jpg"
