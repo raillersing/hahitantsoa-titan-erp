@@ -160,4 +160,24 @@ describe("ServicesPage", () => {
       expect(screen.getByText("🌐 URL web")).toBeInTheDocument();
     });
   });
+
+  it("displays error state with retry button when loading services fails (F30)", async () => {
+    vi.spyOn(api, "getHahitantsoaServices").mockRejectedValueOnce(new Error("Erreur de connexion catalogue"));
+
+    render(<ServicesPage />);
+
+    expect(await screen.findByText("Erreur lors du chargement des prestations")).toBeInTheDocument();
+    expect(screen.getByText("Erreur de connexion catalogue")).toBeInTheDocument();
+    expect(screen.queryByText("Aucune prestation trouvée")).not.toBeInTheDocument();
+
+    const retryBtn = screen.getByRole("button", { name: /Réessayer/i });
+    expect(retryBtn).toBeInTheDocument();
+
+    // Recover on retry
+    vi.spyOn(api, "getHahitantsoaServices").mockResolvedValueOnce(mockServices);
+    fireEvent.click(retryBtn);
+
+    expect(await screen.findByText("Voilage centré")).toBeInTheDocument();
+    expect(screen.queryByText("Erreur lors du chargement des prestations")).not.toBeInTheDocument();
+  });
 });

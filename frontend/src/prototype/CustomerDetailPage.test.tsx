@@ -224,4 +224,24 @@ describe('CustomerDetailPage', () => {
     expect(screen.getByText('RES-001')).toBeInTheDocument();
     expect(screen.getAllByText('Relance commerciale')).toHaveLength(2);
   });
+
+  it('9. L’annulation de l’édition restaure l’état d’origine sans persister les modifications abandonnées (F25)', async () => {
+    const mockNavigate = vi.fn();
+    render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} canSensitiveWrite />);
+
+    expect(await screen.findByText('Fiche client — Ando Rakoto')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Modifier'));
+
+    const nameInput = screen.getByDisplayValue('Ando Rakoto');
+    fireEvent.change(nameInput, { target: { value: 'Nom Annulé' } });
+    expect(screen.getByDisplayValue('Nom Annulé')).toBeInTheDocument();
+
+    // Click Annuler
+    fireEvent.click(screen.getByText('Annuler'));
+
+    // Should revert back to original name without saving
+    expect(screen.getAllByText('Ando Rakoto').length).toBeGreaterThan(0);
+    expect(screen.queryByDisplayValue('Nom Annulé')).not.toBeInTheDocument();
+    expect(api.updateCustomer).not.toHaveBeenCalled();
+  });
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { ApiError, getHahitantsoaServices, createHahitantsoaService, updateHahitantsoaService, deleteHahitantsoaService } from '../api';
 import type { HahitantsoaService, HahitantsoaServiceCategory, HahitantsoaServicePricingType } from '../types';
 
@@ -33,6 +33,7 @@ const CATEGORY_BANNERS: Record<string, string> = {
 const ServicesPage: React.FC = () => {
   const [services, setServices] = useState<HahitantsoaService[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<HahitantsoaServiceCategory | 'all'>('all');
@@ -88,28 +89,32 @@ const ServicesPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    let isSubscribed = true;
-    const controller = new AbortController();
-
-    getHahitantsoaServices(controller.signal)
+  const fetchServices = useCallback((signal?: AbortSignal) => {
+    setLoading(true);
+    setError(null);
+    return getHahitantsoaServices(signal)
       .then((apiServices) => {
-        if (isSubscribed && Array.isArray(apiServices)) {
+        if (Array.isArray(apiServices)) {
           setServices(apiServices);
         }
       })
-      .catch(() => {
-        if (isSubscribed) setServices([]);
+      .catch((err) => {
+        if (err?.name === "AbortError") return;
+        setError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Erreur lors du chargement des prestations.");
+        setServices([]);
       })
       .finally(() => {
-        if (isSubscribed) setLoading(false);
+        setLoading(false);
       });
+  }, []);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchServices(controller.signal);
     return () => {
-      isSubscribed = false;
       controller.abort();
     };
-  }, []);
+  }, [fetchServices]);
 
   const showToast = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
     setToast({ message, type });
@@ -626,6 +631,21 @@ const ServicesPage: React.FC = () => {
       {/* Loading state */}
       {loading ? (
         <div className="py-12 text-center text-slate-500 font-medium">Chargement du catalogue des offres...</div>
+      ) : error ? (
+        <div className="bg-white rounded-2xl p-10 text-center border border-rose-200 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-3">
+            <i className="fa-solid fa-circle-exclamation text-xl"></i>
+          </div>
+          <h3 className="text-base font-bold text-slate-900 mb-1">Erreur lors du chargement des prestations</h3>
+          <p className="text-xs text-rose-600 mb-4">{error}</p>
+          <button
+            type="button"
+            onClick={() => fetchServices()}
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition"
+          >
+            Réessayer
+          </button>
+        </div>
       ) : filteredServices.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
           <i className="fa-solid fa-folder-open text-4xl text-slate-300 mb-3"></i>

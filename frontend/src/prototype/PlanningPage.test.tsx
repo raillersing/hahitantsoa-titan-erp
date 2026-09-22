@@ -473,4 +473,24 @@ describe("PlanningPage (Modern Enterprise Agenda)", () => {
     expect(screen.getByText("Réception de jour")).toBeInTheDocument();
     expect(screen.getByText("Réception nuit deux")).toBeInTheDocument();
   });
+
+  it("displays an error message and retry button when an API endpoint fails (F26)", async () => {
+    vi.spyOn(api, "getReservationDrafts").mockRejectedValueOnce(new Error("Erreur réseau Titan"));
+
+    render(<PlanningPage />);
+
+    expect(await screen.findByText("Erreur lors du chargement du planning")).toBeInTheDocument();
+    expect(screen.getByText("Erreur réseau Titan")).toBeInTheDocument();
+
+    const retryButton = screen.getByRole("button", { name: /Réessayer/i });
+    expect(retryButton).toBeInTheDocument();
+
+    // Mock resolves on retry
+    vi.spyOn(api, "getReservationDrafts").mockResolvedValueOnce([]);
+    fireEvent.click(retryButton);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Erreur lors du chargement du planning")).not.toBeInTheDocument();
+    });
+  });
 });

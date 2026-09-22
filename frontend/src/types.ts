@@ -13,6 +13,7 @@ export type InventoryItem = {
   breakage_price?: string | null;
   reported_inventory_quantity?: number;
   reported_damaged_quantity?: number;
+  image_url?: string;
   is_active?: boolean;
   is_deleted?: boolean;
   stock_summary?: {
