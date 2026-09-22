@@ -18,6 +18,7 @@ INVENTORY_ITEM_FIELDS = {
     "reported_inventory_quantity",
     "reported_damaged_quantity",
     "stock_summary",
+    "image_url",
     "is_active",
     "created_at",
     "updated_at",
