@@ -247,3 +247,136 @@ def test_concurrent_closeout_replay_creates_one_immutable_proof(django_user_mode
 
     assert closeout_ids[0] == closeout_ids[1]
     assert HahitantsoaEventCloseout.objects.filter(event_draft=event_draft).count() == 1
+
+
+def test_hahitantsoa_closeout_blocked_by_casse_without_settlement(django_user_model):
+    from apps.inventory.models import (
+        InventoryItem,
+        InventoryReturnOperation,
+        InventoryReturnOperationLine,
+    )
+
+    actor = _actor(django_user_model)
+    event_draft = _event_draft(actor=actor)
+
+    return_op = InventoryReturnOperation.objects.create(
+        hahitantsoa_event_draft=event_draft,
+        status="validated",
+        validated_at=timezone.now(),
+        validated_by=actor,
+    )
+    item = InventoryItem.objects.create(name="Hahitantsoa broken item", kind="material")
+    InventoryReturnOperationLine.objects.create(
+        return_operation=return_op,
+        inventory_item=item,
+        expected_quantity=2,
+        conforming_quantity=1,
+        breakage_quantity=1,
+        returned_quantity=2,
+        damaged_quantity=1,
+        missing_quantity=0,
+        condition_status="mixed",
+    )
+
+    blockers = validate_hahitantsoa_event_closeable(event_draft=event_draft)
+    assert any(
+        b.startswith(f"return_settlement_missing_for_casse:{return_op.id}") for b in blockers
+    )
+
+    with pytest.raises(HahitantsoaCloseoutValidationError):
+        closeout_hahitantsoa_event_draft(event_draft=event_draft, actor=actor)
+
+
+def test_hahitantsoa_closeout_blocked_by_incomplete_commercial_settlement(django_user_model):
+    from decimal import Decimal
+
+    from apps.billing.models import BillingInvoice, BillingInvoiceStatus
+
+    actor = _actor(django_user_model)
+    event_draft = _event_draft(actor=actor)
+    event_draft.total_amount = Decimal("60000.00")
+    event_draft.save()
+
+    # Invoiced but not settled
+    BillingInvoice.objects.create(
+        hahitantsoa_event_draft=event_draft,
+        amount=Decimal("60000.00"),
+        invoice_status=BillingInvoiceStatus.OPEN,
+        issued_at=timezone.now(),
+        source_kind="manual",
+    )
+
+    blockers = validate_hahitantsoa_event_closeable(event_draft=event_draft)
+    assert any(b.startswith("commercial_settlement_incomplete") for b in blockers)
+
+    with pytest.raises(HahitantsoaCloseoutValidationError):
+        closeout_hahitantsoa_event_draft(event_draft=event_draft, actor=actor)
+
+
+def test_hahitantsoa_closeout_blocked_by_pending_payments(django_user_model):
+    from decimal import Decimal
+
+    actor = _actor(django_user_model)
+    event_draft = _event_draft(actor=actor)
+
+    Payment.objects.create(
+        hahitantsoa_event_draft=event_draft,
+        amount=Decimal("20000.00"),
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        created_by=actor,
+    )
+
+    blockers = validate_hahitantsoa_event_closeable(event_draft=event_draft)
+    assert "payments_pending_resolution:1" in blockers
+
+    with pytest.raises(HahitantsoaCloseoutValidationError):
+        closeout_hahitantsoa_event_draft(event_draft=event_draft, actor=actor)
+
+
+def test_hahitantsoa_post_closeout_mutations_blocked(django_user_model):
+    from decimal import Decimal
+
+    from apps.billing.services import (
+        BillingServiceError,
+        issue_billing_invoice_for_hahitantsoa_closeout,
+    )
+    from apps.inventory.services import (
+        InventoryStockMovementError,
+        create_inventory_return_operation,
+    )
+    from apps.payments.services import PaymentServiceError, create_payment
+
+    actor = _actor(django_user_model)
+    event_draft = _event_draft(actor=actor)
+
+    closeout_hahitantsoa_event_draft(event_draft=event_draft, actor=actor)
+
+    # 1. Payment blocked
+    with pytest.raises(PaymentServiceError) as p_err:
+        create_payment(
+            actor=actor,
+            hahitantsoa_event_draft=event_draft,
+            payment_kind="deposit",
+            payment_method="cash",
+            amount=Decimal("1000.00"),
+        )
+    assert p_err.value.code == "dossier_already_closed"
+
+    # 2. Invoice blocked
+    with pytest.raises(BillingServiceError) as b_err:
+        issue_billing_invoice_for_hahitantsoa_closeout(
+            actor=actor,
+            hahitantsoa_event_draft=event_draft,
+            amount=Decimal("1000.00"),
+        )
+    assert b_err.value.code == "dossier_already_closed"
+
+    # 3. Return operation blocked
+    with pytest.raises(InventoryStockMovementError) as i_err:
+        create_inventory_return_operation(
+            actor=actor,
+            hahitantsoa_event_draft=event_draft,
+            lines=[],
+        )
+    assert i_err.value.code == "dossier_already_closed"

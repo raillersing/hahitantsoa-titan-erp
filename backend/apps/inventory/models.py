@@ -476,6 +476,11 @@ class InventoryReturnOperation(UUIDModel, TimestampedModel, AuditableModel):
                 "A return operation cannot reference both a Titan reservation and a "
                 "Hahitantsoa event."
             )
+        if not self.reservation_draft_id and not self.hahitantsoa_event_draft_id:
+            raise ValidationError(
+                "A return operation must reference either a Titan reservation or a "
+                "Hahitantsoa event."
+            )
 
         if self.idempotency_key and not (
             self.reservation_draft_id or self.hahitantsoa_event_draft_id

@@ -110,6 +110,30 @@ class TestPurchaseOrderAPI:
         assert data["supplier_name"] == "Minimal Supplier"
         assert data["subject"] == ""  # default
 
+    def test_create_purchase_order_negative_amount_rejected(self, authenticated_client):
+        payload = {
+            "supplier_name": "Negative Supplier",
+            "amount": "-500.00",
+        }
+        response = authenticated_client.post(
+            PURCHASE_ORDER_LIST_URL, payload, content_type="application/json"
+        )
+        assert response.status_code == 400
+        assert "amount" in response.json()
+        assert PurchaseOrder.objects.count() == 0
+
+    def test_create_purchase_order_zero_amount_rejected(self, authenticated_client):
+        payload = {
+            "supplier_name": "Zero Supplier",
+            "amount": "0.00",
+        }
+        response = authenticated_client.post(
+            PURCHASE_ORDER_LIST_URL, payload, content_type="application/json"
+        )
+        assert response.status_code == 400
+        assert "amount" in response.json()
+        assert PurchaseOrder.objects.count() == 0
+
 
 # ---------------------------------------------------------------------------
 # QuickExpense
@@ -164,6 +188,30 @@ class TestQuickExpenseAPI:
         data = response.json()
         assert data["category"] == "other"
         assert data["description"] == ""
+
+    def test_create_expense_negative_amount_rejected(self, authenticated_client):
+        payload = {
+            "amount": "-1500.00",
+            "category": "transport",
+        }
+        response = authenticated_client.post(
+            EXPENSE_LIST_URL, payload, content_type="application/json"
+        )
+        assert response.status_code == 400
+        assert "amount" in response.json()
+        assert QuickExpense.objects.count() == 0
+
+    def test_create_expense_zero_amount_rejected(self, authenticated_client):
+        payload = {
+            "amount": "0.00",
+            "category": "transport",
+        }
+        response = authenticated_client.post(
+            EXPENSE_LIST_URL, payload, content_type="application/json"
+        )
+        assert response.status_code == 400
+        assert "amount" in response.json()
+        assert QuickExpense.objects.count() == 0
 
 
 # ---------------------------------------------------------------------------

@@ -195,3 +195,20 @@ def test_prior_validated_complete_return_blocks_a_second_return(django_user_mode
         validate_inventory_return_operation(return_operation=second, actor=actor)
 
     assert error.value.code == "return_operation_quantity_exceeded"
+
+
+def test_return_rejected_when_no_outbound_movements_exist(django_user_model):
+    actor = django_user_model.objects.create_user(username="return-no-outbound", password="test")
+    draft = _draft()
+    item = InventoryItem.objects.create(name="Unsent item", kind="material")
+    operation = create_inventory_return_operation(
+        actor=actor,
+        reservation_draft=draft,
+        lines=[_line(item, 1)],
+    )
+
+    with pytest.raises(InventoryStockMovementError) as error:
+        validate_inventory_return_operation(return_operation=operation, actor=actor)
+
+    assert error.value.code == "return_operation_scope_mismatch"
+    assert "Aucune sortie préalable" in str(error.value)

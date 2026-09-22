@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
+from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
@@ -176,6 +177,8 @@ def validate_hahitantsoa_event_closeable(
             continue
         settlement = getattr(return_operation, "damage_loss_settlement", None)
         if settlement is None:
+            if any(line.casse_quantity > 0 for line in return_operation.lines.all()):
+                blockers.append(f"return_settlement_missing_for_casse:{return_operation.id}")
             continue
         if settlement.settlement_status != "validated":
             blockers.append(f"return_settlement_not_validated:{return_operation.id}")
@@ -235,8 +238,47 @@ def validate_hahitantsoa_event_closeable(
     if unreconciled.exists():
         blockers.append(f"external_payments_unreconciled:{unreconciled.count()}")
 
+    invoices = list(event_draft.billing_invoices.all())
     if event_draft.billing_invoices.filter(invoice_status=BillingInvoiceStatus.OPEN).exists():
         blockers.append("billing_invoices_open")
+
+    if event_draft.total_amount > Decimal("0.00"):
+        total_invoiced = sum(
+            (
+                inv.amount
+                for inv in invoices
+                if inv.invoice_status != BillingInvoiceStatus.CANCELLED
+            ),
+            Decimal("0.00"),
+        )
+        if total_invoiced < event_draft.total_amount:
+            blockers.append(
+                f"commercial_invoicing_incomplete:{event_draft.total_amount - total_invoiced}"
+            )
+
+        total_settled = sum(
+            (
+                inv.settlement.amount
+                for inv in invoices
+                if hasattr(inv, "settlement") and inv.invoice_status == BillingInvoiceStatus.SETTLED
+            ),
+            Decimal("0.00"),
+        ) + sum(
+            (
+                sum((i.paid_amount for i in inv.installments.all()), Decimal("0.00"))
+                for inv in invoices
+                if inv.installments.exists() and inv.invoice_status == BillingInvoiceStatus.SETTLED
+            ),
+            Decimal("0.00"),
+        )
+        if total_settled < event_draft.total_amount:
+            blockers.append(
+                f"commercial_settlement_incomplete:{event_draft.total_amount - total_settled}"
+            )
+
+    pending_payments = event_draft.payments.filter(payment_status=PaymentStatus.PENDING).count()
+    if pending_payments > 0:
+        blockers.append(f"payments_pending_resolution:{pending_payments}")
 
     financial = compute_hahitantsoa_financial_closeout_summary(event_draft)
     if financial.coherence_status != "coherent":
@@ -355,3 +397,11 @@ def closeout_hahitantsoa_event_draft(
         },
     )
     return summary
+
+
+def is_hahitantsoa_event_closed(event_draft_or_id: Any) -> bool:
+    """Check if a Hahitantsoa event draft is already closed."""
+    if event_draft_or_id is None:
+        return False
+    draft_id = getattr(event_draft_or_id, "pk", event_draft_or_id)
+    return HahitantsoaEventCloseout.objects.filter(event_draft_id=draft_id).exists()

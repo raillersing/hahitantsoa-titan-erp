@@ -66,6 +66,9 @@ class PaymentLifecycleError(ValueError):
         self.code = code
 
 
+PaymentServiceError = PaymentLifecycleError
+
+
 INVALID_PAYMENT_CONFIRMATION_STATE = "invalid_payment_confirmation_state"
 INVALID_PAYMENT_CANCEL_STATE = "invalid_payment_cancel_state"
 INVALID_PAYMENT_RECONCILE_STATE = "invalid_payment_reconcile_state"
@@ -493,6 +496,19 @@ def create_payment(
     actor: object | None = None,
     **validated_data,
 ) -> Payment:
+    res_id = validated_data.get("reservation_draft") or validated_data.get("reservation_draft_id")
+    evt_id = validated_data.get("hahitantsoa_event_draft") or validated_data.get(
+        "hahitantsoa_event_draft_id"
+    )
+    from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+    from apps.reservations.closeout import is_reservation_closed
+
+    if is_reservation_closed(res_id) or is_hahitantsoa_event_closed(evt_id):
+        raise PaymentLifecycleError(
+            "Ce dossier est clôturé. Aucun paiement ne peut être ajouté post-clôture.",
+            code="dossier_already_closed",
+        )
+
     actor_id = getattr(actor, "pk", None)
     payment = Payment.objects.create(
         created_by_id=actor_id,
@@ -533,6 +549,17 @@ def confirm_payment(
     notes: str | None = None,
 ) -> PaymentConfirmationResult:
     payment = Payment.objects.select_for_update().get(pk=payment.pk)
+    from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+    from apps.reservations.closeout import is_reservation_closed
+
+    if is_reservation_closed(payment.reservation_draft_id) or is_hahitantsoa_event_closed(
+        payment.hahitantsoa_event_draft_id
+    ):
+        raise PaymentLifecycleError(
+            "Ce dossier est clôturé. Aucun paiement ne peut être confirmé post-clôture.",
+            code="dossier_already_closed",
+        )
+
     if payment.payment_status != PaymentStatus.PENDING:
         raise PaymentLifecycleError(
             f"Cannot confirm payment from status: {payment.payment_status}",
@@ -639,6 +666,17 @@ def record_confirmed_deposit(
         raise PaymentLifecycleError(
             "Deposit recording requires exactly one business draft.",
             code=DEPOSIT_RECORDING_INVALID_STATE,
+        )
+
+    from apps.hahitantsoa.closeout import is_hahitantsoa_event_closed
+    from apps.reservations.closeout import is_reservation_closed
+
+    if is_reservation_closed(reservation_draft) or is_hahitantsoa_event_closed(
+        hahitantsoa_event_draft
+    ):
+        raise PaymentLifecycleError(
+            "Ce dossier est clôturé. Aucun acompte ne peut être enregistré post-clôture.",
+            code="dossier_already_closed",
         )
 
     if reservation_draft is not None:

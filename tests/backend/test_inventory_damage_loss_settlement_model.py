@@ -11,9 +11,11 @@ from apps.inventory.models import (
     InventoryDamageLossSettlementLine,
     InventoryDamageLossSettlementStatus,
     InventoryItem,
+    InventoryStockMovementType,
 )
 from apps.inventory.services import (
     create_inventory_return_operation,
+    create_inventory_stock_movement,
     validate_inventory_return_operation,
 )
 from apps.reservations.models import ReservationDraft
@@ -48,12 +50,23 @@ def _reservation_draft() -> ReservationDraft:
 
 def _validated_return_operation(django_user_model):
     actor = django_user_model.objects.create_user(username="settlement-model", password="test-pass")
+    draft = _reservation_draft()
+    item = _inventory_item("Settlement model item")
+    create_inventory_stock_movement(
+        actor=actor,
+        inventory_item=item,
+        reservation_draft=draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        quantity=2,
+        source_label="test delivery",
+        notes="Issued delivery",
+    )
     return_operation = create_inventory_return_operation(
         actor=actor,
-        reservation_draft=_reservation_draft(),
+        reservation_draft=draft,
         lines=[
             {
-                "inventory_item": _inventory_item("Settlement model item"),
+                "inventory_item": item,
                 "expected_quantity": 2,
                 "returned_quantity": 1,
                 "damaged_quantity": 1,
@@ -74,6 +87,7 @@ def test_damage_loss_settlement_requires_validated_return_operation(django_user_
     )
     return_operation = create_inventory_return_operation(
         actor=actor,
+        reservation_draft=_reservation_draft(),
         lines=[
             {
                 "inventory_item": _inventory_item("Draft return item"),

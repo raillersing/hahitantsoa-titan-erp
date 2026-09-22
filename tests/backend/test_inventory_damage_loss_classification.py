@@ -4,10 +4,11 @@ import pytest
 from django.utils import timezone
 
 from apps.customers.models import Customer
-from apps.inventory.models import InventoryItem
+from apps.inventory.models import InventoryItem, InventoryStockMovementType
 from apps.inventory.selectors import get_return_operation_classification_breakdown
 from apps.inventory.services import (
     create_inventory_return_operation,
+    create_inventory_stock_movement,
     propose_damage_loss_classification_lines,
     validate_inventory_return_operation,
 )
@@ -329,6 +330,15 @@ def test_classification_proposal_validated_return(django_user_model) -> None:
     )
     item = _inventory_item("Validated return item")
     draft = _reservation_draft()
+    create_inventory_stock_movement(
+        actor=actor,
+        inventory_item=item,
+        reservation_draft=draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        quantity=2,
+        source_label="Livraison outbound",
+        notes="Sortie",
+    )
     ro = _return_operation(
         actor,
         draft,
