@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useState } from "react";
 import { EmptyState, LoadingSpinner } from "../components";
 import { getEmployees, createEmployee, deleteEmployee } from "../api";
 import type { Employee, EmployeeCreatePayload } from "../types";
+import type { SessionUser } from "../api";
 
 interface HRPageProps {
   onNavigate: (scope: any, param?: string) => void;
+  user?: SessionUser;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -19,7 +21,11 @@ const STATUS_COLORS: Record<string, string> = {
   inactive: "bg-slate-100 text-slate-500",
 };
 
-export default function HRPage({ onNavigate }: HRPageProps) {
+export default function HRPage({ onNavigate, user }: HRPageProps) {
+  const roles = new Set(user?.roles || []);
+  const canEdit = user
+    ? Boolean(user.is_staff || ["hr_manager", "owner_manager"].some((role) => roles.has(role)))
+    : true;
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +58,7 @@ export default function HRPage({ onNavigate }: HRPageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEdit) return;
     if (!form.first_name.trim() || !form.last_name.trim() || !form.role.trim()) return;
     try {
       setSubmitting(true);
@@ -67,6 +74,7 @@ export default function HRPage({ onNavigate }: HRPageProps) {
   };
 
   const handleDelete = async (id: string) => {
+    if (!canEdit) return;
     if (!window.confirm("Supprimer cet employé ?")) return;
     try {
       await deleteEmployee(id);
@@ -76,8 +84,8 @@ export default function HRPage({ onNavigate }: HRPageProps) {
     }
   };
 
-  const formatCurrency = (v: number) =>
-    new Intl.NumberFormat("fr-MG", { style: "decimal" }).format(v) + " Ar";
+  const formatCurrency = (v: number | string | undefined | null) =>
+    new Intl.NumberFormat("fr-MG", { style: "decimal" }).format(Number(v) || 0) + " Ar";
 
   return (
     <div className="p-6">
@@ -95,12 +103,14 @@ export default function HRPage({ onNavigate }: HRPageProps) {
           >
             <i className="fas fa-money-bill-wave mr-2"></i>Paie & Congés
           </button>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition shadow-sm"
-          >
-            <i className="fas fa-plus mr-2"></i>Nouvel employé
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition shadow-sm"
+            >
+              <i className="fas fa-plus mr-2"></i>Nouvel employé
+            </button>
+          )}
         </div>
       </div>
 
@@ -127,10 +137,11 @@ export default function HRPage({ onNavigate }: HRPageProps) {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">
+              <label htmlFor="emp-first-name" className="block text-sm font-medium text-slate-600 mb-1">
                 Prénom *
               </label>
               <input
+                id="emp-first-name"
                 type="text"
                 value={form.first_name}
                 onChange={(e) =>
@@ -141,10 +152,11 @@ export default function HRPage({ onNavigate }: HRPageProps) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">
+              <label htmlFor="emp-last-name" className="block text-sm font-medium text-slate-600 mb-1">
                 Nom *
               </label>
               <input
+                id="emp-last-name"
                 type="text"
                 value={form.last_name}
                 onChange={(e) =>
@@ -155,10 +167,11 @@ export default function HRPage({ onNavigate }: HRPageProps) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">
+              <label htmlFor="emp-role" className="block text-sm font-medium text-slate-600 mb-1">
                 Fonction *
               </label>
               <input
+                id="emp-role"
                 type="text"
                 value={form.role}
                 onChange={(e) => setForm({ ...form, role: e.target.value })}
@@ -167,10 +180,11 @@ export default function HRPage({ onNavigate }: HRPageProps) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">
+              <label htmlFor="emp-assignment" className="block text-sm font-medium text-slate-600 mb-1">
                 Affectation
               </label>
               <input
+                id="emp-assignment"
                 type="text"
                 value={form.assignment}
                 onChange={(e) =>
@@ -180,10 +194,11 @@ export default function HRPage({ onNavigate }: HRPageProps) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">
+              <label htmlFor="emp-salary" className="block text-sm font-medium text-slate-600 mb-1">
                 Salaire (Ar)
               </label>
               <input
+                id="emp-salary"
                 type="number"
                 value={form.salary}
                 onChange={(e) =>
@@ -250,9 +265,11 @@ export default function HRPage({ onNavigate }: HRPageProps) {
                   <th className="text-right px-4 py-3 font-semibold text-slate-600">
                     Salaire
                   </th>
-                  <th className="text-right px-4 py-3 font-semibold text-slate-600">
-                    Actions
-                  </th>
+                  {canEdit && (
+                    <th className="text-right px-4 py-3 font-semibold text-slate-600">
+                      Actions
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -278,14 +295,17 @@ export default function HRPage({ onNavigate }: HRPageProps) {
                     <td className="px-4 py-3 text-right text-slate-700 font-medium">
                       {formatCurrency(emp.salary)}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => handleDelete(emp.id)}
-                        className="text-red-500 hover:text-red-700 text-xs font-medium"
-                      >
-                        <i className="fas fa-trash-alt"></i>
-                      </button>
-                    </td>
+                    {canEdit && (
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => handleDelete(emp.id)}
+                          aria-label={`Supprimer ${emp.full_name || `${emp.first_name} ${emp.last_name}`}`}
+                          className="text-red-500 hover:text-red-700 text-xs font-medium"
+                        >
+                          <i className="fas fa-trash-alt"></i>
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

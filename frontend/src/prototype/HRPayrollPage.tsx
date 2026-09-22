@@ -104,12 +104,14 @@ export default function HRPayrollPage({ onNavigate, user }: HRPayrollPageProps) 
     loadAll();
   }, [loadAll]);
 
-  const formatCurrency = (v: number) =>
-    new Intl.NumberFormat("fr-MG", { style: "decimal" }).format(v) + " Ar";
+  const formatCurrency = (v: number | string | undefined | null) =>
+    new Intl.NumberFormat("fr-MG", { style: "decimal" }).format(Number(v) || 0) + " Ar";
 
-  const totalGross = payslips.reduce((s, p) => s + p.gross_salary, 0);
-  const totalDeductions = payslips.reduce((s, p) => s + p.deductions, 0);
-  const totalNet = payslips.reduce((s, p) => s + p.net_salary, 0);
+  const totalGross = payslips.reduce((s, p) => s + (Number(p.gross_salary) || 0), 0);
+  const totalDeductions = payslips.reduce((s, p) => s + (Number(p.deductions) || 0), 0);
+  const totalNet = payslips.reduce((s, p) => s + (Number(p.net_salary) || 0), 0);
+  const paidPayslips = payslips.filter((p) => p.status === "paid");
+  const totalPaidNet = paidPayslips.reduce((s, p) => s + (Number(p.net_salary) || 0), 0);
   const pendingAdvances = advances.filter((a) => a.status === "pending");
   const pendingLeaves = leaves.filter((l) => l.status === "pending");
 
@@ -166,11 +168,11 @@ export default function HRPayrollPage({ onNavigate, user }: HRPayrollPageProps) 
               <i className="fas fa-file-invoice-dollar text-xl"></i>
             </div>
             <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
-              {payslips.length} bulletins
+              {paidPayslips.length} payé{paidPayslips.length > 1 ? "s" : ""} / {payslips.length}
             </span>
           </div>
           <p className="text-2xl font-bold text-slate-800">
-            {formatCurrency(totalNet)}
+            {formatCurrency(totalPaidNet)}
           </p>
           <p className="text-sm text-slate-500 mt-1">Net total payé</p>
         </div>
