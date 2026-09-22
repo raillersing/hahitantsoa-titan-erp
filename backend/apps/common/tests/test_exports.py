@@ -6,6 +6,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from apps.billing.models import BillingInvoice, BillingInvoiceSourceKind, BillingInvoiceStatus
 from apps.customers.models import Customer
 from apps.documents.models import DocumentInstance
 from apps.identity.models import ApplicationRole, UserRoleAssignment
@@ -254,3 +255,111 @@ def test_cautions_balance_and_breakage_exports(client, staff_user, sample_reserv
     content = breakage_resp.content.decode("utf-8")
     assert "Chaise Banquet Blanche" in content
     assert "40000,00" in content
+
+
+def test_sales_journal_preserves_frozen_amount_and_deduplicates(
+    client, accountant_user, sample_reservation, sample_customer
+):
+    """Invoice amount remains frozen when reservation draft changes,
+    and no row duplication occurs.
+    """
+    client.force_login(accountant_user)
+
+    doc = DocumentInstance.objects.create(
+        reservation_draft=sample_reservation,
+        template_key="titan.invoice.v1",
+        document_reference="2026/0002-FA",
+        customer_display_name=sample_customer.display_name,
+        customer_nif=sample_customer.nif,
+        customer_stat=sample_customer.stat,
+        reservation_public_reference=sample_reservation.public_reference,
+        status="generated",
+    )
+    BillingInvoice.objects.create(
+        reservation_draft=sample_reservation,
+        document_instance=doc,
+        source_kind=BillingInvoiceSourceKind.COMMERCIAL_CLOSEOUT,
+        invoice_status=BillingInvoiceStatus.OPEN,
+        amount=Decimal("1000000.00"),
+        issued_at=timezone.now(),
+        number="FACT-2026-0002",
+    )
+
+    sample_reservation.total_amount = Decimal("3500000.00")
+    sample_reservation.save(update_fields=["total_amount"])
+
+    resp = client.get("/api/v1/reports/exports/sales/?format=json")
+    assert resp.status_code == 200
+    data = resp.json()
+
+    matching = [r for r in data["results"] if r["reference"] in ("FACT-2026-0002", "2026/0002-FA")]
+    assert len(matching) == 1
+    row = matching[0]
+    assert row["amount_ttc"] == "1000000,00"
+    assert row["status"] == "Émise"
+
+
+def test_sales_journal_custom_tva_rate_and_individual_exemption(client, accountant_user):
+    """Custom tva_rate query param and individual exemption without NIF are respected."""
+    client.force_login(accountant_user)
+
+    indiv_customer = Customer.objects.create(
+        display_name="Rakoto Jean",
+        nif="",
+        stat="",
+    )
+    res = ReservationDraft.objects.create(
+        customer=indiv_customer,
+        public_reference="RD-INDIV-01",
+        start_at=timezone.now(),
+        end_at=timezone.now() + timezone.timedelta(days=1),
+        total_amount=Decimal("500000.00"),
+    )
+    BillingInvoice.objects.create(
+        reservation_draft=res,
+        source_kind=BillingInvoiceSourceKind.COMMERCIAL_CLOSEOUT,
+        invoice_status=BillingInvoiceStatus.OPEN,
+        amount=Decimal("500000.00"),
+        issued_at=timezone.now(),
+        number="FACT-INDIV-0001",
+    )
+
+    resp = client.get("/api/v1/reports/exports/sales/?format=json")
+    assert resp.status_code == 200
+    indiv_row = next(r for r in resp.json()["results"] if r["reference"] == "FACT-INDIV-0001")
+    assert indiv_row["tva_rate"] == "0 %"
+    assert indiv_row["amount_tva"] == "0,00"
+    assert indiv_row["amount_ht"] == "500000,00"
+
+    resp_override = client.get("/api/v1/reports/exports/sales/?format=json&tva_rate=5")
+    assert resp_override.status_code == 200
+    override_row = next(
+        r for r in resp_override.json()["results"] if r["reference"] == "FACT-INDIV-0001"
+    )
+    assert override_row["tva_rate"] == "5 %"
+    ht_val = Decimal(override_row["amount_ht"].replace(",", "."))
+    tva_val = Decimal(override_row["amount_tva"].replace(",", "."))
+    assert ht_val + tva_val == Decimal("500000.00")
+
+
+def test_sales_journal_credit_note_negative_amount(
+    client, accountant_user, sample_reservation, sample_customer
+):
+    """Credit notes (avoirs) export with negative amount."""
+    client.force_login(accountant_user)
+
+    DocumentInstance.objects.create(
+        reservation_draft=sample_reservation,
+        template_key="titan.credit_note.v1",
+        document_reference="2026/0001-AV",
+        customer_display_name=sample_customer.display_name,
+        customer_nif=sample_customer.nif,
+        status="generated",
+    )
+
+    resp = client.get("/api/v1/reports/exports/sales/?format=json")
+    assert resp.status_code == 200
+    av_row = next(r for r in resp.json()["results"] if r["reference"] == "2026/0001-AV")
+    ttc_val = Decimal(av_row["amount_ttc"].replace(",", "."))
+    assert ttc_val < 0
+    assert av_row["status"] == "Avoir"

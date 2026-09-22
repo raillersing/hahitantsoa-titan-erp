@@ -8,6 +8,7 @@ from apps.audit.models import AuditEvent
 from apps.billing.models import BillingInvoice
 from apps.customers.models import ProspectStatus
 from apps.documents.models import DocumentInstance
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.logistics.models import LogisticsEvent
 from apps.payments.models import Payment
 from apps.reservations.models import ReservationDraft
@@ -52,9 +53,12 @@ def _prospect_transitions(customer_id: UUID) -> list[dict]:
 def _proformas(customer_id: UUID) -> list[dict]:
     events = []
     docs = DocumentInstance.objects.filter(
-        Q(customer_id=customer_id) | Q(reservation_draft__customer_id=customer_id),
+        Q(customer_id=customer_id)
+        | Q(reservation_draft__customer_id=customer_id)
+        | Q(hahitantsoa_event_draft__customer_id=customer_id),
     ).order_by("created_at")
     for doc in docs:
+        scope = "hahitantsoa" if doc.hahitantsoa_event_draft_id else "titan"
         events.append(
             {
                 "date": _safe_dt(doc.created_at),
@@ -65,7 +69,16 @@ def _proformas(customer_id: UUID) -> list[dict]:
                     "document_id": str(doc.id),
                     "template_key": doc.template_key,
                     "status": doc.status,
+                    "business_scope": scope,
                     "reservation_public_reference": doc.reservation_public_reference,
+                    "reservation_draft_id": (
+                        str(doc.reservation_draft_id) if doc.reservation_draft_id else None
+                    ),
+                    "hahitantsoa_event_draft_id": (
+                        str(doc.hahitantsoa_event_draft_id)
+                        if doc.hahitantsoa_event_draft_id
+                        else None
+                    ),
                 },
             }
         )
@@ -74,6 +87,7 @@ def _proformas(customer_id: UUID) -> list[dict]:
 
 def _reservations(customer_id: UUID) -> list[dict]:
     events = []
+    # 1. Titan reservations
     drafts = ReservationDraft.objects.filter(customer_id=customer_id).order_by("created_at")
     for draft in drafts:
         events.append(
@@ -87,7 +101,9 @@ def _reservations(customer_id: UUID) -> list[dict]:
                 "metadata": {
                     "reservation_draft_id": str(draft.id),
                     "public_reference": draft.public_reference,
+                    "business_scope": "titan",
                     "status": draft.status,
+                    "amount": str(draft.total_amount) if draft.total_amount is not None else None,
                     "start_at": _safe_dt(draft.start_at),
                     "end_at": _safe_dt(draft.end_at),
                 },
@@ -103,6 +119,7 @@ def _reservations(customer_id: UUID) -> list[dict]:
                     "metadata": {
                         "reservation_draft_id": str(draft.id),
                         "public_reference": draft.public_reference,
+                        "business_scope": "titan",
                         "confirmed_by_id": (
                             str(draft.confirmed_by_id) if draft.confirmed_by_id else None
                         ),
@@ -119,12 +136,89 @@ def _reservations(customer_id: UUID) -> list[dict]:
                     "metadata": {
                         "reservation_draft_id": str(draft.id),
                         "public_reference": draft.public_reference,
+                        "business_scope": "titan",
                         "cancelled_by_id": (
                             str(draft.cancelled_by_id) if draft.cancelled_by_id else None
                         ),
                     },
                 }
             )
+
+    # 2. Hahitantsoa events
+    hahi_drafts = HahitantsoaEventDraft.objects.filter(customer_id=customer_id).order_by(
+        "created_at"
+    )
+    for event_draft in hahi_drafts:
+        desc_parts = []
+        if event_draft.event_name:
+            desc_parts.append(event_draft.event_name)
+        if event_draft.start_at and event_draft.end_at:
+            desc_parts.append(
+                f"Du {event_draft.start_at:%Y-%m-%d %H:%M} au {event_draft.end_at:%Y-%m-%d %H:%M}"
+            )
+        events.append(
+            {
+                "date": _safe_dt(event_draft.created_at),
+                "type": "reservation",
+                "title": f"Événement {event_draft.public_reference}",
+                "description": " — ".join(desc_parts) if desc_parts else "Événement Hahitantsoa",
+                "metadata": {
+                    "reservation_draft_id": str(event_draft.id),
+                    "hahitantsoa_event_draft_id": str(event_draft.id),
+                    "public_reference": event_draft.public_reference,
+                    "business_scope": "hahitantsoa",
+                    "status": event_draft.status,
+                    "event_name": event_draft.event_name,
+                    "event_type": event_draft.event_type,
+                    "amount": (
+                        str(event_draft.total_amount)
+                        if event_draft.total_amount is not None
+                        else None
+                    ),
+                    "start_at": _safe_dt(event_draft.start_at),
+                    "end_at": _safe_dt(event_draft.end_at),
+                },
+            }
+        )
+        if event_draft.confirmed_at:
+            events.append(
+                {
+                    "date": _safe_dt(event_draft.confirmed_at),
+                    "type": "reservation_confirmed",
+                    "title": f"Événement {event_draft.public_reference} confirmé",
+                    "description": "",
+                    "metadata": {
+                        "reservation_draft_id": str(event_draft.id),
+                        "hahitantsoa_event_draft_id": str(event_draft.id),
+                        "public_reference": event_draft.public_reference,
+                        "business_scope": "hahitantsoa",
+                        "confirmed_by_id": (
+                            str(event_draft.confirmed_by_id)
+                            if event_draft.confirmed_by_id
+                            else None
+                        ),
+                    },
+                }
+            )
+        cancelled_at = getattr(event_draft, "cancelled_at", None)
+        if cancelled_at:
+            cancelled_by_id = getattr(event_draft, "cancelled_by_id", None)
+            events.append(
+                {
+                    "date": _safe_dt(cancelled_at),
+                    "type": "reservation_cancelled",
+                    "title": f"Événement {event_draft.public_reference} annulé",
+                    "description": "",
+                    "metadata": {
+                        "reservation_draft_id": str(event_draft.id),
+                        "hahitantsoa_event_draft_id": str(event_draft.id),
+                        "public_reference": event_draft.public_reference,
+                        "business_scope": "hahitantsoa",
+                        "cancelled_by_id": str(cancelled_by_id) if cancelled_by_id else None,
+                    },
+                }
+            )
+
     return events
 
 
@@ -132,15 +226,29 @@ def _invoices(customer_id: UUID) -> list[dict]:
     events = []
     invoices = (
         BillingInvoice.objects.filter(
-            Q(reservation_draft__customer_id=customer_id) | Q(excess_receivable__isnull=False),
+            Q(reservation_draft__customer_id=customer_id)
+            | Q(hahitantsoa_event_draft__customer_id=customer_id)
+            | Q(document_instance__customer_id=customer_id),
         )
-        .select_related("reservation_draft")
+        .select_related("reservation_draft", "hahitantsoa_event_draft", "document_instance")
         .order_by("created_at")
     )
     for inv in invoices:
-        # Only include invoices linked to this customer's reservations or directly
         if inv.reservation_draft_id and str(inv.reservation_draft.customer_id) != str(customer_id):
             continue
+        if inv.hahitantsoa_event_draft_id and str(inv.hahitantsoa_event_draft.customer_id) != str(
+            customer_id
+        ):
+            continue
+        if (
+            not inv.reservation_draft_id
+            and not inv.hahitantsoa_event_draft_id
+            and inv.document_instance_id
+            and str(inv.document_instance.customer_id) != str(customer_id)
+        ):
+            continue
+
+        scope = "hahitantsoa" if inv.hahitantsoa_event_draft_id else "titan"
         events.append(
             {
                 "date": _safe_dt(inv.created_at),
@@ -152,8 +260,14 @@ def _invoices(customer_id: UUID) -> list[dict]:
                     "number": inv.number,
                     "amount": str(inv.amount),
                     "status": inv.invoice_status,
+                    "business_scope": scope,
                     "reservation_draft_id": (
                         str(inv.reservation_draft_id) if inv.reservation_draft_id else None
+                    ),
+                    "hahitantsoa_event_draft_id": (
+                        str(inv.hahitantsoa_event_draft_id)
+                        if inv.hahitantsoa_event_draft_id
+                        else None
                     ),
                 },
             }
@@ -167,6 +281,8 @@ def _invoices(customer_id: UUID) -> list[dict]:
                     "description": "",
                     "metadata": {
                         "invoice_id": str(inv.id),
+                        "number": inv.number,
+                        "business_scope": scope,
                         "settled_by_id": str(inv.settled_by_id) if inv.settled_by_id else None,
                     },
                 }
@@ -185,6 +301,7 @@ def _payments(customer_id: UUID) -> list[dict]:
         .order_by("created_at")
     )
     for payment in payments:
+        scope = "hahitantsoa" if payment.hahitantsoa_event_draft_id else "titan"
         events.append(
             {
                 "date": _safe_dt(payment.created_at),
@@ -199,6 +316,15 @@ def _payments(customer_id: UUID) -> list[dict]:
                     "kind": payment.payment_kind,
                     "method": payment.payment_method,
                     "status": payment.payment_status,
+                    "business_scope": scope,
+                    "reservation_draft_id": (
+                        str(payment.reservation_draft_id) if payment.reservation_draft_id else None
+                    ),
+                    "hahitantsoa_event_draft_id": (
+                        str(payment.hahitantsoa_event_draft_id)
+                        if payment.hahitantsoa_event_draft_id
+                        else None
+                    ),
                     "paid_at": _safe_dt(payment.paid_at),
                 },
             }
@@ -247,25 +373,39 @@ def _logistics(customer_id: UUID) -> list[dict]:
     events = []
     log_events = (
         LogisticsEvent.objects.filter(
-            reservation_draft__customer_id=customer_id,
+            Q(reservation_draft__customer_id=customer_id)
+            | Q(hahitantsoa_event_draft__customer_id=customer_id),
         )
-        .select_related("reservation_draft")
+        .select_related("reservation_draft", "hahitantsoa_event_draft")
         .order_by("created_at")
     )
     for le in log_events:
+        scope = "hahitantsoa" if le.hahitantsoa_event_draft_id else "titan"
+        ref = (
+            le.hahitantsoa_event_draft.public_reference
+            if le.hahitantsoa_event_draft_id
+            else (le.reservation_draft.public_reference if le.reservation_draft_id else "")
+        )
+        scope_prefix = "Événement" if scope == "hahitantsoa" else "Réservation"
         events.append(
             {
                 "date": _safe_dt(le.scheduled_at or le.created_at),
                 "type": "logistics",
                 "title": f"Logistique : {le.get_event_type_display()}",
-                "description": (
-                    f"Statut : {le.status} — Réservation {le.reservation_draft.public_reference}"
-                ),
+                "description": f"Statut : {le.status} — {scope_prefix} {ref}",
                 "metadata": {
                     "logistics_event_id": str(le.id),
                     "event_type": le.event_type,
                     "status": le.status,
-                    "reservation_draft_id": str(le.reservation_draft_id),
+                    "business_scope": scope,
+                    "reservation_draft_id": (
+                        str(le.reservation_draft_id) if le.reservation_draft_id else None
+                    ),
+                    "hahitantsoa_event_draft_id": (
+                        str(le.hahitantsoa_event_draft_id)
+                        if le.hahitantsoa_event_draft_id
+                        else None
+                    ),
                     "executed_at": _safe_dt(le.executed_at),
                     "signature_required": le.signature_required,
                     "signature_received": le.signature_received,

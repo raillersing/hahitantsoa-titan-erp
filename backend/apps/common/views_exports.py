@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 from django.http import HttpResponse
@@ -73,8 +74,31 @@ class SalesJournalExportAPIView(APIView):
         end_date = parse_date_param(request.query_params.get("end_date"))
         scope = request.query_params.get("scope", "all").lower()
         export_format = request.query_params.get("format", "csv").lower()
+        tva_rate_raw = request.query_params.get("tva_rate") or request.query_params.get("tva")
+        tva_rate: Decimal | None = None
+        if tva_rate_raw is not None:
+            try:
+                val = Decimal(tva_rate_raw)
+                if val > Decimal("1.00"):
+                    tva_rate = val / Decimal("100")
+                else:
+                    tva_rate = val
+            except Exception:
+                tva_rate = None
+        include_drafts_raw = request.query_params.get("include_drafts")
+        include_drafts = (
+            include_drafts_raw.lower() not in ("false", "0", "no")
+            if include_drafts_raw is not None
+            else True
+        )
 
-        rows = export_sales_journal(start_date=start_date, end_date=end_date, scope=scope)
+        rows = export_sales_journal(
+            start_date=start_date,
+            end_date=end_date,
+            scope=scope,
+            tva_rate=tva_rate,
+            include_drafts=include_drafts,
+        )
 
         if export_format == "json":
             return Response({"count": len(rows), "results": rows})
