@@ -25,6 +25,7 @@ import type {
 import { LoadingSpinner } from "../components";
 import { useAuth } from "../AuthContext";
 import { numberToFrenchWords } from "./PaymentRegistrationModal";
+import { calculateTitanCautionAmount } from "../utils";
 
 interface CashboxPageProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -1433,7 +1434,7 @@ function MovementModal({
             totalAmount: total,
             paidAmount: paid,
             requiredDepositAmount: reqDeposit,
-            cautionAmount: Math.round(total * 0.2), // Standard 20% caution estimate
+            cautionAmount: calculateTitanCautionAmount(total, (r as any).caution_amount),
             remainingBalance: remaining,
             isDepositMet: paid >= reqDeposit && reqDeposit > 0,
           });

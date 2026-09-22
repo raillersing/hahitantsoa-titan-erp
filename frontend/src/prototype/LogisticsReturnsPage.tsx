@@ -1,6 +1,16 @@
-import React, { useState, useEffect, useRef } from "react";
-import { getReturnOperations, validateReturnOperation } from "../api";
-import type { InventoryReturnOperation, InventoryReturnOperationLine } from "../types";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import {
+  createReturnOperation,
+  getLogisticsEvents,
+  getReturnOperations,
+  validateReturnOperation,
+} from "../api";
+import type {
+  InventoryReturnOperation,
+  InventoryReturnOperationCreatePayload,
+  InventoryReturnOperationLine,
+  LogisticsEvent,
+} from "../types";
 import { titanLateReturnPenaltyRate } from "../utils";
 
 type FilterCategory = "Tous" | "En retard" | "Aujourd'hui" | "À venir";
@@ -36,19 +46,23 @@ export default function LogisticsReturnsPage({ onNavigate, param }: { onNavigate
   const [filter, setFilter] = useState<FilterCategory>("Tous");
   const [toast, setToast] = React.useState<{message: string, type: 'info'|'success'|'warning'|'error'} | null>(null);
   const [operations, setOperations] = useState<InventoryReturnOperation[]>([]);
+  const [logisticsEvents, setLogisticsEvents] = useState<LogisticsEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyReturnId, setBusyReturnId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    abortRef.current = new AbortController();
+  const loadData = (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
 
-    getReturnOperations(abortRef.current.signal)
-      .then((data) => {
-        setOperations(data);
+    Promise.all([
+      getReturnOperations(signal),
+      getLogisticsEvents(signal).catch(() => []),
+    ])
+      .then(([opsData, eventsData]) => {
+        setOperations(Array.isArray(opsData) ? opsData : []);
+        setLogisticsEvents(Array.isArray(eventsData) ? eventsData : []);
         setLoading(false);
       })
       .catch((err) => {
@@ -57,13 +71,47 @@ export default function LogisticsReturnsPage({ onNavigate, param }: { onNavigate
           setLoading(false);
         }
       });
+  };
 
+  useEffect(() => {
+    abortRef.current = new AbortController();
+    loadData(abortRef.current.signal);
     return () => abortRef.current?.abort();
   }, []);
 
   const showToast = (message: string, type: 'info'|'success'|'warning'|'error' = 'info') => {
     setToast({message, type});
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleStartReturnFromOutbound = async (evt: LogisticsEvent) => {
+    if (busyReturnId === evt.id) return;
+    setBusyReturnId(evt.id);
+    try {
+      const payload: InventoryReturnOperationCreatePayload = {
+        logistics_event: evt.id,
+        reservation_draft: evt.reservation_draft || undefined,
+        hahitantsoa_event_draft: evt.hahitantsoa_event_draft || undefined,
+        notes: `Retour réceptionné depuis l'événement logistique ${evt.id.slice(0, 8)}.`,
+        lines: (evt.item_lines || []).map((line) => ({
+          inventory_item: line.inventory_item,
+          expected_quantity: line.quantity,
+          returned_quantity: line.quantity,
+          conforming_quantity: line.quantity,
+          damaged_quantity: 0,
+          missing_quantity: 0,
+          condition_status: "intact",
+          notes: "",
+        })),
+      };
+      const created = await createReturnOperation(payload);
+      setOperations((current) => [created, ...current]);
+      showToast("Retour créé avec succès. Vous pouvez maintenant procéder au contrôle.", "success");
+    } catch (err: any) {
+      showToast(err?.message || "Impossible de créer le retour.", "error");
+    } finally {
+      setBusyReturnId(null);
+    }
   };
 
   const handleValidateReturn = async (returnOperation: InventoryReturnOperation) => {
@@ -90,6 +138,24 @@ export default function LogisticsReturnsPage({ onNavigate, param }: { onNavigate
   const filteredData = filter === "Tous"
     ? scopedOperations
     : scopedOperations.filter(r => categorizeByDate(r.created_at) === filter);
+
+  const eligibleOutboundEvents = useMemo(() => {
+    const existingLogisticsEventIds = new Set(operations.map((op) => op.logistics_event).filter(Boolean));
+    return logisticsEvents.filter(
+      (evt) =>
+        (evt.status === "completed" || evt.signature_received) &&
+        (evt.event_type === "delivery" || evt.event_type === "handover") &&
+        !existingLogisticsEventIds.has(evt.id) &&
+        evt.item_lines &&
+        evt.item_lines.length > 0 &&
+        (!param ||
+          (param.startsWith("titan:")
+            ? evt.reservation_draft === param.slice("titan:".length)
+            : param.startsWith("hahitantsoa:")
+              ? evt.hahitantsoa_event_draft === param.slice("hahitantsoa:".length)
+              : true))
+    );
+  }, [logisticsEvents, operations, param]);
 
   if (loading) {
     return (
@@ -147,6 +213,45 @@ export default function LogisticsReturnsPage({ onNavigate, param }: { onNavigate
             ))}
           </div>
         </div>
+
+        {eligibleOutboundEvents.length > 0 && (
+          <div className="m-4 p-4 rounded-xl border border-blue-200 bg-blue-50/80 dark:border-blue-800 dark:bg-blue-950/40">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="font-extrabold text-blue-900 dark:text-blue-200 flex items-center gap-2">
+                  <i className="fas fa-truck-ramp-box text-tit-600" />
+                  Sorties livrées / remises en attente de retour ({eligibleOutboundEvents.length})
+                </h3>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+                  Ces expéditions sont terminées mais leur retour n'a pas encore été ouvert.
+                </p>
+              </div>
+            </div>
+            <div className="divide-y divide-blue-200/60 dark:divide-blue-800/60">
+              {eligibleOutboundEvents.map((evt) => (
+                <div key={evt.id} className="py-2.5 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <span className="font-bold text-slate-800 dark:text-slate-100">
+                      {evt.reservation_draft ? `Titan : ${evt.reservation_draft}` : `Hahitantsoa : ${evt.hahitantsoa_event_draft}`}
+                    </span>
+                    <span className="ml-2 text-xs text-slate-500">
+                      • {evt.contact_name ? `Contact: ${evt.contact_name}` : "Sans contact"} • {evt.item_lines?.length || 0} article(s)
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="px-3.5 py-1.5 bg-tit-600 hover:bg-tit-700 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-sm transition"
+                    disabled={busyReturnId === evt.id}
+                    onClick={() => void handleStartReturnFromOutbound(evt)}
+                  >
+                    <i className={`fas ${busyReturnId === evt.id ? "fa-spinner fa-spin" : "fa-plus"}`} />
+                    <span>Réceptionner le retour</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         
         <div className="divide-y divide-slate-100">
           {filteredData.map(retour => (

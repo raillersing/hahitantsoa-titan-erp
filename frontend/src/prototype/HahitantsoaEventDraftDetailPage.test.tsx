@@ -37,6 +37,13 @@ const mockGetServices = vi.fn();
 const mockGetCommercialTerms = vi.fn();
 const mockGetPackages = vi.fn();
 const mockUpdateHahitantsoaEventDraftPublicReference = vi.fn();
+const mockGetReturnOperations = vi.fn();
+const mockCreateReturnOperation = vi.fn();
+const mockValidateReturnOperation = vi.fn();
+const mockGetDamageLossSettlements = vi.fn();
+const mockGetDamageLossSettlementExecutions = vi.fn();
+const mockCreateDamageLossSettlement = vi.fn();
+const mockValidateDamageLossSettlement = vi.fn();
 
 vi.mock("../api", () => ({
   getHahitantsoaEventDraft: (...args: unknown[]) => mockGetDraft(...args),
@@ -66,6 +73,13 @@ vi.mock("../api", () => ({
   getHahitantsoaServices: (...args: unknown[]) => mockGetServices(...args) ?? Promise.resolve([]),
   getHahitantsoaCommercialTerms: (...args: unknown[]) => mockGetCommercialTerms(...args) ?? Promise.resolve(null),
   getMaterialPackages: (...args: unknown[]) => mockGetPackages(...args) ?? Promise.resolve([]),
+  getReturnOperations: (...args: unknown[]) => mockGetReturnOperations(...args) ?? Promise.resolve([]),
+  createReturnOperation: (...args: unknown[]) => mockCreateReturnOperation(...args) ?? Promise.resolve({}),
+  validateReturnOperation: (...args: unknown[]) => mockValidateReturnOperation(...args) ?? Promise.resolve({}),
+  getDamageLossSettlements: (...args: unknown[]) => mockGetDamageLossSettlements(...args) ?? Promise.resolve([]),
+  getDamageLossSettlementExecutions: (...args: unknown[]) => mockGetDamageLossSettlementExecutions(...args) ?? Promise.resolve([]),
+  createDamageLossSettlement: (...args: unknown[]) => mockCreateDamageLossSettlement(...args) ?? Promise.resolve({}),
+  validateDamageLossSettlement: (...args: unknown[]) => mockValidateDamageLossSettlement(...args) ?? Promise.resolve({}),
 }));
 
 vi.mock("../PaymentWhatsAppReminderButton", () => ({ default: () => null }));
@@ -232,9 +246,16 @@ describe("HahitantsoaEventDraftDetailPage", () => {
       night_option_1_amount: "300000.00",
       night_option_2_amount: "500000.00",
       night_security_amount: "120000.00",
-      caution_amount: "1000000.00",
+      caution_amount: "500000.00",
       updated_at: "2026-08-01T00:00:00Z",
     });
+    mockGetReturnOperations.mockResolvedValue([]);
+    mockCreateReturnOperation.mockResolvedValue({ id: "ret-new-1", status: "draft", lines: [] });
+    mockValidateReturnOperation.mockResolvedValue({ id: "ret-new-1", status: "validated", lines: [] });
+    mockGetDamageLossSettlements.mockResolvedValue([]);
+    mockGetDamageLossSettlementExecutions.mockResolvedValue([]);
+    mockCreateDamageLossSettlement.mockResolvedValue({ id: "settle-new-1", settlement_status: "draft", lines: [] });
+    mockValidateDamageLossSettlement.mockResolvedValue({ id: "settle-new-1", settlement_status: "validated", lines: [] });
     mockMarkDepositReceived.mockResolvedValue({});
     mockConfirmDraft.mockResolvedValue({});
     mockGetCloseoutSummary.mockImplementation(() => Promise.resolve(closeoutSummary()));
@@ -1099,5 +1120,190 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     expect(await screen.findByText("HAH-2026-0001")).toBeInTheDocument();
 
     expect(screen.queryByRole("button", { name: /Éditer le devis/i })).not.toBeInTheDocument();
+  });
+
+  it("affiche la caution contractuelle à 500 000 Ar et lie les retours et règlements réels (F02)", async () => {
+    const mockReturn = {
+      id: "ret-hah-001",
+      reservation_draft: null,
+      hahitantsoa_event_draft: "event-1",
+      logistics_event: "log-1",
+      document_instance: null,
+      notes: "Retour événement",
+      status: "validated" as const,
+      validated_at: "2026-08-05T14:00:00Z",
+      validated_by: "agent-1",
+      created_at: "2026-08-05T12:00:00Z",
+      updated_at: "2026-08-05T14:00:00Z",
+      created_by: null,
+      updated_by: null,
+      lines: [
+        {
+          id: "ret-l-1",
+          inventory_item: "item-1",
+          expected_quantity: 100,
+          returned_quantity: 98,
+          intact_quantity: 98,
+          damaged_quantity: 2,
+          missing_quantity: 0,
+          condition_status: "damaged" as const,
+          created_at: "",
+          updated_at: "",
+          created_by: null,
+          updated_by: null,
+          notes: "2 chaises cassées",
+        },
+      ],
+    };
+
+    const mockSettlement = {
+      id: "settle-hah-001",
+      return_operation: "ret-hah-001",
+      document_instance: null,
+      settlement_status: "validated" as const,
+      damage_loss_total: 50000,
+      caution_available: 500000,
+      caution_applied: 50000,
+      refund_due: 450000,
+      excess_due: 0,
+      notes: "Casse 2 chaises",
+      validated_at: "2026-08-05T15:00:00Z",
+      validated_by: "agent-1",
+      created_at: "2026-08-05T15:00:00Z",
+      updated_at: "2026-08-05T15:00:00Z",
+      created_by: null,
+      updated_by: null,
+      lines: [
+        {
+          id: "sl-1",
+          return_operation_line: "ret-l-1",
+          manual_label: "Chaise Napoléon blanche dégradée",
+          settlement_line_kind: "damage" as const,
+          quantity: 2,
+          unit_amount: 25000,
+          amount_source: "manual" as const,
+          total_amount: 50000,
+          notes: "Dossier cassé",
+          created_at: "",
+          updated_at: "",
+          created_by: null,
+          updated_by: null,
+        },
+      ],
+    };
+
+    mockGetReturnOperations.mockResolvedValue([mockReturn]);
+    mockGetDamageLossSettlements.mockResolvedValue([mockSettlement]);
+    mockGetDamageLossSettlementExecutions.mockResolvedValue([]);
+
+    const mockNav = vi.fn();
+    render(<HahitantsoaEventDraftDetailPage param="event-1" onNavigate={mockNav} />);
+    expect(await screen.findByText("HAH-2026-0001")).toBeInTheDocument();
+
+    // 1. Tab Retour
+    fireEvent.click(screen.getByRole("button", { name: /Retour \/ Restitution/i }));
+    expect(await screen.findByText(/Opération de retour réceptionnée et validée/i)).toBeInTheDocument();
+    const openReturnsBtn = screen.getByRole("button", { name: /Ouvrir dans Retours logistiques/i });
+    expect(openReturnsBtn).toBeInTheDocument();
+    fireEvent.click(openReturnsBtn);
+    expect(mockNav).toHaveBeenCalledWith("logistics-returns", "hahitantsoa:event-1");
+
+    // 2. Tab Casse
+    fireEvent.click(screen.getByRole("button", { name: /Casse & Pertes/i }));
+    expect(await screen.findByText(/Règlement de casse validé/i)).toBeInTheDocument();
+    expect(screen.getByText("Chaise Napoléon blanche dégradée")).toBeInTheDocument();
+    const openBreakageBtn = screen.getByRole("button", { name: /Ouvrir le règlement casse réel/i });
+    expect(openBreakageBtn).toBeInTheDocument();
+    fireEvent.click(openBreakageBtn);
+    expect(mockNav).toHaveBeenCalledWith("breakage-loss", "hahitantsoa:event-1");
+
+    // 3. Tab Caution
+    fireEvent.click(screen.getByRole("button", { name: /Caution & Solde/i }));
+    expect(await screen.findByText(/Suivi de la Caution & Restitution/i)).toBeInTheDocument();
+    expect(screen.getByText(/Caution contractuelle \(500 000 Ar\)/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/500\s*000\s*Ar/).length).toBeGreaterThan(0);
+  });
+
+  it("lie le reçu de remboursement de caution sans appeler generateDocument (F22)", async () => {
+    const mockReturn = {
+      id: "ret-hah-002",
+      reservation_draft: null,
+      hahitantsoa_event_draft: "event-1",
+      logistics_event: "log-1",
+      document_instance: null,
+      notes: "Retour conforme",
+      status: "validated" as const,
+      validated_at: "2026-08-05T14:00:00Z",
+      validated_by: "agent-1",
+      created_at: "2026-08-05T12:00:00Z",
+      updated_at: "2026-08-05T14:00:00Z",
+      created_by: null,
+      updated_by: null,
+      lines: [],
+    };
+
+    const mockSettlement = {
+      id: "settle-hah-002",
+      return_operation: "ret-hah-002",
+      document_instance: null,
+      settlement_status: "validated" as const,
+      damage_loss_total: 0,
+      caution_available: 500000,
+      caution_applied: 0,
+      refund_due: 500000,
+      excess_due: 0,
+      notes: "Retour sans casse",
+      validated_at: "2026-08-05T15:00:00Z",
+      validated_by: "agent-1",
+      created_at: "2026-08-05T15:00:00Z",
+      updated_at: "2026-08-05T15:00:00Z",
+      created_by: null,
+      updated_by: null,
+      lines: [],
+    };
+
+    const mockExecution = {
+      id: "exec-hah-002",
+      settlement: "settle-hah-002",
+      status: "executed" as const,
+      executed_at: "2026-08-05T16:00:00Z",
+      executed_by: "agent-1",
+      damage_loss_total_snapshot: 0,
+      caution_available_snapshot: 500000,
+      caution_applied_snapshot: 0,
+      refund_due_snapshot: 500000,
+      excess_due_snapshot: 0,
+      notes: "",
+      created_at: "2026-08-05T16:00:00Z",
+      updated_at: "2026-08-05T16:00:00Z",
+      created_by: null,
+      updated_by: null,
+      excess_receivable: null,
+      refund_obligation: {
+        id: "ro-hah-002",
+        amount: 500000,
+        status: "settled",
+        receipt_document_id: "doc-refund-receipt-777",
+      },
+    };
+
+    mockGetReturnOperations.mockResolvedValue([mockReturn]);
+    mockGetDamageLossSettlements.mockResolvedValue([mockSettlement]);
+    mockGetDamageLossSettlementExecutions.mockResolvedValue([mockExecution]);
+
+    render(<HahitantsoaEventDraftDetailPage param="event-1" onNavigate={vi.fn()} />);
+    expect(await screen.findByText("HAH-2026-0001")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Caution & Solde/i }));
+    expect(await screen.findByText(/Restitution de caution effectuée et soldée/i)).toBeInTheDocument();
+
+    // Verify preview button is present and opens doc-refund-receipt-777
+    const previewBtn = screen.getByRole("button", { name: /Aperçu Reçu de Remboursement/i });
+    expect(previewBtn).toBeInTheDocument();
+    fireEvent.click(previewBtn);
+
+    expect(await screen.findByTestId("artifact-preview")).toHaveTextContent("Preview for doc-refund-receipt-777");
+    // Verify mockGenerateDocumentInstance was NOT called for shared.payment_refund_receipt.v1
+    expect(mockGenerateDocumentInstance).not.toHaveBeenCalledWith("shared.payment_refund_receipt.v1", expect.anything());
   });
 });

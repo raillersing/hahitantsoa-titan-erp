@@ -134,6 +134,51 @@ describe('Stock & Logistics Pages', () => {
     await waitFor(() => expect(addLine).toHaveBeenCalledWith('prep-001', expect.objectContaining({ inventory_item_id: 'MAT-01', quantity: 20 })));
   });
 
+  it('StockPreparationPage - renders Hahitantsoa confirmed event with material lines and navigates with hahitantsoa prefix', async () => {
+    vi.spyOn(api, 'getReservationDrafts').mockResolvedValue([]);
+    vi.spyOn(api, 'getHahitantsoaEventDrafts').mockResolvedValue([
+      {
+        id: 'h-draft-001',
+        public_reference: 'EVT-2026-0012',
+        status: 'confirmed',
+        customer_id: 'c-02',
+        customer_display_name: 'Boda Hahitantsoa',
+        event_name: 'Mariage Boda',
+        venue_name: 'Salle Polyvalente',
+        location_details: '',
+        service_notes: '',
+        start_at: '2026-08-15T10:00:00Z',
+        end_at: '2026-08-15T22:00:00Z',
+        notes: '',
+        lines: [
+          {
+            id: 'hl-1',
+            inventory_item_id: 'MAT-01',
+            inventory_item_name: 'Chaise Napoléon transparente',
+            inventory_item_kind: 'material',
+            quantity: 120,
+            notes: '',
+          },
+        ],
+        created_at: '',
+        updated_at: '',
+      } as any,
+    ]);
+    vi.spyOn(api, 'getInventoryItems').mockResolvedValue([
+      { id: 'MAT-01', name: 'Chaise Napoléon transparente', kind: 'material', description: '', stock_summary: { reported_inventory_quantity: 200, reported_damaged_quantity: 0, current_stock: 200, available_stock: 200, reserved_stock: 0, out_stock: 0, return_stock: 0, damaged_lost_stock: 0 } },
+    ]);
+    vi.spyOn(api, 'getLogisticsEvents').mockResolvedValue([]);
+
+    render(<StockPreparationPage onNavigate={mockNavigate} />);
+
+    expect(await screen.findByText('EVT-2026-0012')).toBeDefined();
+    expect(screen.getByText('Hahitantsoa')).toBeDefined();
+    expect(screen.getByText('Boda Hahitantsoa')).toBeDefined();
+
+    fireEvent.click(screen.getByText('EVT-2026-0012'));
+    expect(mockNavigate).toHaveBeenCalledWith('reservation-detail', 'hahitantsoa:h-draft-001');
+  });
+
   describe('LogisticsDispatchPage', () => {
     beforeEach(() => {
       vi.spyOn(api, 'getLogisticsEvents').mockResolvedValue([
@@ -181,6 +226,80 @@ describe('Stock & Logistics Pages', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Démarrer la sortie' }));
       await waitFor(() => expect(transition).toHaveBeenCalledWith('evt-001', expect.objectContaining({ new_status: 'dispatched' })));
     });
+
+    it('shows "Démarrer le retour" button on completed outbound event and creates return operation', async () => {
+      vi.spyOn(api, 'getLogisticsEvents').mockResolvedValue([
+        {
+          id: 'evt-completed-001',
+          event_type: 'delivery',
+          operation: 'outbound',
+          status: 'completed',
+          reservation_draft: 'res-titan-888',
+          hahitantsoa_event_draft: null,
+          scheduled_at: '2026-07-25T10:00:00Z',
+          executed_at: '2026-07-25T12:00:00Z',
+          address: '123 Rue Example',
+          contact_name: 'Rakoto',
+          contact_phone: '+261340000000',
+          notes: '',
+          signature_required: false,
+          signature_received: false,
+          signed_by: null,
+          signed_at: null,
+          signature_status: 'pending',
+          signature_exception_reason: '',
+          signed_document_file: '',
+          signed_document_hash: '',
+          signed_by_client_name: '',
+          item_lines: [
+            {
+              id: 'line-001',
+              logistics_event: 'evt-completed-001',
+              inventory_item: 'MAT-001',
+              inventory_item_name: 'Chaise',
+              inventory_item_kind: 'material',
+              quantity: 20,
+              notes: '',
+              created_at: '',
+              updated_at: '',
+              created_by: null,
+              updated_by: null,
+            },
+          ],
+          created_at: '',
+          updated_at: '',
+          created_by: null,
+          updated_by: null,
+        },
+      ]);
+      vi.spyOn(api, 'getReturnOperations').mockResolvedValue([]);
+      const createReturnSpy = vi.spyOn(api, 'createReturnOperation').mockResolvedValue({
+        id: 'ret-created-001',
+        reservation_draft: 'res-titan-888',
+        hahitantsoa_event_draft: null,
+        logistics_event: 'evt-completed-001',
+        status: 'draft',
+        lines: [],
+      } as any);
+
+      render(<LogisticsDispatchPage onNavigate={mockNavigate} />);
+
+      const startReturnBtn = await screen.findByRole('button', { name: 'Démarrer le retour' });
+      expect(startReturnBtn).toBeDefined();
+
+      fireEvent.click(startReturnBtn);
+
+      await waitFor(() => {
+        expect(createReturnSpy).toHaveBeenCalled();
+        const callArg = createReturnSpy.mock.calls[0][0];
+        expect(callArg.logistics_event).toBe('evt-completed-001');
+        expect(callArg.reservation_draft).toBe('res-titan-888');
+        expect(callArg.lines[0].inventory_item).toBe('MAT-001');
+        expect(callArg.lines[0].expected_quantity).toBe(20);
+        expect(callArg.lines[0].returned_quantity).toBe(20);
+        expect(mockNavigate).toHaveBeenCalledWith('logistics-returns', 'titan:res-titan-888');
+      });
+    });
   });
 
   describe('LogisticsReturnsPage', () => {
@@ -224,6 +343,55 @@ describe('Stock & Logistics Pages', () => {
     it('filters returns to the dossier supplied by navigation context', async () => {
       render(<LogisticsReturnsPage onNavigate={mockNavigate} param="titan:another-draft" />);
       expect(await screen.findByText('Aucun retour prévu.')).toBeDefined();
+    });
+
+    it('shows eligible completed outbound events and allows receiving return', async () => {
+      vi.spyOn(api, 'getReturnOperations').mockResolvedValue([]);
+      vi.spyOn(api, 'getLogisticsEvents').mockResolvedValue([
+        {
+          id: 'evt-out-pending-ret',
+          event_type: 'delivery',
+          operation: 'outbound',
+          status: 'completed',
+          reservation_draft: 'LOC-2026-999',
+          hahitantsoa_event_draft: null,
+          item_lines: [
+            {
+              id: 'l-1',
+              logistics_event: 'evt-out-pending-ret',
+              inventory_item: 'MAT-001',
+              inventory_item_name: 'Chaise',
+              inventory_item_kind: 'material',
+              quantity: 15,
+            } as any,
+          ],
+        } as any,
+      ]);
+      const createReturnSpy = vi.spyOn(api, 'createReturnOperation').mockResolvedValue({
+        id: 'ret-new-001',
+        reservation_draft: 'LOC-2026-999',
+        hahitantsoa_event_draft: null,
+        logistics_event: 'evt-out-pending-ret',
+        status: 'draft',
+        lines: [],
+      } as any);
+
+      render(<LogisticsReturnsPage onNavigate={mockNavigate} />);
+
+      expect(await screen.findByText(/Sorties livrées \/ remises en attente de retour/i)).toBeDefined();
+      const receiveBtn = screen.getByRole('button', { name: 'Réceptionner le retour' });
+      expect(receiveBtn).toBeDefined();
+
+      fireEvent.click(receiveBtn);
+
+      await waitFor(() => {
+        expect(createReturnSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            logistics_event: 'evt-out-pending-ret',
+            reservation_draft: 'LOC-2026-999',
+          }),
+        );
+      });
     });
   });
 
@@ -648,6 +816,139 @@ describe('Stock & Logistics Pages', () => {
 
       fireEvent.click(viewReceiptBtn);
       expect(mockNavigate).toHaveBeenCalledWith('documents', 'doc-receipt-refund-888');
+    });
+
+    it('handles conforming returns with 0 casse and creates 100% refund settlement', async () => {
+      vi.spyOn(api, 'getDamageLossSettlements').mockResolvedValue([]);
+      vi.spyOn(api, 'getDamageLossSettlementExecutions').mockResolvedValue([]);
+      vi.spyOn(api, 'getReturnOperations').mockResolvedValue([
+        {
+          id: 'ret-conforming-12345678',
+          reservation_draft: 'res-titan-001',
+          hahitantsoa_event_draft: null,
+          logistics_event: 'log-evt-001',
+          status: 'validated',
+          document_instance: null,
+          notes: '',
+          validated_at: '2026-07-20T08:00:00Z',
+          validated_by: 'user-1',
+          created_at: '',
+          updated_at: '',
+          created_by: null,
+          updated_by: null,
+          lines: [
+            {
+              id: 'ret-line-001',
+              inventory_item: 'item-01',
+              expected_quantity: 10,
+              returned_quantity: 10,
+              conforming_quantity: 10,
+              damaged_quantity: 0,
+              missing_quantity: 0,
+              condition_status: 'intact',
+              intact_quantity: 10,
+              created_at: '',
+              updated_at: '',
+              created_by: null,
+              updated_by: null,
+              notes: 'Tout est conforme',
+            },
+          ],
+        },
+      ]);
+
+      const mockCreatedSettlement: any = {
+        id: 'settlement-conforming-001',
+        return_operation: 'ret-conforming-12345678',
+        settlement_status: 'draft',
+        damage_loss_total: 0,
+        caution_available: 500000,
+        caution_applied: 0,
+        refund_due: 500000,
+        excess_due: 0,
+        document_instance: null,
+        notes: 'Retour conforme sans casse ni perte. Restitution intégrale de la caution.',
+        created_at: '',
+        updated_at: '',
+        created_by: null,
+        updated_by: null,
+        lines: [],
+      };
+      const createSettlementSpy = vi.spyOn(api, 'createDamageLossSettlement').mockResolvedValue(mockCreatedSettlement);
+
+      render(<BreakageLossPage onNavigate={mockNavigate} />);
+
+      expect(await screen.findByText(/Retour 100% conforme sans dommage ni perte/i)).toBeDefined();
+      const createBtn = screen.getByRole('button', { name: 'Créer le débouclage (100% conforme)' });
+      expect(createBtn).toBeDefined();
+
+      fireEvent.click(createBtn);
+
+      await waitFor(() => {
+        expect(createSettlementSpy).toHaveBeenCalledWith({
+          return_operation: 'ret-conforming-12345678',
+          document_instance: null,
+          notes: 'Retour conforme sans casse ni perte. Restitution intégrale de la caution.',
+          lines: [],
+        });
+      });
+    });
+
+    it('allows executing a validated settlement when execution is missing or not yet executed', async () => {
+      vi.spyOn(api, 'getDamageLossSettlements').mockResolvedValue([
+        {
+          id: 'settlement-validated-001',
+          return_operation: 'ret-op-001',
+          settlement_status: 'validated',
+          damage_loss_total: 0,
+          caution_available: 500000,
+          caution_applied: 0,
+          refund_due: 500000,
+          excess_due: 0,
+          document_instance: null,
+          notes: 'Validated without exec',
+          validated_at: '2026-07-20T08:00:00Z',
+          validated_by: 'user-1',
+          created_at: '',
+          updated_at: '',
+          created_by: null,
+          updated_by: null,
+          lines: [],
+        },
+      ]);
+      vi.spyOn(api, 'getDamageLossSettlementExecutions').mockResolvedValue([]);
+
+      const mockExecDraft: any = {
+        id: 'exec-draft-001',
+        settlement: 'settlement-validated-001',
+        status: 'draft',
+      };
+      const mockExecDone: any = {
+        id: 'exec-draft-001',
+        settlement: 'settlement-validated-001',
+        status: 'executed',
+        refund_obligation: {
+          id: 'obl-001',
+          amount: 500000,
+          status: 'pending',
+          receipt_document_id: null,
+        },
+      };
+
+      const createExecSpy = vi.spyOn(api, 'createDamageLossSettlementExecution').mockResolvedValue(mockExecDraft);
+      const execExecSpy = vi.spyOn(api, 'executeDamageLossSettlementExecution').mockResolvedValue(mockExecDone);
+
+      render(<BreakageLossPage onNavigate={mockNavigate} />);
+
+      const executeBtn = await screen.findByRole('button', { name: 'Exécuter le règlement' });
+      expect(executeBtn).toBeDefined();
+
+      fireEvent.click(executeBtn);
+
+      await waitFor(() => {
+        expect(createExecSpy).toHaveBeenCalledWith('settlement-validated-001');
+        expect(execExecSpy).toHaveBeenCalledWith('exec-draft-001');
+      });
     });
   });
 });

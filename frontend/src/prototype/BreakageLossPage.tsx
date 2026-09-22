@@ -125,17 +125,16 @@ const getLineCasseQuantity = (line: InventoryReturnOperationLine): number =>
     (operation) =>
       (!param || scopedReturnIds.has(operation.id)) &&
       operation.status === "validated" &&
-      !data.some((settlement) => settlement.return_operation === operation.id) &&
-      operation.lines.some((line) => getLineCasseQuantity(line) > 0),
+      !data.some((settlement) => settlement.return_operation === operation.id),
   );
 
   const itemName = (itemId: string) => inventoryItems.find((item) => item.id === itemId)?.name ?? itemId.slice(0, 8);
 
   const handleCreateSettlement = async (operation: InventoryReturnOperation) => {
     if (creatingReturnId === operation.id) return;
-    const affectedLines = operation.lines.flatMap((line) => {
+    const damagedLines = operation.lines.filter((line) => getLineCasseQuantity(line) > 0);
+    const affectedLines = damagedLines.flatMap((line) => {
       const casseQuantity = getLineCasseQuantity(line);
-      if (casseQuantity <= 0) return [];
       const amount = unitAmounts[line.id]?.trim() ?? "";
       const proposal: InventoryDamageLossSettlementCreatePayload["lines"][number] = {
         return_operation_line: line.id,
@@ -147,17 +146,21 @@ const getLineCasseQuantity = (line: InventoryReturnOperationLine): number =>
       };
       return [proposal];
     });
-    if (affectedLines.length === 0 || affectedLines.some((line) => !line.unit_amount || Number(line.unit_amount) <= 0)) {
+
+    if (damagedLines.length > 0 && affectedLines.some((line) => !line.unit_amount || Number(line.unit_amount) <= 0)) {
       showToast("Saisissez un montant unitaire positif pour chaque article concerné.", "error");
       return;
     }
 
     setCreatingReturnId(operation.id);
     try {
+      const isConforming = damagedLines.length === 0;
       const created = await createDamageLossSettlement({
         return_operation: operation.id,
         document_instance: null,
-        notes: "Déclaration créée depuis le retour contrôlé.",
+        notes: isConforming
+          ? "Retour conforme sans casse ni perte. Restitution intégrale de la caution."
+          : "Déclaration créée depuis le retour contrôlé.",
         lines: affectedLines,
       });
       setData((current) => [created, ...current]);
@@ -166,7 +169,12 @@ const getLineCasseQuantity = (line: InventoryReturnOperationLine): number =>
         operation.lines.forEach((line) => delete next[line.id]);
         return next;
       });
-      showToast("Dossier casse/perte créé. Vous pouvez maintenant le valider.", "success");
+      showToast(
+        isConforming
+          ? "Dossier de débouclage de caution créé (100% conforme). Vous pouvez maintenant le valider pour restituer la caution."
+          : "Dossier casse/perte créé. Vous pouvez maintenant le valider.",
+        "success"
+      );
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : "Impossible de créer le règlement casse/perte.", "error");
     } finally {
@@ -179,11 +187,37 @@ const getLineCasseQuantity = (line: InventoryReturnOperationLine): number =>
     setBusySettlementId(settlement.id);
     try {
       const updated = await validateDamageLossSettlement(settlement.id);
+      setData((current) => current.map((d) => (d.id === settlement.id ? updated : d)));
       const createdExecution = await createDamageLossSettlementExecution(updated.id);
       const executed = await executeDamageLossSettlementExecution(createdExecution.id);
-      setData((current) => current.map((d) => (d.id === settlement.id ? updated : d)));
       setExecutions((current) => [...current.filter((item) => item.settlement !== executed.settlement), executed]);
       showToast("Règlement validé et imputation de la caution enregistrée.", "success");
+    } catch (err: any) {
+      showToast(err?.message || "Erreur lors de l'exécution du règlement casse/perte.", "error");
+    } finally {
+      setBusySettlementId(null);
+    }
+  };
+
+  const handleExecuteSettlement = async (
+    settlement: InventoryDamageLossSettlement,
+    existingExecution?: InventoryDamageLossSettlementExecution,
+  ) => {
+    if (busySettlementId) return;
+    setBusySettlementId(settlement.id);
+    try {
+      let targetExecution = existingExecution;
+      if (!targetExecution) {
+        targetExecution = await createDamageLossSettlementExecution(settlement.id);
+      }
+      if (targetExecution.status !== "executed") {
+        targetExecution = await executeDamageLossSettlementExecution(targetExecution.id);
+      }
+      setExecutions((current) => [
+        ...current.filter((item) => item.settlement !== targetExecution!.settlement),
+        targetExecution!,
+      ]);
+      showToast("Imputation de la caution et débouclage exécutés avec succès.", "success");
     } catch (err: any) {
       showToast(err?.message || "Erreur lors de l'exécution du règlement casse/perte.", "error");
     } finally {
@@ -310,43 +344,57 @@ const getLineCasseQuantity = (line: InventoryReturnOperationLine): number =>
                       <strong>Retour {operation.id.slice(0, 8)}</strong>
                       <span className="text-sm text-slate-500">Retour validé, règlement absent</span>
                     </div>
-                    <div className="mt-3 space-y-2">
-                      {affectedLines.map((line) => {
-                        const casseQty = getLineCasseQuantity(line);
-                        const parts: string[] = [];
-                        if (line.damaged_quantity > 0) parts.push(`${line.damaged_quantity} endommagé(s)`);
-                        if (line.missing_quantity > 0) parts.push(`${line.missing_quantity} manquant(s)`);
-                        const detailLabel = parts.length > 0 ? parts.join(", ") : `${casseQty} casse(s)`;
+                    {affectedLines.length === 0 ? (
+                      <div className="mt-3 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 flex items-center justify-between">
+                        <div>
+                          <i className="fas fa-check-circle text-emerald-600 mr-2" />
+                          <span>Retour 100% conforme sans dommage ni perte. Restitution intégrale de la caution.</span>
+                        </div>
+                        <span className="font-semibold text-emerald-700">{operation.lines.length} article(s) contrôlé(s)</span>
+                      </div>
+                    ) : (
+                      <div className="mt-3 space-y-2">
+                        {affectedLines.map((line) => {
+                          const casseQty = getLineCasseQuantity(line);
+                          const parts: string[] = [];
+                          if (line.damaged_quantity > 0) parts.push(`${line.damaged_quantity} endommagé(s)`);
+                          if (line.missing_quantity > 0) parts.push(`${line.missing_quantity} manquant(s)`);
+                          const detailLabel = parts.length > 0 ? parts.join(", ") : `${casseQty} casse(s)`;
 
-                        return (
-                          <label key={line.id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                            <span>
-                              <strong>{itemName(line.inventory_item)}</strong> — {detailLabel}
-                            </span>
-                            <span className="flex items-center gap-2">
-                              <input
-                                className="w-36 px-3 py-2 border border-slate-300 rounded-lg"
-                                type="number"
-                                min="0.01"
-                                step="0.01"
-                                placeholder="Montant unitaire"
-                                value={unitAmounts[line.id] ?? ""}
-                                onChange={(event) => setUnitAmounts((current) => ({ ...current, [line.id]: event.target.value }))}
-                                aria-label={`Montant unitaire ${itemName(line.inventory_item)}`}
-                              />
-                              <span>Ar</span>
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
+                          return (
+                            <label key={line.id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                              <span>
+                                <strong>{itemName(line.inventory_item)}</strong> — {detailLabel}
+                              </span>
+                              <span className="flex items-center gap-2">
+                                <input
+                                  className="w-36 px-3 py-2 border border-slate-300 rounded-lg"
+                                  type="number"
+                                  min="0.01"
+                                  step="0.01"
+                                  placeholder="Montant unitaire"
+                                  value={unitAmounts[line.id] ?? ""}
+                                  onChange={(event) => setUnitAmounts((current) => ({ ...current, [line.id]: event.target.value }))}
+                                  aria-label={`Montant unitaire ${itemName(line.inventory_item)}`}
+                                />
+                                <span>Ar</span>
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
                     <div className="mt-4 flex justify-end">
                       <button
                         className="px-4 py-2 bg-amber-600 text-white font-bold rounded-lg hover:bg-amber-700 disabled:opacity-50"
                         disabled={creatingReturnId === operation.id}
                         onClick={() => void handleCreateSettlement(operation)}
                       >
-                        {creatingReturnId === operation.id ? "Création…" : "Créer le règlement"}
+                        {creatingReturnId === operation.id
+                          ? "Création…"
+                          : affectedLines.length === 0
+                            ? "Créer le débouclage (100% conforme)"
+                            : "Créer le règlement"}
                       </button>
                     </div>
                   </div>
@@ -475,6 +523,16 @@ const getLineCasseQuantity = (line: InventoryReturnOperationLine): number =>
                     >
                       <i className={`fas ${busySettlementId === s.id ? "fa-spinner fa-spin" : "fa-cut"} mr-2`} />
                       {busySettlementId === s.id ? "Traitement…" : "Valider le règlement"}
+                    </button>
+                  )}
+                  {s.settlement_status === "validated" && (!execution || execution.status !== "executed") && (
+                    <button
+                      className="px-4 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700 shadow-sm flex items-center gap-1.5"
+                      disabled={busySettlementId === s.id}
+                      onClick={() => void handleExecuteSettlement(s, execution)}
+                    >
+                      <i className={`fas ${busySettlementId === s.id ? "fa-spinner fa-spin" : "fa-play"} mr-1`} />
+                      {busySettlementId === s.id ? "Exécution…" : "Exécuter le règlement"}
                     </button>
                   )}
                   {execution?.refund_obligation?.status === "pending" && (
