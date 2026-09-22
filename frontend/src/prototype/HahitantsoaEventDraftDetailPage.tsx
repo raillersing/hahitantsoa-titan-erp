@@ -27,6 +27,13 @@ import {
   getHahitantsoaCommercialTerms,
   getMaterialPackages,
   updateHahitantsoaEventDraftPublicReference,
+  getReturnOperations,
+  createReturnOperation,
+  validateReturnOperation,
+  getDamageLossSettlements,
+  getDamageLossSettlementExecutions,
+  createDamageLossSettlement,
+  validateDamageLossSettlement,
 } from "../api";
 import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
 import DocumentLiveEditorModal from "../DocumentLiveEditorModal";
@@ -50,6 +57,9 @@ import type {
   HahitantsoaEventCloseoutSummary,
   HahitantsoaEventDraftAmendmentRequest,
   InventoryItem,
+  InventoryReturnOperation,
+  InventoryDamageLossSettlement,
+  InventoryDamageLossSettlementExecution,
   LifecycleSummary,
   Payment,
   PaymentMethod,
@@ -367,6 +377,9 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [prepCheckedItems, setPrepCheckedItems] = useState<Record<string, boolean>>({});
   const [returnCheckedItems, setReturnCheckedItems] = useState<Record<string, { returned: number; status: "conforme" | "degrade" | "manquant" }>>({});
   const [breakageDeductions, setBreakageDeductions] = useState<Record<string, { qty: number; unitCost: number; notes: string }>>({});
+  const [returnOperations, setReturnOperations] = useState<InventoryReturnOperation[]>([]);
+  const [damageSettlements, setDamageSettlements] = useState<InventoryDamageLossSettlement[]>([]);
+  const [damageSettlementExecutions, setDamageSettlementExecutions] = useState<InventoryDamageLossSettlementExecution[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -437,16 +450,35 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       setDraft(eventDraft);
 
       // Load parallel details
-      const [nextPreflight, nextDocuments, nextPayments, allDrafts] = await Promise.all([
+      const [
+        nextPreflight,
+        nextDocuments,
+        nextPayments,
+        allDrafts,
+        allReturns,
+        allSettlements,
+        allExecutions,
+      ] = await Promise.all([
         getHahitantsoaEventDraftConfirmationPreflight(param).catch(() => null),
         getHahitantsoaEventDraftDocumentInstances(param).catch(() => []),
         getHahitantsoaEventDraftPayments(param).catch(() => []),
         getHahitantsoaEventDrafts().catch(() => [] as HahitantsoaEventDraft[]),
+        getReturnOperations().catch(() => [] as InventoryReturnOperation[]),
+        getDamageLossSettlements().catch(() => [] as InventoryDamageLossSettlement[]),
+        getDamageLossSettlementExecutions().catch(() => [] as InventoryDamageLossSettlementExecution[]),
       ]);
 
       setPreflight(nextPreflight);
       setDocuments(nextDocuments);
       setPayments(nextPayments);
+
+      const draftReturns = allReturns.filter((r) => r.hahitantsoa_event_draft === param);
+      setReturnOperations(draftReturns);
+      const draftReturnIds = new Set(draftReturns.map((r) => r.id));
+      const draftSettlements = allSettlements.filter((s) => draftReturnIds.has(s.return_operation));
+      setDamageSettlements(draftSettlements);
+      const draftSettlementIds = new Set(draftSettlements.map((s) => s.id));
+      setDamageSettlementExecutions(allExecutions.filter((e) => draftSettlementIds.has(e.settlement)));
 
       // Conflict detection for current draft
       const draftVenue = (eventDraft.venue_name || "Salle principale").trim().toLowerCase();
@@ -1225,12 +1257,6 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     }
   };
 
-  const standardCautionAmount = 1000000;
-  const totalDamageCost = useMemo(() => {
-    return Object.values(breakageDeductions).reduce((sum, item) => sum + item.qty * item.unitCost, 0);
-  }, [breakageDeductions]);
-  const refundableCautionBalance = Math.max(standardCautionAmount - totalDamageCost, 0);
-
   // Document maps
   const docMap = useMemo(() => {
     const map = new Map<string, DocumentInstance>();
@@ -1251,6 +1277,164 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const refundReceiptDoc = docMap.get("shared.payment_refund_receipt.v1");
   const amendmentDoc = docMap.get("hahitantsoa.contract_amendment.v1");
   const invoiceDoc = docMap.get("hahitantsoa.invoice.v1");
+
+  const standardCautionAmount = 500000;
+  const cautionPayment = useMemo(() => {
+    return payments.find(
+      (p) => p.payment_kind === "caution" && (p.payment_status === "confirmed" || p.payment_status === "reconciled"),
+    );
+  }, [payments]);
+  const cautionDeposited = cautionPayment ? Number(cautionPayment.amount) : 0;
+
+  const currentReturnOp = useMemo(() => {
+    return returnOperations.find((r) => r.hahitantsoa_event_draft === draft?.id) || returnOperations[0] || null;
+  }, [returnOperations, draft?.id]);
+
+  const currentSettlement = useMemo(() => {
+    if (currentReturnOp) {
+      const match = damageSettlements.find((s) => s.return_operation === currentReturnOp.id);
+      if (match) return match;
+    }
+    return damageSettlements[0] || null;
+  }, [damageSettlements, currentReturnOp]);
+
+  const currentExecution = useMemo(() => {
+    if (currentSettlement) {
+      return damageSettlementExecutions.find((e) => e.settlement === currentSettlement.id) || null;
+    }
+    return damageSettlementExecutions[0] || null;
+  }, [damageSettlementExecutions, currentSettlement]);
+
+  const refundPayment = useMemo(() => {
+    return payments.find(
+      (p) => p.payment_kind === "refund" && (p.payment_status === "confirmed" || p.payment_status === "reconciled"),
+    );
+  }, [payments]);
+
+  const totalDamageCost = useMemo(() => {
+    if (currentSettlement) {
+      return Number(currentSettlement.damage_loss_total || 0);
+    }
+    return Object.values(breakageDeductions).reduce((sum, item) => sum + item.qty * item.unitCost, 0);
+  }, [currentSettlement, breakageDeductions]);
+
+  const refundableCautionBalance = useMemo(() => {
+    if (currentSettlement) {
+      return Number(currentSettlement.refund_due || 0);
+    }
+    const baseCaution = cautionDeposited > 0 ? cautionDeposited : standardCautionAmount;
+    return Math.max(baseCaution - totalDamageCost, 0);
+  }, [currentSettlement, cautionDeposited, standardCautionAmount, totalDamageCost]);
+
+  const refundReceiptDocId =
+    currentExecution?.refund_obligation?.receipt_document_id ||
+    refundPayment?.receipt_document?.id ||
+    refundReceiptDoc?.id ||
+    null;
+
+  const handleCreateReturn = async () => {
+    if (!draft) return;
+    setBusy("create-return");
+    setError(null);
+    try {
+      const payloadLines = draft.lines.map((line) => {
+        const state = returnCheckedItems[line.id] || { returned: line.quantity, status: "conforme" };
+        return {
+          inventory_item: line.inventory_item_id,
+          expected_quantity: line.quantity,
+          returned_quantity: Number(state.returned),
+          damaged_quantity: state.status === "degrade" ? Math.max(line.quantity - Number(state.returned), 1) : 0,
+          missing_quantity: state.status === "manquant" ? Math.max(line.quantity - Number(state.returned), 1) : 0,
+          condition_status: state.status === "degrade" ? ("damaged" as const) : state.status === "manquant" ? ("missing" as const) : ("intact" as const),
+          notes: state.status !== "conforme" ? `Constat retour (${state.status})` : "",
+        };
+      });
+      const op = await createReturnOperation({
+        hahitantsoa_event_draft: draft.id,
+        notes: `Retour matériel événement Hahitantsoa ${draft.public_reference}`,
+        lines: payloadLines,
+      });
+      setReturnOperations((prev) => [op, ...prev]);
+      setActionNotice("Opération de retour créée avec succès.");
+      setTimeout(() => setActionNotice(null), 4000);
+    } catch (err) {
+      setError(errorMessage(err, "Impossible de créer l'opération de retour."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleValidateReturn = async () => {
+    if (!currentReturnOp) return;
+    setBusy("validate-return");
+    setError(null);
+    try {
+      const updated = await validateReturnOperation(currentReturnOp.id);
+      setReturnOperations((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      setActionNotice("Opération de retour validée avec succès.");
+      setTimeout(() => setActionNotice(null), 4000);
+      void load();
+    } catch (err) {
+      setError(errorMessage(err, "Impossible de valider l'opération de retour."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleCreateSettlementFromHahitantsoa = async () => {
+    if (!currentReturnOp) return;
+    setBusy("create-settlement");
+    setError(null);
+    try {
+      const damagedLines = currentReturnOp.lines.filter(
+        (l) => l.condition_status !== "intact" || (l.damaged_quantity || 0) > 0 || (l.missing_quantity || 0) > 0,
+      );
+      const linesToSettle = damagedLines.map((l) => {
+        const itemLabel = draft?.lines.find((dl) => dl.inventory_item_id === l.inventory_item)?.inventory_item_name || "";
+        return {
+          return_operation_line: l.id,
+          settlement_line_kind: (l.condition_status === "missing" || (l.missing_quantity || 0) > 0 ? "loss" : "damage") as "loss" | "damage",
+          quantity: (l.missing_quantity || 0) + (l.damaged_quantity || 0) || 1,
+          unit_amount: "25000",
+          amount_source: "manual" as const,
+          notes: itemLabel ? `Constat sur retour ${itemLabel}` : `Constat sur ligne ${l.id}`,
+        };
+      });
+
+      const newSettlement = await createDamageLossSettlement({
+        return_operation: currentReturnOp.id,
+        notes: linesToSettle.length === 0
+          ? "Retour conforme sans casse ni perte. Restitution intégrale de la caution."
+          : `Règlement suite au retour de l'événement Hahitantsoa ${draft?.public_reference || ""}`,
+        lines: linesToSettle,
+      });
+      setDamageSettlements((prev) => [newSettlement, ...prev]);
+      setActionNotice("Règlement de casse enregistré.");
+      setTimeout(() => setActionNotice(null), 4000);
+      void load();
+    } catch (err) {
+      setError(errorMessage(err, "Impossible de créer le règlement."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleValidateSettlementFromHahitantsoa = async () => {
+    if (!currentSettlement) return;
+    setBusy("validate-settlement");
+    setError(null);
+    try {
+      const updated = await validateDamageLossSettlement(currentSettlement.id);
+      setDamageSettlements((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+      setActionNotice("Règlement validé avec succès.");
+      setTimeout(() => setActionNotice(null), 4000);
+      void load();
+    } catch (err) {
+      setError(errorMessage(err, "Impossible de valider le règlement."));
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const contractExists = Boolean(contractDoc && (contractDoc.status === "generated" || contractDoc.status === "issued"));
   const contractSigned = preflight?.prerequisite_status.contract.truth_present ?? false;
@@ -2798,6 +2982,13 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    onClick={() => onNavigate("logistics-returns", `hahitantsoa:${draft.id}`)}
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 font-bold text-slate-700 hover:bg-slate-50 text-xs shadow-2xs transition-colors"
+                  >
+                    <i className="fa-solid fa-truck-ramp-box text-slate-600"></i> Ouvrir dans Retours logistiques
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setPreviewModal({
                       title: "Bon de Retour Officiel",
                       documentInstanceId: returnNoteDoc?.id,
@@ -2821,6 +3012,60 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 </div>
               </div>
 
+              {/* Status banner for Return Operation */}
+              {currentReturnOp ? (
+                <div className={`rounded-xl border p-4 flex flex-wrap items-center justify-between gap-3 ${
+                  currentReturnOp.status === "validated"
+                    ? "border-emerald-200 bg-emerald-50/60"
+                    : "border-amber-200 bg-amber-50/60"
+                }`}>
+                  <div>
+                    <span className={`font-bold text-sm flex items-center gap-2 ${
+                      currentReturnOp.status === "validated" ? "text-emerald-900" : "text-amber-900"
+                    }`}>
+                      <i className={`fa-solid ${currentReturnOp.status === "validated" ? "fa-circle-check text-emerald-600" : "fa-clock text-amber-600"}`}></i>
+                      {currentReturnOp.status === "validated"
+                        ? "Opération de retour réceptionnée et validée"
+                        : "Opération de retour enregistrée (Brouillon en cours)"}
+                    </span>
+                    <p className={`text-xs mt-0.5 ${currentReturnOp.status === "validated" ? "text-emerald-700" : "text-amber-700"}`}>
+                      {currentReturnOp.status === "validated"
+                        ? `Validée le ${formatDateTimeFr(currentReturnOp.validated_at || currentReturnOp.created_at || undefined)} — Stock réintégré en inventaire.`
+                        : `Créée le ${formatDateTimeFr(currentReturnOp.created_at)} — En attente de validation définitive.`}
+                    </p>
+                  </div>
+                  {currentReturnOp.status === "draft" && (
+                    <button
+                      type="button"
+                      disabled={busy !== null}
+                      onClick={handleValidateReturn}
+                      className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 font-bold text-white hover:bg-emerald-700 disabled:opacity-50 text-xs shadow-sm transition-colors"
+                    >
+                      <i className="fa-solid fa-check"></i> Valider l'opération de retour
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <span className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                      <i className="fa-solid fa-circle-info text-slate-500"></i> Aucune opération de retour enregistrée
+                    </span>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Renseignez l'état des articles ci-dessous et enregistrez pour créer l'opération de retour persistée.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busy !== null}
+                    onClick={handleCreateReturn}
+                    className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white hover:bg-indigo-700 disabled:opacity-50 text-xs shadow-sm transition-colors"
+                  >
+                    <i className="fa-solid fa-floppy-disk"></i> Enregistrer l'opération de retour
+                  </button>
+                </div>
+              )}
+
               {/* Inspection list */}
               <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
                 <table className="w-full text-left text-xs text-slate-700">
@@ -2836,38 +3081,62 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   <tbody className="divide-y divide-slate-100">
                     {draft.lines.map((line) => {
                       const returnState = returnCheckedItems[line.id] || { returned: line.quantity, status: "conforme" };
+                      const opLine = currentReturnOp?.lines.find((ol) => ol.inventory_item === line.inventory_item_id);
+                      const isOpValidated = currentReturnOp?.status === "validated";
                       return (
                         <tr key={line.id} className="hover:bg-slate-50">
                           <td className="py-3 px-4 font-bold text-slate-900">{line.inventory_item_name}</td>
                           <td className="py-3 px-4 text-center font-bold">{line.quantity}</td>
                           <td className="py-3 px-4 text-center">
-                            <input
-                              type="number"
-                              min="0"
-                              max={line.quantity}
-                              value={returnState.returned}
-                              onChange={(e) => setReturnCheckedItems({
-                                ...returnCheckedItems,
-                                [line.id]: { ...returnState, returned: Number(e.target.value) },
-                              })}
-                              className="w-16 rounded border border-slate-300 px-2 py-1 text-center font-bold"
-                            />
+                            {isOpValidated ? (
+                              <span className="font-bold text-slate-800">{opLine ? opLine.returned_quantity : line.quantity}</span>
+                            ) : (
+                              <input
+                                type="number"
+                                min="0"
+                                max={line.quantity}
+                                value={returnState.returned}
+                                onChange={(e) => setReturnCheckedItems({
+                                  ...returnCheckedItems,
+                                  [line.id]: { ...returnState, returned: Number(e.target.value) },
+                                })}
+                                className="w-16 rounded border border-slate-300 px-2 py-1 text-center font-bold"
+                              />
+                            )}
                           </td>
                           <td className="py-3 px-4">
-                            <select
-                              value={returnState.status}
-                              onChange={(e) => setReturnCheckedItems({
-                                ...returnCheckedItems,
-                                [line.id]: { ...returnState, status: e.target.value as any },
-                              })}
-                              className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold"
-                            >
-                              <option value="conforme">Conforme / Intact</option>
-                              <option value="degrade">Dégradé / Cassé</option>
-                              <option value="manquant">Manquant / Perdu</option>
-                            </select>
+                            {isOpValidated ? (
+                              <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-semibold ${
+                                (opLine?.condition_status === "damaged" || opLine?.damaged_quantity)
+                                  ? "bg-rose-100 text-rose-700"
+                                  : (opLine?.condition_status === "missing" || opLine?.missing_quantity)
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-emerald-100 text-emerald-700"
+                              }`}>
+                                {(opLine?.condition_status === "damaged" || opLine?.damaged_quantity)
+                                  ? "Dégradé / Cassé"
+                                  : (opLine?.condition_status === "missing" || opLine?.missing_quantity)
+                                  ? "Manquant / Perdu"
+                                  : "Conforme / Intact"}
+                              </span>
+                            ) : (
+                              <select
+                                value={returnState.status}
+                                onChange={(e) => setReturnCheckedItems({
+                                  ...returnCheckedItems,
+                                  [line.id]: { ...returnState, status: e.target.value as any },
+                                })}
+                                className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold"
+                              >
+                                <option value="conforme">Conforme / Intact</option>
+                                <option value="degrade">Dégradé / Cassé</option>
+                                <option value="manquant">Manquant / Perdu</option>
+                              </select>
+                            )}
                           </td>
-                          <td className="py-3 px-4 text-slate-400">R.A.S.</td>
+                          <td className="py-3 px-4 text-slate-400">
+                            {isOpValidated ? (opLine?.notes || "R.A.S.") : "R.A.S."}
+                          </td>
                         </tr>
                       );
                     })}
@@ -2892,15 +3161,22 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    onClick={() => onNavigate("breakage-loss", `hahitantsoa:${draft.id}`)}
+                    className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3.5 py-2 font-bold text-rose-700 hover:bg-rose-50 text-xs shadow-2xs transition-colors"
+                  >
+                    <i className="fa-solid fa-scale-balanced text-rose-600"></i> Ouvrir le règlement casse réel
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setPreviewModal({
                       title: "Facture de Casse / Remise en État",
                       documentInstanceId: breakageDoc?.id,
                       templateKey: "hahitantsoa.breakage_repair_invoice.v1",
                       type: "facture_casse",
                     })}
-                    className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3.5 py-2 font-bold text-rose-700 hover:bg-rose-50 text-xs shadow-2xs transition-colors"
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 font-bold text-slate-700 hover:bg-slate-50 text-xs shadow-2xs transition-colors"
                   >
-                    <i className="fa-solid fa-eye text-rose-600"></i> Aperçu Facture de Casse
+                    <i className="fa-solid fa-eye text-slate-600"></i> Aperçu Facture de Casse
                   </button>
                   {!breakageDoc && (
                     <button
@@ -2915,65 +3191,219 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 </div>
               </div>
 
-              {/* Breakage pricing table */}
-              <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800 text-sm">Articles nécessitant un dédommagement selon la grille tarifaire</span>
-                  <span className="text-sm font-black text-rose-600">Total Casse : {formatMoney(totalDamageCost)}</span>
+              {/* Status banner for settlement */}
+              {currentSettlement ? (
+                <div className={`rounded-xl border p-4 space-y-2 ${
+                  currentSettlement.settlement_status === "validated"
+                    ? "border-emerald-200 bg-emerald-50/60"
+                    : "border-amber-200 bg-amber-50/60"
+                }`}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <span className={`font-bold text-sm flex items-center gap-2 ${
+                        currentSettlement.settlement_status === "validated" ? "text-emerald-900" : "text-amber-900"
+                      }`}>
+                        <i className={`fa-solid ${currentSettlement.settlement_status === "validated" ? "fa-circle-check text-emerald-600" : "fa-clock text-amber-600"}`}></i>
+                        {currentSettlement.settlement_status === "validated"
+                          ? "Règlement de casse validé"
+                          : "Règlement de casse en cours (Brouillon)"}
+                      </span>
+                      <p className={`text-xs mt-0.5 ${currentSettlement.settlement_status === "validated" ? "text-emerald-700" : "text-amber-700"}`}>
+                        {currentSettlement.settlement_status === "validated"
+                          ? `Validé le ${formatDateTimeFr(currentSettlement.validated_at || currentSettlement.created_at || undefined)}.`
+                          : `Créé le ${formatDateTimeFr(currentSettlement.created_at)} — En attente de validation.`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {currentSettlement.settlement_status === "validated" && (
+                        currentExecution?.status === "executed" ? (
+                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800 border border-emerald-300">
+                            <i className="fa-solid fa-check-double mr-1"></i> Règlement exécuté ({formatDateTimeFr(currentExecution.executed_at || undefined)})
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onNavigate("breakage-loss", `hahitantsoa:${draft.id}`)}
+                            className="rounded-xl bg-tit-600 px-4 py-2 font-bold text-white hover:bg-tit-700 text-xs shadow-sm transition-colors"
+                          >
+                            <i className="fa-solid fa-play mr-1.5"></i> Exécuter le règlement
+                          </button>
+                        )
+                      )}
+                      {currentSettlement.settlement_status === "draft" && (
+                        <button
+                          type="button"
+                          disabled={busy !== null}
+                          onClick={handleValidateSettlementFromHahitantsoa}
+                          className="rounded-xl bg-emerald-600 px-4 py-2 font-bold text-white hover:bg-emerald-700 disabled:opacity-50 text-xs shadow-sm transition-colors"
+                        >
+                          <i className="fa-solid fa-check mr-1.5"></i> Valider le règlement
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200/80 text-xs">
+                    <div>
+                      <span className="text-slate-600 block">Total casse / perte :</span>
+                      <strong className="text-rose-600 text-sm">{formatMoney(currentSettlement.damage_loss_total)}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-600 block">Caution appliquée :</span>
+                      <strong className="text-slate-800 text-sm">{formatMoney(currentSettlement.caution_applied)}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-600 block">Solde restituable :</span>
+                      <strong className="text-emerald-700 text-sm">{formatMoney(currentSettlement.refund_due)}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-600 block">Surplus dû :</span>
+                      <strong className="text-amber-700 text-sm">{formatMoney(currentSettlement.excess_due)}</strong>
+                    </div>
+                  </div>
                 </div>
+              ) : currentReturnOp?.status === "validated" ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <span className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                      <i className="fa-solid fa-circle-info text-blue-500"></i> Retour validé en attente de règlement
+                    </span>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Créez le règlement pour imputer la casse sur la caution ou libérer la restitution intégrale.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={busy !== null}
+                      onClick={handleCreateSettlementFromHahitantsoa}
+                      className="rounded-xl bg-rose-600 px-4 py-2 font-bold text-white hover:bg-rose-700 disabled:opacity-50 text-xs shadow-sm transition-colors"
+                    >
+                      <i className="fa-solid fa-scale-balanced mr-1.5"></i> Créer le règlement
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate("breakage-loss", `hahitantsoa:${draft.id}`)}
+                      className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 font-bold text-slate-700 hover:bg-slate-50 text-xs shadow-2xs transition-colors"
+                    >
+                      Traiter dans Casses & Pertes
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+                  <span className="font-bold text-amber-900 text-sm flex items-center gap-2">
+                    <i className="fa-solid fa-triangle-exclamation text-amber-600"></i> Retour non validé
+                  </span>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    Le retour de matériel doit être réceptionné et validé avant d'établir le règlement de casse définitif.
+                  </p>
+                </div>
+              )}
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs text-slate-700">
-                    <thead className="bg-slate-50 font-bold uppercase text-slate-500 border-b border-slate-200">
-                      <tr>
-                        <th className="py-2.5 px-3">Article</th>
-                        <th className="py-2.5 px-3 text-center">Quantité cassée/perdue</th>
-                        <th className="py-2.5 px-3 text-right">Tarif unitaire casse (Ar)</th>
-                        <th className="py-2.5 px-3 text-right">Total (Ar)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {draft.lines.map((line) => {
-                        const deduction = breakageDeductions[line.id] || { qty: 0, unitCost: 25000, notes: "" };
-                        return (
+              {/* Settlement lines or Breakage pricing table */}
+              {currentSettlement && currentSettlement.lines.length > 0 ? (
+                <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800 text-sm">Lignes de dédommagement enregistrées</span>
+                    <span className="text-sm font-black text-rose-600">Total Casse : {formatMoney(currentSettlement.damage_loss_total)}</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs text-slate-700">
+                      <thead className="bg-slate-50 font-bold uppercase text-slate-500 border-b border-slate-200">
+                        <tr>
+                          <th className="py-2.5 px-3">Description</th>
+                          <th className="py-2.5 px-3">Type</th>
+                          <th className="py-2.5 px-3 text-center">Quantité</th>
+                          <th className="py-2.5 px-3 text-right">Tarif unitaire (Ar)</th>
+                          <th className="py-2.5 px-3 text-right">Total (Ar)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {currentSettlement.lines.map((line) => (
                           <tr key={line.id}>
-                            <td className="py-2.5 px-3 font-semibold">{line.inventory_item_name}</td>
-                            <td className="py-2.5 px-3 text-center">
-                              <input
-                                type="number"
-                                min="0"
-                                max={line.quantity}
-                                value={deduction.qty}
-                                onChange={(e) => setBreakageDeductions({
-                                  ...breakageDeductions,
-                                  [line.id]: { ...deduction, qty: Number(e.target.value) },
-                                })}
-                                className="w-16 rounded border border-slate-300 px-2 py-1 text-center font-bold"
-                              />
+                            <td className="py-2.5 px-3 font-semibold">{line.manual_label || line.notes || "Article endommagé"}</td>
+                            <td className="py-2.5 px-3">
+                              <span className="rounded bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+                                {line.settlement_line_kind === "loss" ? "Perte" : "Casse / Dégradation"}
+                              </span>
                             </td>
-                            <td className="py-2.5 px-3 text-right">
-                              <input
-                                type="number"
-                                min="0"
-                                step="1000"
-                                value={deduction.unitCost}
-                                onChange={(e) => setBreakageDeductions({
-                                  ...breakageDeductions,
-                                  [line.id]: { ...deduction, unitCost: Number(e.target.value) },
-                                })}
-                                className="w-24 rounded border border-slate-300 px-2 py-1 text-right font-bold"
-                              />
-                            </td>
-                            <td className="py-2.5 px-3 text-right font-bold text-rose-600">
-                              {formatMoney(deduction.qty * deduction.unitCost)}
-                            </td>
+                            <td className="py-2.5 px-3 text-center font-bold">{line.quantity}</td>
+                            <td className="py-2.5 px-3 text-right">{formatMoney(line.unit_amount)}</td>
+                            <td className="py-2.5 px-3 text-right font-bold text-rose-600">{formatMoney(line.total_amount)}</td>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              ) : currentSettlement && currentSettlement.lines.length === 0 ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-6 text-center">
+                  <i className="fa-solid fa-shield-check text-2xl text-emerald-600 mb-2"></i>
+                  <h4 className="font-bold text-emerald-900 text-sm">Retour conforme sans casse ni perte constatée</h4>
+                  <p className="text-xs text-emerald-700 mt-1">
+                    Le règlement n'impute aucune retenue sur la caution. Restitution intégrale de 100% de la caution.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800 text-sm">Articles nécessitant un dédommagement selon la grille tarifaire (Estimation)</span>
+                    <span className="text-sm font-black text-rose-600">Total Casse estimé : {formatMoney(totalDamageCost)}</span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs text-slate-700">
+                      <thead className="bg-slate-50 font-bold uppercase text-slate-500 border-b border-slate-200">
+                        <tr>
+                          <th className="py-2.5 px-3">Article</th>
+                          <th className="py-2.5 px-3 text-center">Quantité cassée/perdue</th>
+                          <th className="py-2.5 px-3 text-right">Tarif unitaire casse (Ar)</th>
+                          <th className="py-2.5 px-3 text-right">Total (Ar)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {draft.lines.map((line) => {
+                          const deduction = breakageDeductions[line.id] || { qty: 0, unitCost: 25000, notes: "" };
+                          return (
+                            <tr key={line.id}>
+                              <td className="py-2.5 px-3 font-semibold">{line.inventory_item_name}</td>
+                              <td className="py-2.5 px-3 text-center">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={line.quantity}
+                                  value={deduction.qty}
+                                  onChange={(e) => setBreakageDeductions({
+                                    ...breakageDeductions,
+                                    [line.id]: { ...deduction, qty: Number(e.target.value) },
+                                  })}
+                                  className="w-16 rounded border border-slate-300 px-2 py-1 text-center font-bold"
+                                />
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1000"
+                                  value={deduction.unitCost}
+                                  onChange={(e) => setBreakageDeductions({
+                                    ...breakageDeductions,
+                                    [line.id]: { ...deduction, unitCost: Number(e.target.value) },
+                                  })}
+                                  className="w-24 rounded border border-slate-300 px-2 py-1 text-right font-bold"
+                                />
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-bold text-rose-600">
+                                {formatMoney(deduction.qty * deduction.unitCost)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -2990,46 +3420,109 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewModal({
-                      title: "Reçu de Remboursement de Caution",
-                      documentInstanceId: refundReceiptDoc?.id,
-                      templateKey: "shared.payment_refund_receipt.v1",
-                      type: "recu_remboursement",
-                    })}
-                    className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3.5 py-2 font-bold text-indigo-700 hover:bg-indigo-50 text-xs shadow-2xs transition-colors"
-                  >
-                    <i className="fa-solid fa-eye text-indigo-600"></i> Aperçu Reçu de Remboursement
-                  </button>
-                  {!refundReceiptDoc && (
+                  {refundReceiptDocId && (
                     <button
                       type="button"
-                      disabled={busy !== null}
-                      onClick={() => void generateDocument("shared.payment_refund_receipt.v1", "Reçu de remboursement")}
-                      className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white hover:bg-indigo-700 disabled:opacity-50 text-xs shadow-sm transition-colors"
+                      onClick={() => setPreviewModal({
+                        title: "Reçu de Remboursement de Caution",
+                        documentInstanceId: refundReceiptDocId,
+                        templateKey: "shared.payment_refund_receipt.v1",
+                        type: "recu_remboursement",
+                      })}
+                      className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3.5 py-2 font-bold text-indigo-700 hover:bg-indigo-50 text-xs shadow-2xs transition-colors"
                     >
-                      <i className="fa-solid fa-receipt"></i> Émettre Reçu Restitution
+                      <i className="fa-solid fa-eye text-indigo-600"></i> Aperçu Reçu de Remboursement
                     </button>
                   )}
+                  {currentExecution?.refund_obligation?.status === "pending" && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigate("breakage-loss", `hahitantsoa:${draft.id}`)}
+                      className="flex items-center gap-1.5 rounded-xl bg-tit-600 px-4 py-2 font-bold text-white hover:bg-tit-700 text-xs shadow-sm transition-colors"
+                    >
+                      <i className="fa-solid fa-hand-holding-dollar"></i> Régler la restitution
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate("caution")}
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 font-bold text-slate-700 hover:bg-slate-50 text-xs shadow-2xs transition-colors"
+                  >
+                    <i className="fa-solid fa-shield-halved text-slate-600"></i> Suivi des Cautions
+                  </button>
                 </div>
               </div>
+
+              {currentExecution?.refund_obligation && (
+                <div className={`rounded-xl border p-4 flex flex-wrap items-center justify-between gap-3 ${
+                  currentExecution.refund_obligation.status === "settled"
+                    ? "border-emerald-200 bg-emerald-50/60 text-emerald-900"
+                    : "border-blue-200 bg-blue-50/60 text-blue-900"
+                }`}>
+                  <div>
+                    <span className="font-bold text-sm flex items-center gap-2">
+                      <i className={`fa-solid ${currentExecution.refund_obligation.status === "settled" ? "fa-circle-check text-emerald-600" : "fa-clock text-blue-600"}`}></i>
+                      {currentExecution.refund_obligation.status === "settled"
+                        ? "Restitution de caution effectuée et soldée"
+                        : "Restitution de caution validée en attente de décaissement"}
+                    </span>
+                    <p className="text-xs mt-0.5 opacity-90">
+                      Montant de la restitution : {formatMoney(currentExecution.refund_obligation.amount)}
+                      {currentExecution.refund_obligation.status === "settled" ? " — Reçu de remboursement disponible." : " — À exécuter en caisse."}
+                    </p>
+                  </div>
+                  {refundReceiptDocId ? (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewModal({
+                        title: "Reçu de Remboursement de Caution",
+                        documentInstanceId: refundReceiptDocId,
+                        templateKey: "shared.payment_refund_receipt.v1",
+                        type: "recu_remboursement",
+                      })}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <i className="fa-solid fa-file-invoice text-emerald-600"></i> Voir le reçu
+                    </button>
+                  ) : currentExecution.refund_obligation.status === "pending" ? (
+                    <button
+                      type="button"
+                      onClick={() => onNavigate("breakage-loss", `hahitantsoa:${draft.id}`)}
+                      className="rounded-lg bg-tit-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-tit-700 shadow-sm"
+                    >
+                      Exécuter le paiement
+                    </button>
+                  ) : null}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <span className="text-xs font-bold text-slate-500 block uppercase">Caution Déposée</span>
-                  <span className="text-lg font-black text-slate-900 mt-1 block">{formatMoney(standardCautionAmount)}</span>
-                  <span className="text-[11px] text-slate-400 mt-1 block">Dépôt initial</span>
+                  <span className="text-lg font-black text-slate-900 mt-1 block">
+                    {formatMoney(cautionDeposited > 0 ? cautionDeposited : standardCautionAmount)}
+                  </span>
+                  <span className="text-[11px] text-slate-500 mt-1 block">
+                    {cautionDeposited > 0 ? "Dépôt effectif encaissé" : "Caution contractuelle (500 000 Ar)"}
+                  </span>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <span className="text-xs font-bold text-slate-500 block uppercase">Déduction Casses & Pertes</span>
                   <span className="text-lg font-black text-rose-600 mt-1 block">− {formatMoney(totalDamageCost)}</span>
-                  <span className="text-[11px] text-slate-400 mt-1 block">Selon constat</span>
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    {currentSettlement ? "Constat validé" : "Estimation selon constat"}
+                  </span>
                 </div>
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
                   <span className="text-xs font-bold text-emerald-800 block uppercase">Solde Caution Restituable</span>
                   <span className="text-lg font-black text-emerald-700 mt-1 block">{formatMoney(refundableCautionBalance)}</span>
-                  <span className="text-[11px] text-emerald-600 mt-1 block">À rembourser au client</span>
+                  <span className="text-[11px] text-emerald-600 mt-1 block">
+                    {currentExecution?.refund_obligation?.status === "settled"
+                      ? "Restitution soldée"
+                      : currentExecution?.refund_obligation?.status === "pending"
+                      ? "En attente de paiement"
+                      : "À rembourser au client"}
+                  </span>
                 </div>
               </div>
 

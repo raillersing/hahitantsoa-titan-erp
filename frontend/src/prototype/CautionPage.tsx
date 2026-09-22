@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { getDamageLossSettlements, getReturnOperations } from "../api";
-import type { InventoryDamageLossSettlement, InventoryReturnOperation } from "../types";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { getDamageLossSettlementExecutions, getDamageLossSettlements, getReturnOperations } from "../api";
+import type { InventoryDamageLossSettlement, InventoryDamageLossSettlementExecution, InventoryReturnOperation } from "../types";
 
 type CautionFilter = "Toutes" | "À traiter" | "Restitution due" | "Clôturées";
 
@@ -9,9 +9,17 @@ function amount(value: number | string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function filterLabel(settlement: InventoryDamageLossSettlement): Exclude<CautionFilter, "Toutes"> {
+function filterLabel(
+  settlement: InventoryDamageLossSettlement,
+  execution?: InventoryDamageLossSettlementExecution
+): Exclude<CautionFilter, "Toutes"> {
   if (settlement.settlement_status === "draft") return "À traiter";
-  if (amount(settlement.refund_due) > 0) return "Restitution due";
+  if (amount(settlement.refund_due) > 0) {
+    if (execution?.refund_obligation?.status === "settled" || execution?.refund_obligation?.status === "cancelled") {
+      return "Clôturées";
+    }
+    return "Restitution due";
+  }
   return "Clôturées";
 }
 
@@ -23,6 +31,7 @@ export default function CautionPage({ onNavigate, param }: { onNavigate: (scope:
   const [filter, setFilter] = useState<CautionFilter>("Toutes");
   const [settlements, setSettlements] = useState<InventoryDamageLossSettlement[]>([]);
   const [returnOperations, setReturnOperations] = useState<InventoryReturnOperation[]>([]);
+  const [executions, setExecutions] = useState<InventoryDamageLossSettlementExecution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,12 +39,14 @@ export default function CautionPage({ onNavigate, param }: { onNavigate: (scope:
     setLoading(true);
     setError(null);
     try {
-      const [data, operations] = await Promise.all([
+      const [data, operations, execs] = await Promise.all([
         getDamageLossSettlements(signal),
         getReturnOperations(signal),
+        getDamageLossSettlementExecutions(undefined, signal),
       ]);
       setSettlements(Array.isArray(data) ? data : []);
       setReturnOperations(Array.isArray(operations) ? operations : []);
+      setExecutions(Array.isArray(execs) ? execs : []);
     } catch (err: any) {
       if (err?.name !== "AbortError") setError(err?.message || "Impossible de charger les cautions.");
     } finally {
@@ -49,6 +60,14 @@ export default function CautionPage({ onNavigate, param }: { onNavigate: (scope:
     return () => controller.abort();
   }, [load]);
 
+  const executionBySettlementId = useMemo(() => {
+    const map = new Map<string, InventoryDamageLossSettlementExecution>();
+    for (const exec of executions) {
+      map.set(exec.settlement, exec);
+    }
+    return map;
+  }, [executions]);
+
   const scopedReturnIds = new Set(returnOperations
     .filter((operation) => !param || (param.startsWith("titan:")
       ? operation.reservation_draft === param.slice("titan:".length)
@@ -56,10 +75,13 @@ export default function CautionPage({ onNavigate, param }: { onNavigate: (scope:
         ? operation.hahitantsoa_event_draft === param.slice("hahitantsoa:".length)
         : true))
     .map((operation) => operation.id));
-  const visibleSettlements = settlements.filter((settlement) =>
-    (!param || scopedReturnIds.has(settlement.return_operation)) &&
-    (filter === "Toutes" || filterLabel(settlement) === filter),
-  );
+  const visibleSettlements = settlements.filter((settlement) => {
+    const execution = executionBySettlementId.get(settlement.id);
+    return (
+      (!param || scopedReturnIds.has(settlement.return_operation)) &&
+      (filter === "Toutes" || filterLabel(settlement, execution) === filter)
+    );
+  });
 
   return (
     <div className="space-y-6">
@@ -95,7 +117,8 @@ export default function CautionPage({ onNavigate, param }: { onNavigate: (scope:
         {!loading && !error && visibleSettlements.length > 0 && (
           <div className="divide-y divide-slate-100">
             {visibleSettlements.map((settlement) => {
-              const status = filterLabel(settlement);
+              const execution = executionBySettlementId.get(settlement.id);
+              const status = filterLabel(settlement, execution);
               return (
                 <article key={settlement.id} className="p-6">
                   <div className="flex flex-wrap items-start justify-between gap-4">
@@ -103,7 +126,19 @@ export default function CautionPage({ onNavigate, param }: { onNavigate: (scope:
                       <h2 className="font-bold text-slate-800">Dossier retour {settlement.return_operation}</h2>
                       <p className="mt-1 text-sm text-slate-500">Règlement {settlement.settlement_status === "draft" ? "à traiter" : "enregistré"}</p>
                     </div>
-                    <span className={`rounded-full px-3 py-1 text-sm font-bold ${status === "À traiter" ? "bg-amber-100 text-amber-700" : status === "Restitution due" ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"}`}>{status}</span>
+                    <div className="flex items-center gap-2">
+                      {execution?.refund_obligation?.status === "settled" && (
+                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                          <i className="fas fa-check-circle mr-1" />Restitution effectuée
+                        </span>
+                      )}
+                      {execution?.refund_obligation?.status === "pending" && (
+                        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 border border-blue-200">
+                          <i className="fas fa-clock mr-1" />Restitution en attente
+                        </span>
+                      )}
+                      <span className={`rounded-full px-3 py-1 text-sm font-bold ${status === "À traiter" ? "bg-amber-100 text-amber-700" : status === "Restitution due" ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"}`}>{status}</span>
+                    </div>
                   </div>
                   <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-4">
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-500">Caution disponible</p><p className="mt-1 text-lg font-bold text-slate-800">{formatMoney(settlement.caution_available)}</p></div>
@@ -111,7 +146,17 @@ export default function CautionPage({ onNavigate, param }: { onNavigate: (scope:
                     <div className="rounded-lg border border-blue-100 bg-blue-50 p-4"><p className="text-xs font-bold uppercase text-blue-600">À restituer</p><p className="mt-1 text-lg font-bold text-blue-700">{formatMoney(settlement.refund_due)}</p></div>
                     <div className="rounded-lg border border-amber-100 bg-amber-50 p-4"><p className="text-xs font-bold uppercase text-amber-600">Différence client</p><p className="mt-1 text-lg font-bold text-amber-700">{formatMoney(settlement.excess_due)}</p></div>
                   </div>
-                  <div className="mt-4 flex justify-end">
+                  <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+                    {execution?.refund_obligation?.receipt_document_id && (
+                      <button
+                        type="button"
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5"
+                        onClick={() => onNavigate("documents", execution.refund_obligation!.receipt_document_id!)}
+                      >
+                        <i className="fas fa-file-invoice text-emerald-600" />
+                        <span>Voir le reçu de restitution</span>
+                      </button>
+                    )}
                     <button type="button" className="rounded-lg bg-tit-600 px-4 py-2 text-sm font-bold text-white hover:bg-tit-700" onClick={() => onNavigate("breakage-loss", param)}>
                       <i className="fas fa-arrow-up-right-from-square mr-2" />Ouvrir le règlement casse/perte
                     </button>

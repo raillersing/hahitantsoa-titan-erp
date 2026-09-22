@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import {
   completeLogisticsPassation,
+  createReturnOperation,
   getLogisticsEvents,
+  getReturnOperations,
   transitionLogisticsEvent,
   updateLogisticsEventSignature,
 } from "../api";
-import type { LogisticsEvent } from "../types";
+import type { InventoryReturnOperation, InventoryReturnOperationCreatePayload, LogisticsEvent } from "../types";
 
 const eventTypeLabels: Record<string, string> = {
   delivery: "Livraison Titan",
@@ -35,6 +37,7 @@ const statusConfig: Record<string, { label: string; className: string }> = {
 
 export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (scope: any, param?: string) => void }) {
   const [events, setEvents] = useState<LogisticsEvent[]>([]);
+  const [returnOperations, setReturnOperations] = useState<InventoryReturnOperation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("Tous");
@@ -47,9 +50,13 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    getLogisticsEvents(controller.signal)
-      .then((data) => {
-        setEvents(data);
+    Promise.all([
+      getLogisticsEvents(controller.signal),
+      getReturnOperations(controller.signal).catch(() => []),
+    ])
+      .then(([eventsData, returnsData]) => {
+        setEvents(eventsData);
+        setReturnOperations(Array.isArray(returnsData) ? returnsData : []);
         setLoading(false);
       })
       .catch((err) => {
@@ -64,6 +71,43 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
   const showToast = (message: string, type: 'info'|'success'|'warning'|'error' = 'info') => {
     setToast({message, type});
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleStartReturn = async (evt: LogisticsEvent) => {
+    if (busyEventId === evt.id) return;
+    setBusyEventId(evt.id);
+    try {
+      const payload: InventoryReturnOperationCreatePayload = {
+        logistics_event: evt.id,
+        reservation_draft: evt.reservation_draft || undefined,
+        hahitantsoa_event_draft: evt.hahitantsoa_event_draft || undefined,
+        notes: `Retour initialisé depuis l'événement logistique ${evt.id.slice(0, 8)}.`,
+        lines: (evt.item_lines || []).map((line) => ({
+          inventory_item: line.inventory_item,
+          expected_quantity: line.quantity,
+          returned_quantity: line.quantity,
+          damaged_quantity: 0,
+          missing_quantity: 0,
+          condition_status: "intact",
+          notes: "",
+        })),
+      };
+      const created = await createReturnOperation(payload);
+      setReturnOperations((current) => [...current, created]);
+      showToast("Opération de retour initialisée avec succès. Redirection vers les retours...", "success");
+      onNavigate(
+        "logistics-returns",
+        evt.reservation_draft
+          ? `titan:${evt.reservation_draft}`
+          : evt.hahitantsoa_event_draft
+            ? `hahitantsoa:${evt.hahitantsoa_event_draft}`
+            : undefined
+      );
+    } catch (err: any) {
+      showToast(err?.message || "Impossible d'initialiser l'opération de retour.", "error");
+    } finally {
+      setBusyEventId(null);
+    }
   };
 
   const transitionEvent = async (event: LogisticsEvent, newStatus: "dispatched" | "completed") => {
@@ -286,7 +330,48 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
                       </span>
                     )}
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    {(() => {
+                      const isCompletedOutbound =
+                        (evt.status === "completed" || evt.signature_received) &&
+                        (evt.event_type === "delivery" || evt.event_type === "handover");
+                      if (!isCompletedOutbound) return null;
+
+                      const existingReturn = returnOperations.find((r) => r.logistics_event === evt.id);
+                      if (existingReturn) {
+                        return (
+                          <button
+                            type="button"
+                            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-lg text-sm flex items-center gap-2 transition"
+                            onClick={() =>
+                              onNavigate(
+                                "logistics-returns",
+                                evt.reservation_draft
+                                  ? `titan:${evt.reservation_draft}`
+                                  : evt.hahitantsoa_event_draft
+                                    ? `hahitantsoa:${evt.hahitantsoa_event_draft}`
+                                    : undefined
+                              )
+                            }
+                          >
+                            <i className="fas fa-boxes-packing text-tit-600" />
+                            <span>Voir le retour ({existingReturn.status === "validated" ? "validé" : "en cours"})</span>
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <button
+                          type="button"
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm flex items-center gap-2 shadow-sm transition"
+                          disabled={busyEventId === evt.id}
+                          onClick={() => void handleStartReturn(evt)}
+                        >
+                          <i className={`fas ${busyEventId === evt.id ? "fa-spinner fa-spin" : "fa-arrow-rotate-left"} mr-1`} />
+                          <span>Démarrer le retour</span>
+                        </button>
+                      );
+                    })()}
                     <button
                       className="px-4 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700"
                       disabled={busyEventId === evt.id || !["planned", "dispatched"].includes(evt.status)}

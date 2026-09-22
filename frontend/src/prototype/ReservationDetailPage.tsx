@@ -36,6 +36,7 @@ import {
   updateReservationDraftPublicReference,
 } from "../api";
 import type { LifecycleSummary, ReservationCloseoutSummary, ReservationDraft, Customer, DocumentInstance, Payment, InventoryItem } from "../types";
+import { calculateTitanCautionAmount } from "../utils";
 
 /* ── inline helpers ────────────────────────────────────────────────── */
 
@@ -930,9 +931,10 @@ export default function ReservationDetailPage({
     safeNumber(draft?.required_deposit_amount) || Math.round(safeAmount * 0.25);
 
   // Exact Article 7 caution (escrow): 100 000 Ar for < 200 000 Ar, else 50%
-  const cautionAmount =
-    safeNumber((draft as any)?.caution_amount) ||
-    (safeAmount > 0 && safeAmount < 200000 ? 100000 : Math.round(safeAmount * 0.5));
+  const cautionAmount = calculateTitanCautionAmount(
+    safeAmount,
+    safeNumber((draft as any)?.caution_amount) || null
+  );
 
   const cautionPaidAmount = payments
     .filter((p) => p.payment_kind === "caution")

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import {
   addLogisticsEventItemLine,
   createLogisticsEvent,
+  getHahitantsoaEventDrafts,
   getInventoryItems,
   getLogisticsEvents,
   getReservationDrafts,
@@ -9,7 +10,7 @@ import {
   transitionLogisticsEvent,
 } from "../api";
 import { clampQuantity } from "../utils";
-import type { InventoryItem, LogisticsEvent, ReservationDraft } from "../types";
+import type { HahitantsoaEventDraft, InventoryItem, LogisticsEvent, ReservationDraft } from "../types";
 import { useTableSort } from "./tableSortUtils";
 
 type PrepItem = {
@@ -23,6 +24,7 @@ type PrepItem = {
 
 type Preparation = {
   id: string;
+  domain: "titan" | "hahitantsoa";
   dossierRef: string;
   clientName: string;
   dateSortie: string;
@@ -74,9 +76,53 @@ function draftToPreparation(
 
   return {
     id: draft.id,
+    domain: "titan",
     dossierRef: draft.public_reference,
     clientName: draft.customer_display_name,
     dateSortie: formatDate(draft.start_at),
+    status,
+    items,
+    preparationEvent,
+  };
+}
+
+function hahitantsoaEventToPreparation(
+  event: HahitantsoaEventDraft,
+  inventoryMap: Map<string, InventoryItem>,
+  preparationEvent: LogisticsEvent | null,
+): Preparation {
+  const items: PrepItem[] = (event.lines || [])
+    .filter((line) => line.inventory_item_id && line.quantity > 0)
+    .map((line) => {
+      const invItem = inventoryMap.get(line.inventory_item_id);
+      const eventLine = preparationEvent?.item_lines.find((item) => item.inventory_item === line.inventory_item_id);
+      return {
+        articleId: line.inventory_item_id,
+        name: line.inventory_item_name || invItem?.name || line.inventory_item_id,
+        qtyOrdered: line.quantity,
+        qtyPrepared: Math.min(eventLine?.quantity ?? 0, line.quantity),
+        available: invItem?.stock_summary?.available_stock ?? 0,
+        eventLineId: eventLine?.id,
+      };
+    });
+
+  let status: Preparation["status"] = "À préparer";
+  if (preparationEvent?.status === "completed") {
+    status = "Prêt";
+  } else if (items.some((i) => i.available < i.qtyOrdered)) {
+    status = "Bloqué";
+  } else if (items.some((i) => i.available > 0 && i.available < i.qtyOrdered)) {
+    status = "Partiel";
+  } else if (items.some((i) => i.qtyPrepared > 0)) {
+    status = "Partiel";
+  }
+
+  return {
+    id: event.id,
+    domain: "hahitantsoa",
+    dossierRef: event.public_reference,
+    clientName: event.customer_display_name || event.event_name || "Client Hahitantsoa",
+    dateSortie: formatDate(event.start_at),
     status,
     items,
     preparationEvent,
@@ -101,8 +147,9 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
       setLoading(true);
       setError("");
       try {
-        const [drafts, items, logisticsEvents] = await Promise.all([
+        const [drafts, hahitantsoaEvents, items, logisticsEvents] = await Promise.all([
           getReservationDrafts(undefined, signal),
+          getHahitantsoaEventDrafts(undefined, signal).catch(() => []),
           getInventoryItems(signal).catch(() => []),
           getLogisticsEvents(signal),
         ]);
@@ -110,15 +157,27 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
         const inventoryMap = new Map<string, InventoryItem>();
         items.forEach((item) => inventoryMap.set(item.id, item));
 
-        // Only confirmed reservations are "to prepare"
-        const confirmedDrafts = drafts.filter((d) => d.status === "confirmed");
         const preparationEvents = new Map(
           logisticsEvents
-            .filter((event) => event.event_type === "preparation" && event.reservation_draft)
-            .map((event) => [event.reservation_draft!, event]),
+            .filter((event) => event.event_type === "preparation" && (event.reservation_draft || event.hahitantsoa_event_draft))
+            .map((event) => [(event.reservation_draft || event.hahitantsoa_event_draft)!, event]),
         );
-        const mapped = confirmedDrafts.map((d) => draftToPreparation(d, inventoryMap, preparationEvents.get(d.id) ?? null));
-        setPreparations(mapped);
+
+        // Confirmed Titan reservations
+        const confirmedDrafts = drafts.filter((d) => d.status === "confirmed");
+        const mappedTitan = confirmedDrafts.map((d) =>
+          draftToPreparation(d, inventoryMap, preparationEvents.get(d.id) ?? null)
+        );
+
+        // Confirmed Hahitantsoa events with material lines
+        const confirmedHahitantsoa = hahitantsoaEvents.filter(
+          (ev) => ev.status === "confirmed" && (ev.lines || []).some((l) => l.inventory_item_id && l.quantity > 0)
+        );
+        const mappedHahitantsoa = confirmedHahitantsoa.map((ev) =>
+          hahitantsoaEventToPreparation(ev, inventoryMap, preparationEvents.get(ev.id) ?? null)
+        );
+
+        setPreparations([...mappedTitan, ...mappedHahitantsoa]);
       } catch (err: any) {
         if (signal.aborted) return;
         setError(err?.message || "Erreur lors du chargement des données.");
@@ -176,7 +235,8 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
       let event = preparation.preparationEvent;
       if (!event && quantity > 0) {
         event = await createLogisticsEvent({
-          reservation_draft: preparation.id,
+          reservation_draft: preparation.domain === "hahitantsoa" ? undefined : preparation.id,
+          hahitantsoa_event_draft: preparation.domain === "hahitantsoa" ? preparation.id : undefined,
           event_type: "preparation",
           operation: "outbound",
         });
@@ -228,7 +288,8 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
       let event = preparation.preparationEvent;
       if (!event) {
         event = await createLogisticsEvent({
-          reservation_draft: preparation.id,
+          reservation_draft: preparation.domain === "hahitantsoa" ? undefined : preparation.id,
+          hahitantsoa_event_draft: preparation.domain === "hahitantsoa" ? preparation.id : undefined,
           event_type: "preparation",
           operation: "outbound",
         });
@@ -380,10 +441,20 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
                   <h3 className="font-extrabold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-3">
                     <span
                       className="text-tit-600 dark:text-tit-400 hover:underline cursor-pointer"
-                      onClick={() => onNavigate("reservation-detail", prep.dossierRef)}
+                      onClick={() =>
+                        onNavigate(
+                          "reservation-detail",
+                          prep.domain === "hahitantsoa" ? `hahitantsoa:${prep.id}` : prep.dossierRef,
+                        )
+                      }
                     >
                       {prep.dossierRef}
                     </span>
+                    {prep.domain === "hahitantsoa" && (
+                      <span className="px-2 py-0.5 text-xs font-semibold rounded bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">
+                        Hahitantsoa
+                      </span>
+                    )}
                     <span className="text-slate-400 text-sm font-normal">•</span>
                     <span>{prep.clientName}</span>
                   </h3>
