@@ -8,8 +8,13 @@ from typing import Any
 
 from django.db.models import Q
 
-from apps.billing.models import BillingInvoice
-from apps.documents.models import DocumentInstance
+from apps.billing.models import (
+    BillingCreditNoteStatus,
+    BillingInvoice,
+    BillingInvoiceStatus,
+)
+from apps.customers.models import CustomerPartyType
+from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.inventory.models import (
     InventoryDamageLossSettlement,
     InventoryDamageLossSettlementLine,
@@ -55,6 +60,41 @@ def generate_csv(headers: list[tuple[str, str]], rows: list[dict[str, Any]]) -> 
     return output.getvalue()
 
 
+def _compute_tax_breakdown(
+    total_amount: Decimal,
+    *,
+    tva_rate_override: Decimal | None = None,
+    customer_nif: str = "",
+    customer_party_type: str = "",
+) -> tuple[str, Decimal, Decimal]:
+    """Compute (tva_rate_label, amount_ht, amount_tva) from frozen total_amount.
+
+    If tva_rate_override is specified, uses that rate.
+    Otherwise, if the customer has a NIF or is a registered company, applies standard 20% VAT.
+    For non-assujetti / exempt individuals without NIF, applies 0% VAT.
+    """
+    if tva_rate_override is not None:
+        rate = tva_rate_override
+    elif (
+        customer_nif and customer_nif.strip()
+    ) or customer_party_type == CustomerPartyType.COMPANY:
+        rate = Decimal("0.20")
+    else:
+        rate = Decimal("0.00")
+
+    pct = rate * 100
+    rate_label = f"{int(pct)} %" if pct == int(pct) else f"{pct:.1f} %"
+
+    if rate > Decimal("0.00"):
+        amount_ht = (total_amount / (Decimal("1.00") + rate)).quantize(Decimal("0.01"))
+        amount_tva = total_amount - amount_ht
+    else:
+        amount_ht = total_amount
+        amount_tva = Decimal("0.00")
+
+    return rate_label, amount_ht, amount_tva
+
+
 # ----------------------------------------------------------------------
 # 1. Journal des Ventes (Facturier)
 # ----------------------------------------------------------------------
@@ -79,17 +119,180 @@ def export_sales_journal(
     start_date: date | None = None,
     end_date: date | None = None,
     scope: str = "all",
+    tva_rate: Decimal | None = None,
+    include_drafts: bool = True,
 ) -> list[dict[str, Any]]:
-    """Extract sales journal rows from official invoice document instances and billing invoices."""
-    # Query invoice document instances
+    """Extract sales journal rows from official billing invoices and document instances."""
+    rows: list[dict[str, Any]] = []
+    seen_references: set[str] = set()
+    seen_doc_ids: set[Any] = set()
+
+    # 1. Query official billing invoices (canonical accounting source for sales)
+    billing_qs = (
+        BillingInvoice.objects.select_related(
+            "reservation_draft__customer",
+            "hahitantsoa_event_draft__customer",
+            "document_instance",
+        )
+        .prefetch_related("credit_notes")
+        .order_by("-issued_at", "-created_at")
+    )
+
+    if start_date:
+        billing_qs = billing_qs.filter(issued_at__date__gte=start_date)
+    if end_date:
+        billing_qs = billing_qs.filter(issued_at__date__lte=end_date)
+
+    if scope == "titan":
+        billing_qs = billing_qs.filter(reservation_draft__isnull=False)
+    elif scope == "hahitantsoa":
+        billing_qs = billing_qs.filter(hahitantsoa_event_draft__isnull=False)
+
+    for bi in billing_qs:
+        ref = (
+            bi.number
+            or (
+                bi.document_instance.document_reference
+                if bi.document_instance and bi.document_instance.document_reference
+                else ""
+            )
+            or f"FA-BILL-{bi.id.hex[:8]}"
+        )
+        seen_references.add(ref)
+        if bi.document_instance_id:
+            seen_doc_ids.add(bi.document_instance_id)
+            if bi.document_instance.document_reference:
+                seen_references.add(bi.document_instance.document_reference)
+
+        dossier_ref = ""
+        customer_name = ""
+        customer_nif = ""
+        customer_stat = ""
+        customer_party_type = ""
+        scope_label = "Titan"
+
+        if bi.document_instance:
+            doc = bi.document_instance
+            customer_name = doc.customer_display_name or ""
+            customer_nif = doc.customer_nif or ""
+            customer_stat = doc.customer_stat or ""
+            customer_party_type = doc.customer_party_type or ""
+            dossier_ref = doc.reservation_public_reference or ""
+
+        if bi.reservation_draft:
+            scope_label = "Titan"
+            dossier_ref = bi.reservation_draft.public_reference or dossier_ref
+            if not customer_name and bi.reservation_draft.customer:
+                customer_name = bi.reservation_draft.customer.display_name
+            if not customer_nif and bi.reservation_draft.customer:
+                customer_nif = bi.reservation_draft.customer.nif
+            if not customer_stat and bi.reservation_draft.customer:
+                customer_stat = bi.reservation_draft.customer.stat
+            if not customer_party_type and bi.reservation_draft.customer:
+                customer_party_type = bi.reservation_draft.customer.party_type
+        elif bi.hahitantsoa_event_draft:
+            scope_label = "Hahitantsoa"
+            dossier_ref = bi.hahitantsoa_event_draft.public_reference or dossier_ref
+            if not customer_name and bi.hahitantsoa_event_draft.customer:
+                customer_name = bi.hahitantsoa_event_draft.customer.display_name
+            if not customer_nif and bi.hahitantsoa_event_draft.customer:
+                customer_nif = bi.hahitantsoa_event_draft.customer.nif
+            if not customer_stat and bi.hahitantsoa_event_draft.customer:
+                customer_stat = bi.hahitantsoa_event_draft.customer.stat
+            if not customer_party_type and bi.hahitantsoa_event_draft.customer:
+                customer_party_type = bi.hahitantsoa_event_draft.customer.party_type
+
+        # Use the frozen immutable amount from the billing invoice
+        total_amount = bi.amount
+        tva_label, amount_ht, amount_tva = _compute_tax_breakdown(
+            total_amount,
+            tva_rate_override=tva_rate,
+            customer_nif=customer_nif,
+            customer_party_type=customer_party_type,
+        )
+
+        if bi.invoice_status == BillingInvoiceStatus.CANCELLED:
+            status_label = "Annulée"
+        elif bi.invoice_status == BillingInvoiceStatus.SETTLED:
+            status_label = "Réglée"
+        elif (
+            bi.document_instance and bi.document_instance.status == DocumentInstanceStatus.GENERATED
+        ):
+            status_label = "Émise"
+        else:
+            status_label = "Ouverte"
+
+        rows.append(
+            {
+                "reference": ref,
+                "date": bi.issued_at.strftime("%Y-%m-%d"),
+                "dossier_ref": dossier_ref,
+                "scope": scope_label,
+                "customer_name": customer_name,
+                "customer_nif": customer_nif,
+                "customer_stat": customer_stat,
+                "amount_ht": format_amount(amount_ht),
+                "tva_rate": tva_label,
+                "amount_tva": format_amount(amount_tva),
+                "amount_ttc": format_amount(total_amount),
+                "status": status_label,
+            }
+        )
+
+        # Include credit notes (avoirs) explicitly
+        for cn in bi.credit_notes.all():
+            if cn.status not in (BillingCreditNoteStatus.ISSUED, BillingCreditNoteStatus.APPLIED):
+                continue
+            cn_date = cn.issued_at.date()
+            if start_date and cn_date < start_date:
+                continue
+            if end_date and cn_date > end_date:
+                continue
+            cn_ref = f"AV-{cn.id.hex[:8]}"
+            cn_tva_label, cn_ht, cn_tva = _compute_tax_breakdown(
+                cn.amount,
+                tva_rate_override=tva_rate,
+                customer_nif=customer_nif,
+                customer_party_type=customer_party_type,
+            )
+            rows.append(
+                {
+                    "reference": cn_ref,
+                    "date": cn.issued_at.strftime("%Y-%m-%d"),
+                    "dossier_ref": dossier_ref,
+                    "scope": scope_label,
+                    "customer_name": customer_name,
+                    "customer_nif": customer_nif,
+                    "customer_stat": customer_stat,
+                    "amount_ht": format_amount(-cn_ht),
+                    "tva_rate": cn_tva_label,
+                    "amount_tva": format_amount(-cn_tva),
+                    "amount_ttc": format_amount(-cn.amount),
+                    "status": "Avoir",
+                }
+            )
+
+    # 2. Query invoice document instances (complementing billing invoices without duplicating)
     doc_qs = (
         DocumentInstance.objects.select_related(
             "reservation_draft__customer",
             "hahitantsoa_event_draft__customer",
+            "billing_invoice",
         )
-        .filter(template_key__endswith=".invoice.v1")
-        .exclude(status="voided")
+        .prefetch_related(
+            "reservation_draft__billing_invoices",
+            "hahitantsoa_event_draft__billing_invoices",
+        )
+        .filter(
+            Q(template_key__endswith=".invoice.v1")
+            | Q(template_key__contains="credit_note")
+            | Q(template_key__contains="avoir")
+            | Q(document_type__in=["invoice", "credit_note"])
+        )
     )
+
+    if not include_drafts:
+        doc_qs = doc_qs.exclude(status=DocumentInstanceStatus.PREPARED)
 
     if start_date:
         doc_qs = doc_qs.filter(
@@ -113,11 +316,12 @@ def export_sales_journal(
 
     doc_qs = doc_qs.order_by("-created_at")
 
-    rows: list[dict[str, Any]] = []
-    seen_references: set[str] = set()
-
     for doc in doc_qs:
+        if doc.id in seen_doc_ids:
+            continue
         ref = doc.document_reference or f"DOC-{doc.id.hex[:8]}"
+        if ref in seen_references:
+            continue
         seen_references.add(ref)
 
         doc_date = doc.document_date
@@ -128,20 +332,78 @@ def export_sales_journal(
 
         dossier_ref = doc.reservation_public_reference or ""
         scope_label = "Titan"
-        total_amount = Decimal("0")
+        customer_name = doc.customer_display_name or ""
+        customer_nif = doc.customer_nif or ""
+        customer_stat = doc.customer_stat or ""
+        customer_party_type = doc.customer_party_type or ""
 
-        if doc.reservation_draft:
+        # Determine frozen invoice amount: prefer linked billing invoice,
+        # then draft billing invoices, then draft total
+        total_amount = Decimal("0.00")
+        if hasattr(doc, "billing_invoice") and doc.billing_invoice:
+            total_amount = doc.billing_invoice.amount
+        elif doc.reservation_draft:
             dossier_ref = doc.reservation_draft.public_reference or dossier_ref
-            total_amount = doc.reservation_draft.total_amount
             scope_label = "Titan"
+            bi_match = doc.reservation_draft.billing_invoices.exclude(
+                invoice_status=BillingInvoiceStatus.CANCELLED
+            ).first()
+            if bi_match:
+                total_amount = bi_match.amount
+            else:
+                total_amount = doc.reservation_draft.total_amount
+            if not customer_name and doc.reservation_draft.customer:
+                customer_name = doc.reservation_draft.customer.display_name
+            if not customer_nif and doc.reservation_draft.customer:
+                customer_nif = doc.reservation_draft.customer.nif
+            if not customer_stat and doc.reservation_draft.customer:
+                customer_stat = doc.reservation_draft.customer.stat
+            if not customer_party_type and doc.reservation_draft.customer:
+                customer_party_type = doc.reservation_draft.customer.party_type
         elif doc.hahitantsoa_event_draft:
             dossier_ref = doc.hahitantsoa_event_draft.public_reference or dossier_ref
-            total_amount = doc.hahitantsoa_event_draft.total_amount
             scope_label = "Hahitantsoa"
+            bi_match = doc.hahitantsoa_event_draft.billing_invoices.exclude(
+                invoice_status=BillingInvoiceStatus.CANCELLED
+            ).first()
+            if bi_match:
+                total_amount = bi_match.amount
+            else:
+                total_amount = doc.hahitantsoa_event_draft.total_amount
+            if not customer_name and doc.hahitantsoa_event_draft.customer:
+                customer_name = doc.hahitantsoa_event_draft.customer.display_name
+            if not customer_nif and doc.hahitantsoa_event_draft.customer:
+                customer_nif = doc.hahitantsoa_event_draft.customer.nif
+            if not customer_stat and doc.hahitantsoa_event_draft.customer:
+                customer_stat = doc.hahitantsoa_event_draft.customer.stat
+            if not customer_party_type and doc.hahitantsoa_event_draft.customer:
+                customer_party_type = doc.hahitantsoa_event_draft.customer.party_type
 
-        # Calculate HT and TVA (assuming 20% standard VAT if not specified)
-        amount_ht = (total_amount / Decimal("1.20")).quantize(Decimal("0.01"))
-        amount_tva = total_amount - amount_ht
+        is_avoir = (
+            getattr(doc, "document_type", "") == "credit_note"
+            or "credit_note" in doc.template_key
+            or "avoir" in doc.template_key
+            or ref.endswith("-AV")
+            or ref.startswith("AV-")
+        )
+        if is_avoir:
+            total_amount = -abs(total_amount)
+
+        tva_label, amount_ht, amount_tva = _compute_tax_breakdown(
+            total_amount,
+            tva_rate_override=tva_rate,
+            customer_nif=customer_nif,
+            customer_party_type=customer_party_type,
+        )
+
+        if is_avoir:
+            status_label = "Avoir"
+        elif doc.status == DocumentInstanceStatus.VOIDED:
+            status_label = "Annulée"
+        elif doc.status == DocumentInstanceStatus.GENERATED:
+            status_label = "Émise"
+        else:
+            status_label = "Brouillon"
 
         rows.append(
             {
@@ -149,82 +411,19 @@ def export_sales_journal(
                 "date": doc_date.strftime("%Y-%m-%d"),
                 "dossier_ref": dossier_ref,
                 "scope": scope_label,
-                "customer_name": doc.customer_display_name
-                or (
-                    doc.reservation_draft.customer.display_name
-                    if doc.reservation_draft and doc.reservation_draft.customer
-                    else ""
-                ),
-                "customer_nif": doc.customer_nif or "",
-                "customer_stat": doc.customer_stat or "",
+                "customer_name": customer_name,
+                "customer_nif": customer_nif,
+                "customer_stat": customer_stat,
                 "amount_ht": format_amount(amount_ht),
-                "tva_rate": "20 %",
+                "tva_rate": tva_label,
                 "amount_tva": format_amount(amount_tva),
                 "amount_ttc": format_amount(total_amount),
-                "status": "Émise" if doc.status == "generated" else "Brouillon",
+                "status": status_label,
             }
         )
 
-    # Also include any billing invoices (e.g. excess damage receivables)
-    billing_qs = BillingInvoice.objects.select_related(
-        "reservation_draft__customer",
-        "hahitantsoa_event_draft__customer",
-    ).exclude(invoice_status="cancelled")
-
-    if start_date:
-        billing_qs = billing_qs.filter(issued_at__date__gte=start_date)
-    if end_date:
-        billing_qs = billing_qs.filter(issued_at__date__lte=end_date)
-
-    if scope == "titan":
-        billing_qs = billing_qs.filter(reservation_draft__isnull=False)
-    elif scope == "hahitantsoa":
-        billing_qs = billing_qs.filter(hahitantsoa_event_draft__isnull=False)
-
-    for bi in billing_qs:
-        ref = bi.number or f"FA-BILL-{bi.id.hex[:8]}"
-        if ref in seen_references:
-            continue
-        seen_references.add(ref)
-
-        dossier_ref = ""
-        customer_name = ""
-        scope_label = "Titan"
-        if bi.reservation_draft:
-            dossier_ref = bi.reservation_draft.public_reference
-            scope_label = "Titan"
-            customer_name = (
-                bi.reservation_draft.customer.display_name if bi.reservation_draft.customer else ""
-            )
-        elif bi.hahitantsoa_event_draft:
-            dossier_ref = bi.hahitantsoa_event_draft.public_reference
-            scope_label = "Hahitantsoa"
-            customer_name = (
-                bi.hahitantsoa_event_draft.customer.display_name
-                if bi.hahitantsoa_event_draft.customer
-                else ""
-            )
-
-        amount_ht = (bi.amount / Decimal("1.20")).quantize(Decimal("0.01"))
-        amount_tva = bi.amount - amount_ht
-
-        rows.append(
-            {
-                "reference": ref,
-                "date": bi.issued_at.strftime("%Y-%m-%d"),
-                "dossier_ref": dossier_ref,
-                "scope": scope_label,
-                "customer_name": customer_name,
-                "customer_nif": "",
-                "customer_stat": "",
-                "amount_ht": format_amount(amount_ht),
-                "tva_rate": "20 %",
-                "amount_tva": format_amount(amount_tva),
-                "amount_ttc": format_amount(bi.amount),
-                "status": "Réglée" if bi.invoice_status == "settled" else "Ouverte",
-            }
-        )
-
+    # Sort rows by date descending
+    rows.sort(key=lambda r: r["date"], reverse=True)
     return rows
 
 

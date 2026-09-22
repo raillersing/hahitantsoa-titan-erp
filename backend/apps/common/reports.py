@@ -28,6 +28,7 @@ from apps.billing.models import (
     BillingRefundObligation,
     BillingRefundObligationStatus,
 )
+from apps.billing.services import compute_billing_invoice_remaining_balance
 from apps.customers.models import Customer, CustomerLifecycleStatus, ProspectStatus
 from apps.documents.models import DocumentInstance
 from apps.hahitantsoa.models import HahitantsoaEventDraft
@@ -344,14 +345,25 @@ def calculate_revenue_collected(period: str) -> dict[str, Any]:
     }
 
 
+def _compute_open_invoices_outstanding(end_dt: datetime) -> Decimal:
+    invoices = (
+        BillingInvoice.objects.filter(
+            issued_at__lte=end_dt,
+            invoice_status=BillingInvoiceStatus.OPEN,
+        )
+        .select_related("settlement")
+        .prefetch_related("installments")
+    )
+    return sum(
+        (compute_billing_invoice_remaining_balance(inv) for inv in invoices),
+        Decimal("0.00"),
+    )
+
+
 def calculate_revenue_outstanding(period: str) -> dict[str, Any]:
     _, end, _, prev_end = get_period_bounds(period=period)
-    current = BillingInvoice.objects.filter(
-        issued_at__lte=end, invoice_status=BillingInvoiceStatus.OPEN
-    ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
-    previous = BillingInvoice.objects.filter(
-        issued_at__lte=prev_end, invoice_status=BillingInvoiceStatus.OPEN
-    ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
+    current = _compute_open_invoices_outstanding(end)
+    previous = _compute_open_invoices_outstanding(prev_end)
     return {
         "value": float(current),
         "previous_period_value": float(previous),
