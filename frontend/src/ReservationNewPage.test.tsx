@@ -1211,10 +1211,12 @@ describe('ReservationNewPage', () => {
     expect(screen.queryByLabelText(/Prix location local/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Tarif logistique/i)).not.toBeInTheDocument();
 
-    // Verify the recap card is present with step choices and total
+    // Verify the recap card is present with step choices and only the total
     expect(screen.getByText(/Récapitulatif des choix de l'étape :/i)).toBeInTheDocument();
-    expect(screen.getByText(/Total Espace & Formule/i)).toBeInTheDocument();
-    expect(screen.getByText(/Tarif de base local :/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Total$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Tarif de base local :/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Option logistique :/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Invités supp\./i)).not.toBeInTheDocument();
   });
 
   it('23. propose le choix entre reprendre le parcours en cours et nouvelle réservation lorsqu\'un brouillon existe', async () => {

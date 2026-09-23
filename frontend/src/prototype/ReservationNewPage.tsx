@@ -2369,8 +2369,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           </div>
 
           {/* Récapitulatif du total des choix faits dans cette étape */}
-          <div className="mt-6 bg-indigo-50/80 p-5 rounded-xl border border-indigo-100 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-100/80 pb-3">
+          <div className="mt-6 bg-indigo-50/80 p-5 rounded-xl border border-indigo-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <span className="font-bold text-indigo-950 text-sm block flex items-center gap-2">
                   <i className="fa-solid fa-receipt text-indigo-600"></i> Récapitulatif des choix de l'étape :
@@ -2380,28 +2380,9 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 </span>
               </div>
               <div className="sm:text-right">
-                <span className="text-xs text-slate-500 block">Total Espace & Formule</span>
+                <span className="text-xs text-slate-500 block">Total</span>
                 <span className="text-xl font-black text-indigo-700">{hahitantsoaSpaceRentalAmount.toLocaleString('fr-FR')} Ar</span>
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-slate-600">
-              <div className="bg-white/80 p-2.5 rounded-lg border border-indigo-50">
-                <span className="text-slate-500 block">Tarif de base local :</span>
-                <span className="font-semibold text-slate-800">{(hDetails.venuePrice || hahitantsoaBaseSpaceRental).toLocaleString('fr-FR')} Ar</span>
-              </div>
-              {hDetails.rentalType === 'Location + logistique' && (
-                <div className="bg-white/80 p-2.5 rounded-lg border border-indigo-50">
-                  <span className="text-slate-500 block">Option logistique :</span>
-                  <span className="font-semibold text-slate-800">{hDetails.logisticsPrice > 0 ? `${hDetails.logisticsPrice.toLocaleString('fr-FR')} Ar` : "Catalogue à l'étape suivante"}</span>
-                </div>
-              )}
-              {Number(hDetails.guests || 0) > hahitantsoaIncludedGuests && (
-                <div className="bg-white/80 p-2.5 rounded-lg border border-indigo-50">
-                  <span className="text-slate-500 block">Invités supp. ({Number(hDetails.guests) - hahitantsoaIncludedGuests}) :</span>
-                  <span className="font-semibold text-slate-800">{(Math.max(Number(hDetails.guests || 0) - hahitantsoaIncludedGuests, 0) * hahitantsoaExcessGuestAmount).toLocaleString('fr-FR')} Ar</span>
-                </div>
-              )}
             </div>
           </div>
 
