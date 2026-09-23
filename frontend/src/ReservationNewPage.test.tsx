@@ -1529,4 +1529,55 @@ describe('ReservationNewPage', () => {
       /Ce dossier Titan est déjà confirmé/i
     );
   });
+
+  it('28. affiche strictement 500 000 Ar pour la caution obligatoire Hahitantsoa et distingue l\'acompte (Article 5 vs Article 7)', async () => {
+    render(<ReservationNewPage onNavigate={mockNavigate} param="prospect-proforma-h/CUST-001" />);
+
+    await screen.findByText('Détails Événement (Hahitantsoa)');
+    // Check initial rental type is "Location nue"
+    const bareRadio = screen.getByLabelText('Location nue') as HTMLInputElement;
+    expect(bareRadio.checked).toBe(true);
+
+    const dateInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'date');
+    fireEvent.change(dateInputs[0], { target: { value: '2026-08-01' } });
+    fireEvent.change(dateInputs[1], { target: { value: '2026-08-02' } });
+
+    // Step 2 -> Step 3 (Services)
+    fireEvent.click(screen.getByRole('button', { name: /Suivant \(Services\)/i }));
+
+    // Step 3 -> Step 4 (Résumé)
+    fireEvent.click(await screen.findByRole('button', { name: /Vérifier le résumé/i }));
+
+    // In summary, verify Acompte vs Caution (Dépôt de garantie)
+    await waitFor(() => {
+      expect(screen.getByText('Acompte à la réservation (Validation)')).toBeInTheDocument();
+    });
+    expect(screen.getByText('1 000 000 Ar')).toBeInTheDocument();
+    expect(screen.getByText('Caution obligatoire (Dépôt de garantie)')).toBeInTheDocument();
+    expect(screen.getByText('500 000 Ar')).toBeInTheDocument();
+
+    // Go to Proforma step
+    fireEvent.click(await screen.findByRole('button', { name: /Générer Devis\/Proforma/i }));
+
+    // Proforma preview -> Payment step
+    await waitFor(() => {
+      expect(screen.getByText('Aperçu Proforma')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Passer au paiement'));
+
+    // In Payment step:
+    await waitFor(() => {
+      expect(screen.getByText('Acompte / Paiement')).toBeInTheDocument();
+    });
+
+    // The heading "Caution obligatoire" must strictly display 500 000 Ar, NEVER 1 000 000 or 1 500 000 Ar!
+    const cautionHeading = screen.getByRole('heading', { level: 4, name: 'Caution obligatoire' });
+    const cautionContainer = cautionHeading.closest('div.bg-orange-50');
+    expect(cautionContainer).toHaveTextContent('500 000 Ar');
+    expect(cautionContainer).not.toHaveTextContent('1 000 000 Ar');
+    expect(cautionContainer).not.toHaveTextContent('1 500 000 Ar');
+
+    // And "Acompte contractuel" must display 1 000 000 Ar (Article 5 for Location nue)
+    expect(screen.getByText(/1 000 000 Ar — payable à la réservation/)).toBeInTheDocument();
+  });
 });

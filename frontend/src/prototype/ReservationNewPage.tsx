@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AvailabilityDatePicker } from "../components/AvailabilityDatePicker";
 import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
+import { calculateTitanCautionAmount } from "../utils";
 import {
   getCustomers,
   getHahitantsoaVenues,
@@ -100,10 +101,9 @@ const HAHITANTSOA_DURATION_OPTIONS = [
 ] as const;
 const HAHITANTSOA_DEFAULT_DEPOSIT = 1000000;
 const HAHITANTSOA_LOGISTICS_DEPOSIT = 1500000;
+const HAHITANTSOA_DEFAULT_CAUTION = 500000;
 const HAHITANTSOA_BASE_SPACE_RENTAL = 6500000;
 const HAHITANTSOA_EXCESS_GUEST_RATE = 5000;
-const HAHITANTSOA_VENUE_PRICE = 1500000;
-const HAHITANTSOA_LOGISTICS_PRICE = 500000;
 const TITAN_DEPOSIT_THRESHOLD = 200000;
 const TITAN_SMALL_RENTAL_DEPOSIT = 100000;
 const TITAN_LARGE_RENTAL_DEPOSIT_RATE = 0.5;
@@ -741,7 +741,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const hahitantsoaDepositAmount = hDetails.rentalType === "Location + logistique"
     ? Number(hahitantsoaTerms?.logistics_deposit_amount ?? HAHITANTSOA_LOGISTICS_DEPOSIT)
     : Number(hahitantsoaTerms?.bare_deposit_amount ?? HAHITANTSOA_DEFAULT_DEPOSIT);
-  const hahitantsoaCautionAmount = Number(hahitantsoaTerms?.caution_amount ?? 500000);
+  const hahitantsoaCautionAmount = Number(hahitantsoaTerms?.caution_amount ?? HAHITANTSOA_DEFAULT_CAUTION);
   const [tDetails, setTDetails] = useState<TitanDetails>({ 
     period: "", startDate: "", startTime: "08:00", endDate: "", endTime: "22:00", pickupDate: "", returnDate: "", remarks: "",
     usageType: "Mariage", usageTypeOther: "", 
@@ -2218,7 +2218,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                       setHDetails({
                         ...hDetails,
                         rentalType: newType,
-                        logisticsPrice: newType === 'Location + logistique' ? (hDetails.logisticsPrice || 1500000) : 0,
+                        logisticsPrice: newType === 'Location + logistique' ? (hDetails.logisticsPrice || 0) : 0,
                       });
                     }} className="w-4 h-4 text-indigo-600" />
                     <span className="font-medium text-sm">{opt}</span>
@@ -2392,7 +2392,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               {hDetails.rentalType === 'Location + logistique' && (
                 <div className="bg-white/80 p-2.5 rounded-lg border border-indigo-50">
                   <span className="text-slate-500 block">Option logistique :</span>
-                  <span className="font-semibold text-slate-800">{(hDetails.logisticsPrice || 1500000).toLocaleString('fr-FR')} Ar</span>
+                  <span className="font-semibold text-slate-800">{hDetails.logisticsPrice > 0 ? `${hDetails.logisticsPrice.toLocaleString('fr-FR')} Ar` : "Catalogue à l'étape suivante"}</span>
                 </div>
               )}
               {Number(hDetails.guests || 0) > hahitantsoaIncludedGuests && (
@@ -3735,7 +3735,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       <div className="bg-orange-50 text-orange-800 p-4 rounded-xl border border-orange-100 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase opacity-70">Caution obligatoire (Dépôt de garantie)</p>
-          <p className="text-lg font-bold">{(domain === 'hahitantsoa' ? hahitantsoaCautionAmount : (totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT : totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE)).toLocaleString('fr-FR')} Ar</p>
+          <p className="text-lg font-bold">{(domain === 'hahitantsoa' ? hahitantsoaCautionAmount : calculateTitanCautionAmount(totalAmount)).toLocaleString('fr-FR')} Ar</p>
           <p className="text-xs opacity-80 mt-1">À verser en plus du total. Restituée après l'événement en l'absence de casse.</p>
         </div>
         <i className="fa-solid fa-shield-halved text-2xl opacity-50"></i>
@@ -4049,7 +4049,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             <p className="text-xs text-orange-700">À régler lors du solde. Restituée après l'événement s'il n'y a pas de casse. Déduite en cas de dommages (solde restant à la charge du client si dépassement).</p>
           </div>
           <div className="font-bold text-lg text-orange-900 ml-4 whitespace-nowrap">
-            {(domain === 'hahitantsoa' ? hahitantsoaDeposit : (totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT : totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE)).toLocaleString('fr-FR')} Ar
+            {(domain === 'hahitantsoa' ? hahitantsoaCautionAmount : calculateTitanCautionAmount(totalAmount)).toLocaleString('fr-FR')} Ar
           </div>
         </div>
 
@@ -4059,7 +4059,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
              <ul className="list-disc pl-5 text-sm text-blue-700 space-y-1">
                <li>Acompte contractuel : <strong>{TITAN_DEFAULT_ADVANCE_RATE * 100}%</strong> du total</li>
                <li>Solde dû <strong>{TITAN_BALANCE_DUE_DAYS_BEFORE_PICKUP} jours</strong> avant le prélèvement/livraison (soit le {new Date(new Date(tDetails.pickupDate || tDetails.startDate).getTime() - (TITAN_BALANCE_DUE_DAYS_BEFORE_PICKUP * 24 * 60 * 60 * 1000)).toLocaleDateString('fr-FR')})</li>
-               <li>Dépôt de garantie Titan : <strong>{totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT.toLocaleString('fr-FR') : (totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE).toLocaleString('fr-FR')} Ar</strong></li>
+               <li>Dépôt de garantie Titan : <strong>{calculateTitanCautionAmount(totalAmount).toLocaleString('fr-FR')} Ar</strong></li>
              </ul>
           </div>
         )}
