@@ -60,12 +60,15 @@ export function DocumentPreviewDispatcher({
   const resolvedType = protectedType || normalizeDocumentType(documentType) || type;
   const resolvedDomain = resolvedScope === "shared" ? domain : resolvedScope || domain;
 
+  const resolvedTemplate = template || (resolvedTemplateKey ? { templateKey: resolvedTemplateKey } : null);
+
   if (protectedType && (resolvedScope === "titan" || resolvedScope === "hahitantsoa")) {
     return (
       <DocumentPreview
         {...previewProps}
         type={protectedType}
         domain={resolvedScope}
+        template={resolvedTemplate}
       />
     );
   }
@@ -75,7 +78,7 @@ export function DocumentPreviewDispatcher({
       {...previewProps}
       type={resolvedType}
       domain={resolvedDomain}
-      template={template}
+      template={resolvedTemplate}
     />
   );
 }
