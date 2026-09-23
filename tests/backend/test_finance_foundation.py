@@ -85,6 +85,18 @@ def test_fixed_financial_categories_are_idempotent_and_manager_managed(
     assert FinancialCategory.objects.filter(kind=FinancialCategoryKind.TRANSFER).count() == 4
 
 
+def test_superuser_can_manage_fixed_financial_categories_without_manager_assignment(
+    django_user_model,
+) -> None:
+    admin = django_user_model.objects.create_superuser(
+        username="finance-superuser", password="test-pass"
+    )
+
+    categories = seed_fixed_financial_categories(actor=admin)
+
+    assert len(categories) == len(FIXED_FINANCIAL_CATEGORY_DEFINITIONS)
+
+
 @pytest.mark.django_db(transaction=True)
 def test_flush_rehydrates_the_exact_fixed_financial_category_catalog() -> None:
     expected_categories = set(FIXED_FINANCIAL_CATEGORY_DEFINITIONS)

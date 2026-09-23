@@ -4,8 +4,11 @@ import pytest
 from django.contrib.auth.models import Group
 
 from apps.identity.authorization import (
+    actor_has_application_role,
     actor_has_identity_role,
+    is_cashbox_supervisor_actor,
     is_identity_admin_actor,
+    is_logistics_override_actor,
     is_reservation_sensitive_actor,
     require_reservation_sensitive_actor,
 )
@@ -20,6 +23,7 @@ class ActorStub:
     is_authenticated: bool
     is_staff: bool
     is_active: bool | None = True
+    is_superuser: bool = False
     groups: object | None = None
     pk: int | None = None
 
@@ -163,3 +167,46 @@ def test_require_reservation_sensitive_actor_raises_for_denied_actor() -> None:
 
     with pytest.raises(PermissionError, match="reservation-sensitive write"):
         require_reservation_sensitive_actor(actor=actor)
+
+
+@pytest.mark.parametrize(
+    "role_slug",
+    [IdentityRole.CASHBOX_SUPERVISOR.value, "logistics_override", "owner_manager"],
+)
+def test_active_superuser_has_application_capabilities_without_role_assignments(
+    django_user_model, role_slug
+) -> None:
+    admin = django_user_model.objects.create_superuser(
+        username=f"admin-{role_slug}", password="test-pass"
+    )
+
+    assert actor_has_application_role(actor=admin, role_slug=role_slug) is True
+    assert is_cashbox_supervisor_actor(actor=admin) is True
+    assert is_logistics_override_actor(actor=admin) is True
+
+
+@pytest.mark.parametrize("is_active", [True, False])
+def test_staff_without_superuser_flag_does_not_bypass_explicit_capabilities(
+    django_user_model, is_active
+) -> None:
+    staff = django_user_model.objects.create_user(
+        username=f"staff-{is_active}", password="test-pass", is_staff=True, is_active=is_active
+    )
+
+    assert actor_has_application_role(actor=staff, role_slug="cashbox_supervisor") is False
+    assert is_cashbox_supervisor_actor(actor=staff) is False
+    assert is_logistics_override_actor(actor=staff) is False
+
+
+def test_inactive_superuser_does_not_bypass_explicit_capabilities(django_user_model) -> None:
+    admin = django_user_model.objects.create_superuser(
+        username="inactive-admin", password="test-pass", is_active=False
+    )
+
+    assert actor_has_application_role(actor=admin, role_slug="owner_manager") is False
+
+
+def test_non_user_superuser_stub_cannot_bypass_explicit_capabilities() -> None:
+    actor = ActorStub(is_authenticated=True, is_staff=True, is_superuser=True, pk=1)
+
+    assert actor_has_application_role(actor=actor, role_slug="owner_manager") is False

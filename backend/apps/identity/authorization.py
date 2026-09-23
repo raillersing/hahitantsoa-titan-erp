@@ -51,6 +51,8 @@ def actor_has_application_role(*, actor: object | None, role_slug: str) -> bool:
         return False
     if not isinstance(actor, User) or actor.pk is None:
         return False
+    if actor.is_superuser:
+        return True
     return user_has_application_role(user=actor, role_slug=role_slug)
 
 

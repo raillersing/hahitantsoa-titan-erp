@@ -628,6 +628,27 @@ def test_validate_cashbox_count_requires_explicit_supervisor_capability_not_mana
     assert session.status == "validated_closed"
 
 
+def test_superuser_can_validate_cashbox_count_without_supervisor_assignment() -> None:
+    operator = _actor("cashbox-superuser-validation-operator")
+    admin = get_user_model().objects.create_superuser(
+        username="cashbox-superuser-validation-admin", password="test-pass"
+    )
+    closure = submit_cashbox_count(
+        session=_open_session(operator=operator, actor=operator),
+        actor=operator,
+        actual_amount=Decimal("0.00"),
+        idempotency_key="superuser-count-1",
+    )
+
+    validated = validate_cashbox_count(
+        closure=closure,
+        actor=admin,
+        idempotency_key="superuser-validate-1",
+    )
+
+    assert validated.validation.validated_by_id == admin.id
+
+
 def test_reopen_cashbox_session_requires_supervisor_reason_and_keeps_append_only_proof() -> None:
     operator = _actor("cashbox-reopen-operator")
     supervisor = _actor("cashbox-reopen-supervisor")
