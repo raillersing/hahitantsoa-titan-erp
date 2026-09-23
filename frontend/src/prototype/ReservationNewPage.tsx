@@ -776,6 +776,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [proformaGenerated, setProformaGenerated] = useState(false);
   const [paymentDone, setPaymentDone] = useState(false);
   const [recordedPayments, setRecordedPayments] = useState<RecordedPayment[]>([]);
+  const [contractPreviewTab, setContractPreviewTab] = useState<"contract" | "discharge">("contract");
   const depositRecordingKeyRef = useRef<string | null>(null);
   const [clientAttachments, setClientAttachments] = useState<Attachment[]>([]);
   const [dedicatedAttachments, setDedicatedAttachments] = useState<Partial<Record<DedicatedAttachmentCategory, Attachment>>>({});
@@ -4320,45 +4321,185 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
   const renderContractPreviewStep = () => {
     const paidAmount = recordedPayments.reduce((sum, item) => sum + item.amount, 0);
+    const remainingAmount = Math.max(0, totalAmount - paidAmount);
+    const requiredCaution = domain === "hahitantsoa" ? hahitantsoaCautionAmount : Math.round(totalAmount * 0.5);
+    const projectedContractRef = documentReference
+      ? (documentReference.endsWith("-CT")
+          ? documentReference
+          : documentReference.endsWith("-PF")
+            ? documentReference.replace(/-PF$/, "-CT")
+            : `${documentReference}-CT`)
+      : "Référence officielle attribuée lors de la génération";
+    const eventDateLabel = domain === "hahitantsoa"
+      ? (hDetails.startDate ? `${hDetails.startDate} ${hDetails.startTime ? `(${hDetails.startTime} - ${hDetails.endTime})` : ''}` : (hDetails.date || "Non définie"))
+      : (tDetails.startDate ? `${tDetails.startDate} au ${tDetails.endDate}` : (tDetails.period || "Non définie"));
+
+    const activeDocKey = domain === "hahitantsoa" && contractPreviewTab === "discharge"
+      ? "hahitantsoa.liability_release.v1"
+      : domain === "hahitantsoa"
+        ? "hahitantsoa.contract.v1"
+        : "titan.material_contract.v1";
+    const activeDocType = domain === "hahitantsoa" && contractPreviewTab === "discharge"
+      ? "decharge"
+      : "contrat";
+
     return (
       <div className="bg-white rounded-2xl border border-slate-100 p-8 shadow-sm animate-fade-in relative">
-        <h3 className="text-2xl font-bold text-slate-800 mb-2">Aperçu Contrat</h3>
-        <div className="flex items-center gap-3 mb-6">
-           <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Prêt à signer</span>
-           <span className="text-sm text-slate-500">
-             {documentReference.endsWith("-CT")
-               ? `Référence : ${documentReference}`
-               : "Référence officielle attribuée lors de la génération"}
-           </span>
+        <div className="absolute top-8 right-8 text-slate-200 pointer-events-none">
+          <i className="fa-solid fa-file-signature fa-4x"></i>
         </div>
-        
-      <div className="mb-8">
-        <DocumentPreviewDispatcher
-          type="contrat"
-          domain={domain as 'titan' | 'hahitantsoa'}
-          reservationDraftId={domain === 'titan' ? prospectProformaEmission?.draftId : null}
-          hahitantsoaEventDraftId={domain === 'hahitantsoa' ? prospectProformaEmission?.draftId : null}
-          client={activeClient}
-          date={new Date().toLocaleDateString('fr-FR')}
-          refNumber={documentReference || "Brouillon en préparation"}
-          eventDate={domain === 'hahitantsoa' ? hDetails.date : tDetails.period}
-          materials={selectedMaterials}
-          services={selectedServices}
-          deliveryFee={deliveryFee}
-          totalAmount={totalAmount}
-          subTotalAmount={subTotalAmount}
-          discountAmount={discountAmount}
-          paidAmount={paidAmount}
-          paymentMethod={payment.method}
-          hDetails={hDetails}
-          tDetails={tDetails}
-        />
-      </div>
-        
-        <div className="flex justify-between items-center pt-4 border-t border-slate-100">
-          <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour au paiement</button>
+        <h3 className="text-2xl font-bold text-slate-800 mb-2">Aperçu Contrat</h3>
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
+            Prêt pour contractualisation
+          </span>
+          <span className="text-sm text-slate-600 font-medium">
+            Réf. prévue : <strong className="font-mono text-slate-900">{projectedContractRef}</strong>
+          </span>
+          <span className="text-sm text-slate-500">
+            Événement : {eventDateLabel}
+          </span>
+        </div>
+
+        {/* Executive summary cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 block mb-1">Total TTC</span>
+            <span className="text-lg font-bold text-slate-900">{(totalAmount || 0).toLocaleString('fr-FR')} Ar</span>
+          </div>
+          <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-4">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 block mb-1">Acompte enregistré</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-lg font-bold text-emerald-800">{paidAmount.toLocaleString('fr-FR')} Ar</span>
+              {paidAmount >= (domain === "hahitantsoa" ? hahitantsoaDepositAmount : (totalAmount * TITAN_DEFAULT_ADVANCE_RATE)) && (
+                <span className="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-1.5 py-0.5 rounded">Couvert ✓</span>
+              )}
+            </div>
+          </div>
+          <div className="bg-blue-50/60 border border-blue-200/80 rounded-2xl p-4">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-700 block mb-1">Solde restant</span>
+            <span className="text-lg font-bold text-blue-900">{remainingAmount.toLocaleString('fr-FR')} Ar</span>
+          </div>
+          <div className="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-4">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 block mb-1">Caution obligatoire</span>
+            <span className="text-lg font-bold text-amber-900">{requiredCaution.toLocaleString('fr-FR')} Ar</span>
+          </div>
+        </div>
+
+        {/* Document switcher for Hahitantsoa / Document header for Titan */}
+        {domain === "hahitantsoa" ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <i className="fa-solid fa-folder-tree text-indigo-600"></i>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Documents contractuels :</span>
+            </div>
+            <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setContractPreviewTab("contract")}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  contractPreviewTab === "contract"
+                    ? "bg-white text-indigo-700 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <i className="fa-solid fa-file-contract"></i>
+                <span>Contrat de location</span>
+                <span className="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-mono">Principal</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setContractPreviewTab("discharge")}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  contractPreviewTab === "discharge"
+                    ? "bg-white text-purple-700 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <i className="fa-solid fa-shield-halved"></i>
+                <span>Décharge de responsabilité</span>
+                <span className="text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-mono">Annexe</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <i className="fa-solid fa-file-contract text-blue-600"></i>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Document contractuel officiel :</span>
+              <span className="font-semibold text-xs text-slate-800">Contrat de location matériel Titan (CGV, mise à disposition & restitution)</span>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wide bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+              Modèle officiel
+            </span>
+          </div>
+        )}
+
+        <div className="mb-6">
+          <DocumentPreviewDispatcher
+            key={activeDocKey}
+            type={activeDocType}
+            templateKey={activeDocKey}
+            domain={domain as 'titan' | 'hahitantsoa'}
+            reservationDraftId={domain === 'titan' ? prospectProformaEmission?.draftId : null}
+            hahitantsoaEventDraftId={domain === 'hahitantsoa' ? prospectProformaEmission?.draftId : null}
+            client={activeClient}
+            date={new Date().toLocaleDateString('fr-FR')}
+            refNumber={projectedContractRef}
+            eventDate={domain === 'hahitantsoa' ? (hDetails.startDate || hDetails.date) : (tDetails.startDate || tDetails.period)}
+            materials={selectedMaterials}
+            services={selectedServices}
+            deliveryFee={deliveryFee}
+            totalAmount={totalAmount}
+            subTotalAmount={subTotalAmount}
+            discountAmount={discountAmount}
+            paidAmount={paidAmount}
+            paymentMethod={payment.method}
+            hDetails={hDetails}
+            tDetails={tDetails}
+          />
+        </div>
+
+        {/* Operational guidance box */}
+        <div className="bg-indigo-50/60 border border-indigo-200/80 rounded-2xl p-5 mb-6">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+              <i className="fa-solid fa-file-signature text-lg"></i>
+            </div>
+            <div className="space-y-1 flex-1">
+              <h4 className="font-bold text-slate-900 text-sm">
+                Génération officielle & confirmation du dossier
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                En validant ci-dessous, le système attribue la référence définitive <strong className="font-mono">{projectedContractRef}</strong>,
+                génère les documents contractuels PDF scellés
+                {domain === "hahitantsoa" ? " (Contrat de location & Décharge de responsabilité civile)" : " (Contrat de location matériel)"},
+                enregistre le versement de <strong>{paidAmount.toLocaleString('fr-FR')} Ar</strong> et ouvre la fiche de réservation pour signature contradictoire et confirmation finale.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {submitError && (
+          <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2" role="alert">
+            <i className="fa-solid fa-triangle-exclamation text-red-600 text-base shrink-0"></i>
+            <span>{submitError}</span>
+          </div>
+        )}
+
+        <div className="flex flex-col-reverse sm:flex-row justify-between items-center gap-4 pt-4 border-t border-slate-100">
+          <button
+            type="button"
+            className="px-5 py-2.5 text-slate-600 hover:text-slate-900 font-semibold text-sm flex items-center gap-2 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+            onClick={goBack}
+            disabled={submitting}
+          >
+            <i className="fa-solid fa-arrow-left text-xs"></i>
+            <span>Retour au paiement</span>
+          </button>
           <button 
-            className={`px-8 py-3 bg-green-600 text-white rounded-xl font-bold text-md shadow-lg hover:bg-green-700 transition-all hover:-translate-y-1 ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+            type="button"
+            className={`px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2 ${submitting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:-translate-y-0.5'}`}
             disabled={submitting}
             onClick={async () => {
               try {
@@ -4386,7 +4527,17 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               }
             }}
           >
-            <i className="fa-solid fa-file-signature mr-2"></i> Générer le contrat et ouvrir le dossier
+            {submitting ? (
+              <>
+                <i className="fa-solid fa-spinner fa-spin text-base"></i>
+                <span>Génération du contrat en cours...</span>
+              </>
+            ) : (
+              <>
+                <i className="fa-solid fa-file-signature text-base"></i>
+                <span>Générer le contrat et ouvrir le dossier</span>
+              </>
+            )}
           </button>
         </div>
       </div>

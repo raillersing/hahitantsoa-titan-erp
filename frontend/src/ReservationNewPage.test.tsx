@@ -28,6 +28,7 @@ import {
   createHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstancePdf,
+  getHahitantsoaEventDraftDocumentInstances,
   convertProformaToContract,
   createCustomer,
   uploadAttachment,
@@ -202,6 +203,7 @@ vi.mock('./api', () => ({
   createHahitantsoaEventDraftDocumentInstance: vi.fn(),
   generateHahitantsoaEventDraftDocumentInstance: vi.fn(),
   generateHahitantsoaEventDraftDocumentInstancePdf: vi.fn(),
+  getHahitantsoaEventDraftDocumentInstances: vi.fn().mockResolvedValue([]),
   convertProformaToContract: vi.fn(),
   createCustomer: vi.fn(),
   uploadAttachment: vi.fn(),
@@ -278,6 +280,7 @@ describe('ReservationNewPage', () => {
     vi.mocked(createHahitantsoaEventDraftDocumentInstance).mockResolvedValue({ id: 'DOC-H-001' } as any);
     vi.mocked(generateHahitantsoaEventDraftDocumentInstance).mockResolvedValue({ id: 'DOC-H-001' } as any);
     vi.mocked(generateHahitantsoaEventDraftDocumentInstancePdf).mockResolvedValue({ id: 'DOC-H-001' } as any);
+    vi.mocked(getHahitantsoaEventDraftDocumentInstances).mockResolvedValue([]);
     vi.mocked(convertProformaToContract).mockResolvedValue({ id: 'CONTRACT-001', reservation_public_reference: 'RES-001' } as any);
     vi.mocked(createCustomer).mockResolvedValue({ id: 'CUST-NEW', display_name: 'New Client' } as any);
     vi.mocked(uploadAttachment).mockResolvedValue({ id: 'ATT-001' } as any);
@@ -1579,5 +1582,76 @@ describe('ReservationNewPage', () => {
 
     // And "Acompte contractuel" must display 1 000 000 Ar (Article 5 for Location nue)
     expect(screen.getByText(/1 000 000 Ar — payable à la réservation/)).toBeInTheDocument();
+  });
+
+  it('29. affiche un aperçu complet des documents contractuels (Contrat + Décharge) avec cartes de synthèse et guidance', async () => {
+    render(<ReservationNewPage onNavigate={mockNavigate} param="prospect-proforma-h/CUST-001" />);
+
+    await screen.findByText('Détails Événement (Hahitantsoa)');
+
+    const dateInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'date');
+    fireEvent.change(dateInputs[0], { target: { value: '2026-08-01' } });
+    fireEvent.change(dateInputs[1], { target: { value: '2026-08-02' } });
+
+    // Step 2 -> Step 3 (Services)
+    fireEvent.click(screen.getByRole('button', { name: /Suivant \(Services\)/i }));
+
+    // Step 3 -> Step 4 (Résumé)
+    fireEvent.click(await screen.findByRole('button', { name: /Vérifier le résumé/i }));
+
+    // Go to Proforma step
+    fireEvent.click(await screen.findByRole('button', { name: /Générer Devis\/Proforma/i }));
+
+    // Proforma preview -> Payment step
+    await waitFor(() => {
+      expect(screen.getByText('Aperçu Proforma')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Passer au paiement'));
+
+    // Payment step: Record payment and proceed to contract preview
+    await waitFor(() => {
+      expect(screen.getByText('Acompte / Paiement')).toBeInTheDocument();
+    });
+    const paymentInput = screen.getByLabelText(/Montant de ce paiement \(Ar\)/i) as HTMLInputElement;
+    fireEvent.change(paymentInput, { target: { value: '1000000' } });
+
+    const submitPaymentBtn = screen.getByRole('button', { name: /Enregistrer le versement & continuer/i });
+    fireEvent.click(submitPaymentBtn);
+
+    // Step 9: Contract preview
+    await waitFor(() => {
+      expect(screen.getByText('Aperçu Contrat')).toBeInTheDocument();
+    });
+
+    // Check header badges & reference
+    expect(screen.getByText('Prêt pour contractualisation')).toBeInTheDocument();
+    expect(screen.getByText(/Réf\. prévue :/)).toBeInTheDocument();
+
+    // Check financial executive summary cards
+    expect(screen.getByText('Total TTC')).toBeInTheDocument();
+    expect(screen.getByText('Acompte enregistré')).toBeInTheDocument();
+    expect(screen.getByText('Solde restant')).toBeInTheDocument();
+    expect(screen.getByText('Caution obligatoire')).toBeInTheDocument();
+
+    // Check document tabs for Hahitantsoa (Contrat + Décharge)
+    const contractTab = screen.getByRole('button', { name: /Contrat de location/i });
+    const dischargeTab = screen.getByRole('button', { name: /Décharge de responsabilité/i });
+    expect(contractTab).toBeInTheDocument();
+    expect(dischargeTab).toBeInTheDocument();
+
+    // Switch to discharge tab
+    fireEvent.click(dischargeTab);
+
+    // Guidance text
+    expect(screen.getByText('Génération officielle & confirmation du dossier')).toBeInTheDocument();
+
+    // Submit / generate contract and open file
+    const generateBtn = screen.getByRole('button', { name: /Générer le contrat et ouvrir le dossier/i });
+    expect(generateBtn).toBeInTheDocument();
+    fireEvent.click(generateBtn);
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('hahitantsoa');
+    });
   });
 });

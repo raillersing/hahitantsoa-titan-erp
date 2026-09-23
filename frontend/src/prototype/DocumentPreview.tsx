@@ -38,6 +38,7 @@ export interface DocumentPreviewProps {
   domain?: "titan" | "hahitantsoa" | "shared" | string;
   client?: { type?: string; party_type?: string } | null;
   template?: { templateKey?: string; key?: string } | null;
+  templateKey?: string;
   documentInstanceId?: string | null;
   reservationDraftId?: string | null;
   hahitantsoaEventDraftId?: string | null;
@@ -50,8 +51,8 @@ type PreviewState =
   | { status: "loaded"; html: string }
   | { status: "error"; message: string };
 
-function resolveTemplateKey({ type, domain, template }: DocumentPreviewProps): string | null {
-  const explicitKey = template?.templateKey || template?.key;
+function resolveTemplateKey({ type, domain, template, templateKey }: DocumentPreviewProps): string | null {
+  const explicitKey = templateKey || template?.templateKey || template?.key;
   if (explicitKey) return explicitKey;
   const normalizedType = type?.toLowerCase();
   if (domain === "titan") {
