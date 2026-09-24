@@ -1131,6 +1131,29 @@ export function confirmHahitantsoaEventDraft(
   );
 }
 
+export function cancelHahitantsoaEventDraft(
+  draftId: string,
+  reason: string,
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventDraft> {
+  return postAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/cancel/`,
+    { reason },
+    signal,
+  );
+}
+
+export function resumeHahitantsoaEventDraft(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventDraft> {
+  return postAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/resume/`,
+    {},
+    signal,
+  );
+}
+
 export function markHahitantsoaEventDraftRequiredDepositReceived(
   draftId: string,
   signal?: AbortSignal,

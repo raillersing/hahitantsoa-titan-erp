@@ -232,7 +232,23 @@ function App() {
       case "customer": return <CustomerDetailPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} canSuperAdminDelete={capabilities?.canSuperAdminDelete ?? false} />;
       case "packages": return <PackageBuilderPage />;
       case "services": return <ServicesPage />;
-      case "blacklist-intervenants": return <BlacklistPage />;
+      case "blacklist-intervenants":
+        return capabilities?.canSensitiveWrite ? (
+          <BlacklistPage />
+        ) : (
+          <div className="p-8 text-center max-w-lg mx-auto mt-12 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+            <div className="w-12 h-12 mx-auto rounded-full bg-rose-100 dark:bg-rose-900/50 flex items-center justify-center text-rose-600 mb-4 text-xl">
+              <i className="fa-solid fa-lock"></i>
+            </div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Accès restreint</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+              La gestion de la liste noire des intervenants est réservée aux utilisateurs disposant des permissions sensibles.
+            </p>
+            <button onClick={() => navigate("dashboard")} className="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800">
+              Retour au tableau de bord
+            </button>
+          </div>
+        );
       case "inventory": return <InventoryPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
       case "inventory-management": return <InventoryManagementPage onNavigate={navigate} />;
       case "inventory-item": return <InventoryItemPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} />;
@@ -242,7 +258,23 @@ function App() {
       case "logistics-returns": return <LogisticsReturnsPage onNavigate={navigate} param={activeParam} />;
       case "breakage-loss": return <BreakageLossPage onNavigate={navigate} param={activeParam} />;
       case "audit": return <AuditPage onNavigate={navigate} />;
-      case "reports": return <ReportsPage onNavigate={navigate} />;
+      case "reports":
+        return capabilities?.canSensitiveWrite ? (
+          <ReportsPage onNavigate={navigate} />
+        ) : (
+          <div className="p-8 text-center max-w-lg mx-auto mt-12 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+            <div className="w-12 h-12 mx-auto rounded-full bg-rose-100 dark:bg-rose-900/50 flex items-center justify-center text-rose-600 mb-4 text-xl">
+              <i className="fa-solid fa-lock"></i>
+            </div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Accès restreint</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+              L'accès aux rapports financiers et journaux de gestion est réservé aux utilisateurs habilités.
+            </p>
+            <button onClick={() => navigate("dashboard")} className="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800">
+              Retour au tableau de bord
+            </button>
+          </div>
+        );
       case "venues": return <VenuesPage />;
       case "admin": return <AdminPage onNavigate={navigate} />;
       case "documents": return <DocumentsPage onNavigate={navigate} param={activeParam} />;

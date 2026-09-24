@@ -66,10 +66,27 @@ describe("App Prototype", () => {
     expect(window.location.hash).toBe("#planning");
   });
 
-  it("shows the reports page from the URL hash", () => {
+  it("shows the reports page from the URL hash when authorized", () => {
+    authMock.value.state.user = {
+      ...authMock.value.state.user,
+      roles: ["reservation_sensitive_operator"],
+    };
     window.history.replaceState(null, "", "/#reports");
     render(<App />);
     expect(screen.getByRole("heading", { name: "Rapports & BI" })).toBeInTheDocument();
+  });
+
+  it("shows access restricted for reports and blacklist when user lacks sensitive permissions", () => {
+    window.history.replaceState(null, "", "/#reports");
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Accès restreint" })).toBeInTheDocument();
+    expect(screen.getByText(/L'accès aux rapports financiers et journaux de gestion est réservé/i)).toBeInTheDocument();
+    cleanup();
+
+    window.history.replaceState(null, "", "/#blacklist-intervenants");
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Accès restreint" })).toBeInTheDocument();
+    expect(screen.getByText(/La gestion de la liste noire des intervenants est réservée/i)).toBeInTheDocument();
   });
 
   it("redirects an authenticated login hash to the dashboard", async () => {
