@@ -12,6 +12,7 @@ import {
   getHahitantsoaEventDrafts,
   getPayments,
   recordConfirmedDeposit,
+  getHahitantsoaCommercialTerms,
 } from "../api";
 import type {
   CashboxSession,
@@ -1394,8 +1395,13 @@ function MovementModal({
         ? getPayments().catch(() => [] as Payment[])
         : Promise.resolve([] as Payment[]);
 
-    Promise.all([pReservations, pHahitantsoa, pPayments])
-      .then(([titanDrafts, hahitantsoaDrafts, allPayments]) => {
+    const pTerms =
+      typeof getHahitantsoaCommercialTerms === "function"
+        ? getHahitantsoaCommercialTerms().catch(() => null)
+        : Promise.resolve(null);
+
+    Promise.all([pReservations, pHahitantsoa, pPayments, pTerms])
+      .then(([titanDrafts, hahitantsoaDrafts, allPayments, terms]) => {
         if (!isMounted) return;
 
         // Index payments by draft ID
@@ -1456,7 +1462,7 @@ function MovementModal({
             totalAmount: total,
             paidAmount: paid,
             requiredDepositAmount: reqDeposit,
-            cautionAmount: 500000,
+            cautionAmount: Number((ev as any).caution_amount || terms?.caution_amount || 500000),
             remainingBalance: remaining,
             isDepositMet: paid >= reqDeposit && reqDeposit > 0,
           });

@@ -492,21 +492,6 @@ export default function CustomerDetailPage({
             <div className="flex flex-wrap items-center justify-center gap-2 mt-2 mb-4">
               <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">{client.type}</span>
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${client.status === 'Prospect' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>{client.status}</span>
-              {client.status === 'Client' && (
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                  totalPaid >= 10000000 || reservations.length >= 3
-                    ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                    : reservations.length >= 1
-                    ? 'bg-indigo-100 text-indigo-800'
-                    : 'bg-emerald-50 text-emerald-700'
-                }`}>
-                  {totalPaid >= 10000000 || reservations.length >= 3
-                    ? '👑 VIP Partenaire'
-                    : reservations.length >= 1
-                    ? '💎 Client Régulier'
-                    : '🌟 Nouveau Client'}
-                </span>
-              )}
             </div>
 
             {/* Quick Contact Bar */}
