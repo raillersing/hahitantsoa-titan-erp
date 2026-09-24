@@ -459,7 +459,7 @@ export default function PackageBuilderPage() {
       {/* Navigation Hub */}
       <div className="flex border-b border-slate-200 bg-white px-2 pt-2 rounded-t-xl">
         <a
-          href="#catalog"
+          href="#inventory"
           className="border-b-2 border-transparent px-4 py-3 text-sm font-medium text-slate-500 hover:text-slate-700 flex items-center gap-2"
         >
           <i className="fas fa-boxes-stacked"></i>

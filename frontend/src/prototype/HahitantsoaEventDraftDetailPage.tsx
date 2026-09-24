@@ -752,12 +752,14 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     return 1000000;
   }, [draft]);
 
-  // Caution (Escrow guarantee deposit) - Article 7: 500 000 Ar standard
+  // Caution (Escrow guarantee deposit) - Article 7: from terms or draft, fallback to 500 000 Ar
   const cautionAmount = useMemo(() => {
     const fromDraft = Number((draft as any)?.caution_amount);
     if (fromDraft && !isNaN(fromDraft) && fromDraft > 0) return fromDraft;
+    const fromTerms = Number(commercialTerms?.caution_amount);
+    if (fromTerms && !isNaN(fromTerms) && fromTerms > 0) return fromTerms;
     return 500000;
-  }, [draft]);
+  }, [draft, commercialTerms]);
 
   const cautionPaidAmount = useMemo(() => {
     return payments
@@ -1282,7 +1284,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const amendmentDoc = docMap.get("hahitantsoa.contract_amendment.v1");
   const invoiceDoc = docMap.get("hahitantsoa.invoice.v1");
 
-  const standardCautionAmount = 500000;
+  const standardCautionAmount = cautionAmount;
   const cautionPayment = useMemo(() => {
     return payments.find(
       (p) => p.payment_kind === "caution" && (p.payment_status === "confirmed" || p.payment_status === "reconciled"),
@@ -1886,7 +1888,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                       </button>
                       <button
                         type="button"
-                        onClick={() => onNavigate("hahitantsoa-draft-detail", comp.id)}
+                        onClick={() => onNavigate("reservation-detail", `hahitantsoa:${comp.id}`)}
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition"
                       >
                         Voir dossier <i className="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
@@ -3507,7 +3509,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     {formatMoney(cautionDeposited > 0 ? cautionDeposited : standardCautionAmount)}
                   </span>
                   <span className="text-[11px] text-slate-500 mt-1 block">
-                    {cautionDeposited > 0 ? "Dépôt effectif encaissé" : "Caution contractuelle (500 000 Ar)"}
+                    {cautionDeposited > 0 ? "Dépôt effectif encaissé" : `Caution contractuelle (${formatMoney(standardCautionAmount)})`}
                   </span>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">

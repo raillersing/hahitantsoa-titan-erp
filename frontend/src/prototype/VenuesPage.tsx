@@ -5,6 +5,7 @@ import type { HahitantsoaVenue } from "../types";
 export default function VenuesPage() {
   const [venues, setVenues] = useState<HahitantsoaVenue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
   const [currentVenue, setCurrentVenue] = useState<any>({
@@ -20,10 +21,14 @@ export default function VenuesPage() {
       .then((apiVenues) => {
         if (isSubscribed && Array.isArray(apiVenues)) {
           setVenues(apiVenues);
+          setError(null);
         }
       })
-      .catch(() => {
-        if (isSubscribed) setVenues([]);
+      .catch((err) => {
+        if (isSubscribed) {
+          setVenues([]);
+          setError(err instanceof ApiError ? err.message : "Impossible de charger les espaces et lieux événementiels.");
+        }
       })
       .finally(() => {
         if (isSubscribed) setLoading(false);
@@ -124,6 +129,21 @@ export default function VenuesPage() {
           <i className="fa-solid fa-plus mr-2"></i> Ajouter un lieu
         </button>
       </div>
+
+      {error && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <i className="fa-solid fa-circle-exclamation text-rose-600"></i>
+            <span>{error}</span>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-xs font-semibold text-rose-700 underline hover:text-rose-900"
+          >
+            Réessayer
+          </button>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
@@ -296,7 +316,7 @@ export default function VenuesPage() {
               </button>
             </div>
             <div className="p-6">
-              <p className="text-sm text-slate-600">Êtes-vous sûr de vouloir supprimer ce lieu ? Cette action est simulée mais définitive dans la session.</p>
+              <p className="text-sm text-slate-600">Êtes-vous sûr de vouloir supprimer ce lieu ? Cette action est définitive.</p>
               <div className="pt-4 flex justify-end gap-3 mt-4">
                 <button type="button" onClick={() => setDeleteVenueId(null)} className="px-4 py-2 text-slate-600 font-medium text-sm hover:bg-slate-100 rounded-lg transition-colors">Annuler</button>
                 <button type="button" onClick={confirmDelete} className="px-4 py-2 bg-rose-600 text-white font-medium text-sm hover:bg-rose-700 rounded-lg transition-colors shadow-sm">Supprimer</button>

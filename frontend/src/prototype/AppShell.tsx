@@ -1,6 +1,6 @@
 import React from "react";
 import type { AppScope } from "../App";
-import type { SessionUser } from "../api";
+import { getNotifications, type SessionUser } from "../api";
 import BrandIdentity, { type BrandScope } from "./BrandIdentity";
 
 import type { FrontendCapabilities } from "../capabilities";
@@ -137,6 +137,20 @@ export default function AppShell({
 
   const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!hasAuthenticatedUser) return;
+    const controller = new AbortController();
+    getNotifications(true, controller.signal)
+      .then((items) => {
+        if (Array.isArray(items)) {
+          setUnreadNotificationsCount(items.filter((n) => !n.is_read).length);
+        }
+      })
+      .catch(() => setUnreadNotificationsCount(0));
+    return () => controller.abort();
+  }, [hasAuthenticatedUser, activeScope]);
   const userMenuRef = React.useRef<HTMLDivElement>(null);
   const userMenuButtonRef = React.useRef<HTMLButtonElement>(null);
   const displayName = user?.display_name || user?.username || "Utilisateur";
@@ -547,8 +561,15 @@ export default function AppShell({
             <button onClick={() => setDarkMode(!darkMode)} className="relative p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition focus-ring" title="Changer le thème">
               {darkMode ? <i className="fas fa-sun text-lg"></i> : <i className="fas fa-moon text-lg"></i>}
             </button>
-            <button className="relative p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition focus-ring" title="Notifications">
-              <i className="fas fa-bell text-lg"></i><span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+            <button
+              onClick={() => onNavigate("notifications")}
+              className="relative p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition focus-ring"
+              title="Notifications"
+            >
+              <i className="fas fa-bell text-lg"></i>
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+              )}
             </button>
             <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
             {activeScope === 'dashboard'
