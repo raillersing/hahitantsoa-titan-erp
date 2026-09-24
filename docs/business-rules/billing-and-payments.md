@@ -12,3 +12,5 @@ Voir aussi `docs/audits/F92_HAHITANTSOA_LIFECYCLE_SOURCE_TRACE.md`.
   cycle de vie de reservation Hahitantsoa.
 
 Un proforma reste une estimation. Un contrat signe est immuable ; toute modification passe par proforma de modification puis avenant.
+
+Pour les montants officiels, cautions, acomptes, TVA, pénalités et références administratives, voir [`official-amounts.md`](official-amounts.md).
