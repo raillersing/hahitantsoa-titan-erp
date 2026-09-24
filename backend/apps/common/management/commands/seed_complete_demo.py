@@ -255,6 +255,8 @@ class Command(BaseCommand):
                 "contract_signed_by": gérant,
                 "required_deposit_received_at": now - timedelta(days=3),
                 "required_deposit_received_by": accueil,
+                "confirmed_at": now - timedelta(days=3),
+                "confirmed_by": gérant,
             },
         )
         HahitantsoaEventDraftLine.objects.get_or_create(
@@ -351,7 +353,7 @@ class Command(BaseCommand):
                 "required_deposit_received_at": now - timedelta(days=5),
                 "required_deposit_received_by": accueil,
                 "confirmed_at": now - timedelta(days=4),
-                "confirmed_by": None,
+                "confirmed_by": gérant,
             },
         )
         ReservationDraftLine.objects.get_or_create(
@@ -372,14 +374,14 @@ class Command(BaseCommand):
                 "customer": customers["Mme Rasoanirina"],
                 "status": "confirmed",
                 "start_at": now - timedelta(days=3),
-                "end_at": now - timedelta(days=3, hours=-4),
+                "end_at": now - timedelta(days=2, hours=20),
                 "notes": "Événement terminé. Retour en cours.",
                 "contract_signed_at": now - timedelta(days=10),
                 "contract_signed_by": gérant,
                 "required_deposit_received_at": now - timedelta(days=8),
                 "required_deposit_received_by": accueil,
                 "confirmed_at": now - timedelta(days=7),
-                "confirmed_by": None,
+                "confirmed_by": gérant,
             },
         )
         ReservationDraftLine.objects.get_or_create(
@@ -451,8 +453,36 @@ class Command(BaseCommand):
             },
         )
 
+        # Reçu pour RD-003
+        rec_rd3, _ = DocumentInstance.objects.update_or_create(
+            template_key="RECU-PAIEMENT",
+            reservation_draft=rd3,
+            defaults={
+                "customer": customers["Société TechMada"],
+                "template_version": "1.0",
+                "template_label": "Reçu de paiement",
+                "business_scope": "titan",
+                "status": "generated",
+                "prepared_at": now - timedelta(days=5),
+            },
+        )
+
+        # Reçu pour event1
+        rec_event1, _ = DocumentInstance.objects.update_or_create(
+            template_key="RECU-PAIEMENT",
+            hahitantsoa_event_draft=event1,
+            defaults={
+                "customer": customers["Rakoto Ando"],
+                "template_version": "1.0",
+                "template_label": "Reçu de paiement",
+                "business_scope": "hahitantsoa",
+                "status": "generated",
+                "prepared_at": now - timedelta(days=3),
+            },
+        )
+
         self.stdout.write(
-            self.style.SUCCESS("✓ 4 documents créés (2 proformas, 1 contrat, 1 facture)")
+            self.style.SUCCESS("✓ 6 documents créés (2 proformas, 1 contrat, 1 facture, 2 reçus)")
         )
 
         # ── 8. Facturation ────────────────────────────────────────────────
@@ -492,13 +522,14 @@ class Command(BaseCommand):
             payment_kind="deposit",
             defaults={
                 "payment_method": "mvola",
-                "payment_status": "pending",
+                "payment_status": "confirmed",
                 "amount": Decimal("1000000"),
                 "paid_at": now - timedelta(days=5),
-                "confirmed_at": None,
-                "confirmed_by": None,
+                "confirmed_at": now - timedelta(days=5),
+                "confirmed_by": gérant,
                 "external_reference": "MVOLA-2026-0042",
                 "source_label": "Acompte location TechMada",
+                "receipt_document": rec_rd3,
             },
         )
 
@@ -507,13 +538,14 @@ class Command(BaseCommand):
             payment_kind="deposit",
             defaults={
                 "payment_method": "virement",
-                "payment_status": "pending",
+                "payment_status": "confirmed",
                 "amount": Decimal("1500000"),
                 "paid_at": now - timedelta(days=3),
-                "confirmed_at": None,
-                "confirmed_by": None,
+                "confirmed_at": now - timedelta(days=3),
+                "confirmed_by": gérant,
                 "external_reference": "VIR-2026-0018",
                 "source_label": "Acompte mariage Rakoto",
+                "receipt_document": rec_event1,
             },
         )
 
