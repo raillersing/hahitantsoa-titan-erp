@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ApiError, getHahitantsoaVenues, createHahitantsoaVenue, updateHahitantsoaVenue } from "../api";
 import type { HahitantsoaVenue } from "../types";
 
@@ -13,32 +13,33 @@ export default function VenuesPage() {
   });
   const [toast, setToast] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isSubscribed = true;
-    const controller = new AbortController();
-
-    getHahitantsoaVenues(controller.signal)
+  const loadVenues = useCallback((signal?: AbortSignal) => {
+    setLoading(true);
+    setError(null);
+    return getHahitantsoaVenues(signal)
       .then((apiVenues) => {
-        if (isSubscribed && Array.isArray(apiVenues)) {
+        if (Array.isArray(apiVenues)) {
           setVenues(apiVenues);
           setError(null);
         }
       })
       .catch((err) => {
-        if (isSubscribed) {
-          setVenues([]);
-          setError(err instanceof ApiError ? err.message : "Impossible de charger les espaces et lieux événementiels.");
-        }
+        if (err?.name === "AbortError") return;
+        setVenues([]);
+        setError(err instanceof ApiError ? err.message : "Impossible de charger les espaces et lieux événementiels.");
       })
       .finally(() => {
-        if (isSubscribed) setLoading(false);
+        setLoading(false);
       });
-
-    return () => {
-      isSubscribed = false;
-      controller.abort();
-    }
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadVenues(controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [loadVenues]);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -137,7 +138,7 @@ export default function VenuesPage() {
             <span>{error}</span>
           </div>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => loadVenues()}
             className="text-xs font-semibold text-rose-700 underline hover:text-rose-900"
           >
             Réessayer
@@ -165,36 +166,58 @@ export default function VenuesPage() {
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
-              {locationVenues.map(v => (
-                <tr key={v.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-4 font-medium text-slate-800">{v.name}</td>
-                  <td className="p-4 text-slate-600">{v.capacity || "-"}</td>
-                  <td className="p-4 text-slate-600">Location événementielle</td>
-                  <td className="p-4 text-center">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${v.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                      {v.active ? 'Actif' : 'Inactif'}
-                    </span>
-                  </td>
-                  <td className="p-4 text-center">
-                    {v.is_default ? (
-                      <span className="text-amber-500" title="Local par défaut"><i className="fa-solid fa-star"></i></span>
-                    ) : (
-                      <button onClick={() => setDefault(v.id)} className="text-slate-300 hover:text-amber-500 transition-colors" title="Définir par défaut">
-                        <i className="fa-regular fa-star"></i>
-                      </button>
-                    )}
-                  </td>
-                  <td className="p-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => openModal("edit", v)} className="p-1.5 text-slate-400 hover:text-indigo-600 rounded" title="Modifier"><i className="fa-solid fa-pen"></i></button>
-                      <button onClick={() => toggleActive(v.id)} className={`p-1.5 rounded ${v.active ? 'text-rose-400 hover:text-rose-600' : 'text-emerald-500 hover:text-emerald-700'}`} title={v.active ? 'Désactiver' : 'Activer'}>
-                        <i className={`fa-solid ${v.active ? 'fa-power-off' : 'fa-play'}`}></i>
-                      </button>
-                      <button onClick={() => handleDeleteClick(v.id)} className="p-1.5 text-slate-400 hover:text-rose-600 rounded" title="Supprimer"><i className="fa-solid fa-trash"></i></button>
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-slate-500">
+                    <i className="fa-solid fa-spinner fa-spin mr-2 text-indigo-500"></i>
+                    Chargement des locaux...
                   </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-rose-600 bg-rose-50/50">
+                    <i className="fa-solid fa-triangle-exclamation mr-2"></i>
+                    Échec du chargement des locaux. Veuillez cliquer sur Réessayer ci-dessus.
+                  </td>
+                </tr>
+              ) : locationVenues.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-slate-500">
+                    Aucun local événementiel configuré.
+                  </td>
+                </tr>
+              ) : (
+                locationVenues.map(v => (
+                  <tr key={v.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-4 font-medium text-slate-800">{v.name}</td>
+                    <td className="p-4 text-slate-600">{v.capacity || "-"}</td>
+                    <td className="p-4 text-slate-600">Location événementielle</td>
+                    <td className="p-4 text-center">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${v.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                        {v.active ? 'Actif' : 'Inactif'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-center">
+                      {v.is_default ? (
+                        <span className="text-amber-500" title="Local par défaut"><i className="fa-solid fa-star"></i></span>
+                      ) : (
+                        <button onClick={() => setDefault(v.id)} className="text-slate-300 hover:text-amber-500 transition-colors" title="Définir par défaut">
+                          <i className="fa-regular fa-star"></i>
+                        </button>
+                      )}
+                    </td>
+                    <td className="p-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => openModal("edit", v)} className="p-1.5 text-slate-400 hover:text-indigo-600 rounded" title="Modifier"><i className="fa-solid fa-pen"></i></button>
+                        <button onClick={() => toggleActive(v.id)} className={`p-1.5 rounded ${v.active ? 'text-rose-400 hover:text-rose-600' : 'text-emerald-500 hover:text-emerald-700'}`} title={v.active ? 'Désactiver' : 'Activer'}>
+                          <i className={`fa-solid ${v.active ? 'fa-power-off' : 'fa-play'}`}></i>
+                        </button>
+                        <button onClick={() => handleDeleteClick(v.id)} className="p-1.5 text-slate-400 hover:text-rose-600 rounded" title="Supprimer"><i className="fa-solid fa-trash"></i></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -225,27 +248,49 @@ export default function VenuesPage() {
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
-              {depotVenues.map(v => (
-                <tr key={v.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-4 font-medium text-slate-800">{v.name}</td>
-                  <td className="p-4 text-slate-600">Stock & Logistique</td>
-                  <td className="p-4 text-slate-600">{v.note || "-"}</td>
-                  <td className="p-4 text-center">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${v.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                      {v.active ? 'Actif' : 'Inactif'}
-                    </span>
-                  </td>
-                  <td className="p-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => openModal("edit", v)} className="p-1.5 text-slate-400 hover:text-indigo-600 rounded" title="Modifier"><i className="fa-solid fa-pen"></i></button>
-                      <button onClick={() => toggleActive(v.id)} className={`p-1.5 rounded ${v.active ? 'text-rose-400 hover:text-rose-600' : 'text-emerald-500 hover:text-emerald-700'}`} title={v.active ? 'Désactiver' : 'Activer'}>
-                        <i className={`fa-solid ${v.active ? 'fa-power-off' : 'fa-play'}`}></i>
-                      </button>
-                      <button onClick={() => handleDeleteClick(v.id)} className="p-1.5 text-slate-400 hover:text-rose-600 rounded" title="Supprimer"><i className="fa-solid fa-trash"></i></button>
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-slate-500">
+                    <i className="fa-solid fa-spinner fa-spin mr-2 text-indigo-500"></i>
+                    Chargement des dépôts...
                   </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-rose-600 bg-rose-50/50">
+                    <i className="fa-solid fa-triangle-exclamation mr-2"></i>
+                    Échec du chargement des dépôts.
+                  </td>
+                </tr>
+              ) : depotVenues.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-slate-500">
+                    Aucun dépôt interne configuré.
+                  </td>
+                </tr>
+              ) : (
+                depotVenues.map(v => (
+                  <tr key={v.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-4 font-medium text-slate-800">{v.name}</td>
+                    <td className="p-4 text-slate-600">Stock & Logistique</td>
+                    <td className="p-4 text-slate-600">{v.note || "-"}</td>
+                    <td className="p-4 text-center">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${v.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                        {v.active ? 'Actif' : 'Inactif'}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => openModal("edit", v)} className="p-1.5 text-slate-400 hover:text-indigo-600 rounded" title="Modifier"><i className="fa-solid fa-pen"></i></button>
+                        <button onClick={() => toggleActive(v.id)} className={`p-1.5 rounded ${v.active ? 'text-rose-400 hover:text-rose-600' : 'text-emerald-500 hover:text-emerald-700'}`} title={v.active ? 'Désactiver' : 'Activer'}>
+                          <i className={`fa-solid ${v.active ? 'fa-power-off' : 'fa-play'}`}></i>
+                        </button>
+                        <button onClick={() => handleDeleteClick(v.id)} className="p-1.5 text-slate-400 hover:text-rose-600 rounded" title="Supprimer"><i className="fa-solid fa-trash"></i></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

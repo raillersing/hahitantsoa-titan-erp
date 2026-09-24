@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { AvailabilityDatePicker } from "../components/AvailabilityDatePicker";
 import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
 import { calculateTitanCautionAmount } from "../utils";
@@ -656,11 +656,53 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     error: null,
   });
 
+  const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "08:00", endDate: "", endTime: "20:00", rentalType: "Location nue", durationOption: "day", venuePrice: HAHITANTSOA_BASE_SPACE_RENTAL, logisticsPrice: 0 });
+
+  const fetchVenues = useCallback(() => {
+    setLoadingVenues(true);
+    return getHahitantsoaVenues()
+      .then(data => {
+        setApiVenues(data);
+        setErrorVenues(null);
+        const foundDefault = data.find(v => (v.is_default || v.isDefault) && v.type === 'location_event' && v.active)
+          || data.find(v => (v.is_default || v.isDefault) && v.active)
+          || data.find(v => v.type === 'location_event' && v.active);
+        if (foundDefault) {
+          setHDetails((current) => (current.venue === "Salle des fêtes + jardin" || !current.venue)
+            ? { ...current, venue: foundDefault.name }
+            : current);
+        }
+      })
+      .catch(err => {
+        setErrorVenues(err?.message || "Erreur de chargement des locaux");
+      })
+      .finally(() => {
+        setLoadingVenues(false);
+      });
+  }, []);
+
+  const fetchCommercialTerms = useCallback(() => {
+    return getHahitantsoaCommercialTerms()
+      .then((terms) => {
+        setHahitantsoaTerms(terms);
+        setErrorHahitantsoaTerms(null);
+        setHDetails((current) => current.venuePrice === HAHITANTSOA_BASE_SPACE_RENTAL
+          ? { ...current, venuePrice: Number(terms.base_space_rental_amount) }
+          : current);
+      })
+      .catch(err => {
+        setErrorHahitantsoaTerms(err?.message || "Les tarifs officiels Hahitantsoa sont indisponibles.");
+      });
+  }, []);
 
   // Derived: mapped clients (API Customer → local Client format)
   const clients: Client[] = apiCustomers.map(mapCustomerToClient);
   // Derived: mapped venues
   const venues: HahitantsoaVenue[] = apiVenues;
+  const defaultVenue = venues.find(v => (v.is_default || v.isDefault) && v.type === "location_event" && v.active)
+    || venues.find(v => (v.is_default || v.isDefault) && v.active)
+    || venues.find(v => v.type === "location_event" && v.active);
+  const defaultVenueName = defaultVenue?.name || "Salle des fêtes + jardin";
   // Derived: mapped catalog items
   const catalog: CatalogItem[] = availableCatalogItems;
   // Derived: mapped services (API → local format)
@@ -675,11 +717,9 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       .then(data => { if (!cancelled) { setApiCustomers(data); setErrorClients(null); } })
       .catch(err => { if (!cancelled) setErrorClients(err?.message || "Erreur de chargement des clients"); })
       .finally(() => { if (!cancelled) setLoadingClients(false); });
-    setLoadingVenues(true);
-    getHahitantsoaVenues()
-      .then(data => { if (!cancelled) { setApiVenues(data); setErrorVenues(null); } })
-      .catch(err => { if (!cancelled) setErrorVenues(err?.message || "Erreur de chargement des locaux"); })
-      .finally(() => { if (!cancelled) setLoadingVenues(false); });
+
+    fetchVenues();
+
     setLoadingServices(true);
     getHahitantsoaServices()
       .then(data => { if (!cancelled) { setApiServices(data); setErrorServices(null); } })
@@ -690,19 +730,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       .then(data => { if (!cancelled) { setApiPackages(data); setErrorPackages(null); } })
       .catch(err => { if (!cancelled) setErrorPackages(err?.message || "Erreur de chargement des packages"); })
       .finally(() => { if (!cancelled) setLoadingPackages(false); });
-    getHahitantsoaCommercialTerms()
-      .then((terms) => {
-        if (!cancelled) {
-          setHahitantsoaTerms(terms);
-          setErrorHahitantsoaTerms(null);
-          setHDetails((current) => current.venuePrice === HAHITANTSOA_BASE_SPACE_RENTAL
-            ? { ...current, venuePrice: Number(terms.base_space_rental_amount) }
-            : current);
-        }
-      })
-      .catch(err => { if (!cancelled) setErrorHahitantsoaTerms(err?.message || "Les tarifs Hahitantsoa par défaut sont indisponibles."); });
+
+    fetchCommercialTerms();
+
     return () => { cancelled = true; };
-  }, []);
+  }, [fetchVenues, fetchCommercialTerms]);
 
   const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
   const [selectedClientId, setSelectedClientId] = useState<string>("");
@@ -730,8 +762,6 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       cancelled = true;
     };
   }, [domain]);
-  
-  const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "08:00", endDate: "", endTime: "20:00", rentalType: "Location nue", durationOption: "day", venuePrice: HAHITANTSOA_BASE_SPACE_RENTAL, logisticsPrice: 0 });
   const hahitantsoaBaseSpaceRental = Number(hahitantsoaTerms?.base_space_rental_amount ?? HAHITANTSOA_BASE_SPACE_RENTAL);
   const hahitantsoaIncludedGuests = Number(hahitantsoaTerms?.included_guest_count ?? 250);
   const hahitantsoaExcessGuestAmount = Number(hahitantsoaTerms?.excess_guest_amount ?? HAHITANTSOA_EXCESS_GUEST_RATE);
@@ -1025,7 +1055,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     setSelectedClientId("");
     setNewClient({ name: "", phone: "", email: "", additionalEmails: [], additionalPhones: [], type: "Particulier", notes: "", civilite: "", idType: "CIN" });
     setHDetails({
-      eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "",
+      eventType: "", eventTypeOther: "", date: "", venue: defaultVenueName, guests: "", remarks: "",
       startDate: "", startTime: "08:00", endDate: "", endTime: "20:00", rentalType: "Location nue", durationOption: "day",
       venuePrice: Number(hahitantsoaTerms?.base_space_rental_amount ?? HAHITANTSOA_BASE_SPACE_RENTAL), logisticsPrice: 0
     });
@@ -1354,6 +1384,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   // Navigation
   const goNext = async () => {
     if (serverDraftSaving) return;
+    if (domain === "hahitantsoa" && (errorHahitantsoaTerms || !hahitantsoaTerms)) {
+      setSubmitError("Impossible de continuer : les conditions tarifaires officielles n'ont pas pu être chargées depuis le serveur. Veuillez réessayer le chargement des tarifs.");
+      return;
+    }
     try {
       const details = domain === "hahitantsoa" ? hDetails : tDetails;
       const reachesPersistableOfferCompletion = step === 5
@@ -2128,12 +2162,33 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             </div>
             <div className="relative">
               <label className="block text-sm font-medium text-slate-700 mb-1">Local / Lieu</label>
-              {venues && venues.length > 0 ? (
+              {errorVenues ? (
+                <div className="flex items-center justify-between border border-rose-200 bg-rose-50 text-rose-700 p-2.5 rounded-lg text-sm" role="alert">
+                  <div className="flex items-center gap-2">
+                    <i className="fa-solid fa-circle-exclamation text-rose-600"></i>
+                    <span>Erreur de chargement des locaux : {errorVenues}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fetchVenues()}
+                    className="text-xs text-rose-800 underline font-semibold hover:text-rose-950 ml-2"
+                  >
+                    Réessayer
+                  </button>
+                </div>
+              ) : loadingVenues ? (
+                <div className="flex items-center gap-2 border border-slate-200 bg-slate-50 text-slate-600 p-2.5 rounded-lg text-sm">
+                  <i className="fa-solid fa-spinner fa-spin text-indigo-500"></i>
+                  <span>Chargement des locaux...</span>
+                </div>
+              ) : venues && venues.length > 0 ? (
                 <div className="flex flex-col gap-2 relative">
                   <div className="flex items-center justify-between border border-slate-200 bg-slate-50 p-2.5 rounded-lg text-sm">
                     <div className="flex items-center gap-2">
                       <i className="fa-solid fa-map-marker-alt text-indigo-500"></i>
-                      <span className="font-medium text-slate-800">{hDetails.venue === 'Salle des fêtes + jardin' ? 'Local par défaut' : 'Local choisi'} : {hDetails.venue}</span>
+                      <span className="font-medium text-slate-800">
+                        {hDetails.venue === defaultVenueName ? 'Local par défaut' : 'Local choisi'} : {hDetails.venue || defaultVenueName}
+                      </span>
                     </div>
                     <button type="button" onClick={() => setShowVenueSelector(!showVenueSelector)} className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold px-2 py-1 bg-indigo-50 rounded hover:bg-indigo-100 transition-colors">Changer</button>
                   </div>
@@ -4730,10 +4785,38 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       {loadingClients && <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-spinner fa-spin"></i> Chargement des clients...</div>}
       {errorClients && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation"></i> {errorClients}</div>}
       {loadingVenues && <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-spinner fa-spin"></i> Chargement des locaux...</div>}
-      {errorVenues && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation"></i> {errorVenues}</div>}
+      {errorVenues && (
+        <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center justify-between" role="alert">
+          <div className="flex items-center gap-2">
+            <i className="fa-solid fa-triangle-exclamation"></i>
+            <span>{errorVenues}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => fetchVenues()}
+            className="text-xs font-semibold text-rose-800 underline hover:text-rose-950 ml-4 flex-shrink-0"
+          >
+            Réessayer
+          </button>
+        </div>
+      )}
       {loadingCatalog && <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-spinner fa-spin"></i> Vérification de la disponibilité du catalogue...</div>}
       {errorCatalog && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation"></i> {errorCatalog}</div>}
-      {domain === "hahitantsoa" && errorHahitantsoaTerms && <div className="bg-amber-50 text-amber-800 p-3 rounded-lg text-sm flex items-center gap-2" role="alert"><i className="fa-solid fa-triangle-exclamation"></i> {errorHahitantsoaTerms} Les valeurs affichées sont les dernières valeurs par défaut connues.</div>}
+      {domain === "hahitantsoa" && errorHahitantsoaTerms && (
+        <div className="bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-lg text-sm flex items-center justify-between" role="alert">
+          <div className="flex items-center gap-2">
+            <i className="fa-solid fa-circle-exclamation text-rose-600"></i>
+            <span>Erreur tarifaire : {errorHahitantsoaTerms}. Les tarifs contractuels officiels du serveur sont obligatoires.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => fetchCommercialTerms()}
+            className="text-xs font-semibold text-rose-800 underline hover:text-rose-950 ml-4 flex-shrink-0"
+          >
+            Réessayer
+          </button>
+        </div>
+      )}
       {submitError && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2" role="alert" aria-live="assertive"><i className="fa-solid fa-triangle-exclamation"></i> Erreur de soumission : {submitError}</div>}
       {serverDraftSaving && <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm flex items-center gap-2" role="status" aria-live="polite"><i className="fa-solid fa-spinner fa-spin"></i> Enregistrement du dossier en cours...</div>}
 

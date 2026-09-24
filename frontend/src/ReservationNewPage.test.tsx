@@ -1656,4 +1656,88 @@ describe('ReservationNewPage', () => {
       expect(mockNavigate).toHaveBeenCalledWith('hahitantsoa');
     });
   });
+
+  it('30. sélectionne dynamiquement le local marqué par défaut (is_default) par le serveur', async () => {
+    vi.mocked(getHahitantsoaVenues).mockResolvedValueOnce([
+      {
+        id: 'VEN-099',
+        name: 'Grand Chapiteau Panoramique',
+        type: 'location_event',
+        capacity: 500,
+        active: true,
+        price: 2500000,
+        is_default: true,
+      },
+    ] as any);
+
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Commencer par le volet')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Commencer par le volet'));
+    fireEvent.click(screen.getByText('Hahitantsoa'));
+    fireEvent.click(screen.getByText('Continuer'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('client-select-CUST-001')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('client-select-CUST-001'));
+    fireEvent.click(screen.getByText('Continuer'));
+
+    // Verify dynamic default venue is selected and labeled as default
+    await waitFor(() => {
+      expect(screen.getByText(/Local par défaut : Grand Chapiteau Panoramique/i)).toBeInTheDocument();
+    });
+  });
+
+  it('31. affiche une erreur explicite avec réessai si getHahitantsoaCommercialTerms échoue et bloque la progression', async () => {
+    vi.mocked(getHahitantsoaCommercialTerms).mockRejectedValueOnce(new Error('Erreur réseau tarifs'));
+
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+
+    // Start Hahitantsoa journey
+    await waitFor(() => {
+      expect(screen.getByText('Commencer par le volet')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Commencer par le volet'));
+    fireEvent.click(screen.getByText('Hahitantsoa'));
+
+    // Error banner should be visible for terms failure
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/Erreur tarifaire : Erreur réseau tarifs/i);
+    });
+
+    // Progression should be blocked
+    fireEvent.click(screen.getByText('Continuer'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/les conditions tarifaires officielles n'ont pas pu être chargées/i)).toBeInTheDocument();
+    });
+  });
+
+  it('32. affiche une alerte avec bouton de réessai dans le formulaire si getHahitantsoaVenues échoue', async () => {
+    vi.mocked(getHahitantsoaVenues).mockRejectedValueOnce(new Error('Erreur de connexion aux locaux'));
+
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Commencer par le volet')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Commencer par le volet'));
+    fireEvent.click(screen.getByText('Hahitantsoa'));
+    fireEvent.click(screen.getByText('Continuer'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('client-select-CUST-001')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('client-select-CUST-001'));
+    fireEvent.click(screen.getByText('Continuer'));
+
+    // Venue section should display the error with retry button instead of silent 'aucun local'
+    await waitFor(() => {
+      expect(screen.getByText(/Erreur de chargement des locaux : Erreur de connexion aux locaux/i)).toBeInTheDocument();
+    });
+    expect(screen.getAllByRole('button', { name: 'Réessayer' }).length).toBeGreaterThan(0);
+  });
 });
