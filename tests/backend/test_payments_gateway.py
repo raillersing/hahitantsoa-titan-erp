@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from decimal import Decimal
 from threading import Barrier, Event
 from uuid import UUID
@@ -157,7 +158,7 @@ class TestInitiateMobileMoneyPaymentService:
             public_reference="T-GW-001",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
         )
 
         result = initiate_mobile_money_payment(
@@ -181,7 +182,7 @@ class TestInitiateMobileMoneyPaymentService:
             public_reference="T-GW-ACTOR",
             customer=Customer.objects.create(display_name="Gateway actor customer"),
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
         )
         result = initiate_mobile_money_payment(
             reservation_draft=draft,
@@ -223,7 +224,7 @@ class TestProcessGatewayCallbackService:
             public_reference="T-CB-001",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
         )
         payment = Payment.objects.create(
             reservation_draft=draft,
@@ -445,7 +446,7 @@ class TestGatewayPaymentInitiateAPI:
             public_reference="T-GW-API",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
         )
 
         response = sensitive_client.post(
@@ -494,7 +495,7 @@ class TestGatewayPaymentCallbackAPI:
             public_reference="T-CB-API",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
         )
         Payment.objects.create(
             reservation_draft=draft,

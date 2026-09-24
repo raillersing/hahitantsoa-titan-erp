@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
@@ -63,7 +64,7 @@ class TestValidateReservationCloseable:
             public_reference="T-CO-001",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
             confirmed_at=timezone.now(),
         )
         blockers = validate_reservation_closeable(reservation_draft=draft)
@@ -78,7 +79,7 @@ class TestValidateReservationCloseable:
             public_reference="T-CO-002",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
         )
         blockers = validate_reservation_closeable(reservation_draft=draft)
         assert "reservation_not_confirmed" in blockers
@@ -92,7 +93,7 @@ class TestValidateReservationCloseable:
             public_reference="T-CO-003",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
             confirmed_at=timezone.now(),
         )
         from apps.billing.models import BillingInvoice
@@ -117,7 +118,7 @@ class TestValidateReservationCloseable:
             public_reference="T-CO-007",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
             confirmed_at=timezone.now(),
         )
         return_operation = InventoryReturnOperation.objects.create(
@@ -137,7 +138,7 @@ class TestValidateReservationCloseable:
             public_reference="T-CO-EXEC-001",
             customer=Customer.objects.create(display_name="Closeout Customer"),
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
             confirmed_at=timezone.now(),
         )
         return_operation, _ = self._validated_damage_loss_return(draft=draft, actor=actor)
@@ -158,7 +159,7 @@ class TestValidateReservationCloseable:
             public_reference="T-CO-EXEC-002",
             customer=Customer.objects.create(display_name="Closeout Customer"),
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
             confirmed_at=timezone.now(),
         )
         return_operation, settlement = self._validated_damage_loss_return(draft=draft, actor=actor)
@@ -186,7 +187,7 @@ class TestValidateReservationCloseable:
             public_reference="T-CO-REFUND-001",
             customer=Customer.objects.create(display_name="Closeout Customer"),
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
             confirmed_at=timezone.now(),
         )
         return_operation, settlement = self._validated_damage_loss_return(draft=draft, actor=actor)
@@ -220,7 +221,7 @@ class TestValidateReservationCloseable:
             public_reference="T-CO-EXCESS-001",
             customer=Customer.objects.create(display_name="Closeout Customer"),
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
             confirmed_at=timezone.now(),
         )
         return_operation, settlement = self._validated_damage_loss_return(draft=draft, actor=actor)
@@ -254,7 +255,7 @@ class TestValidateReservationCloseable:
             public_reference="T-CO-PAYMENT-001",
             customer=Customer.objects.create(display_name="Closeout Customer"),
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
             confirmed_at=timezone.now(),
         )
         receipt = DocumentInstance.objects.create(
@@ -300,7 +301,7 @@ class TestValidateReservationCloseable:
             public_reference="T-CO-008",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
             confirmed_at=timezone.now(),
         )
         ReservationDraftLine.objects.create(
@@ -324,7 +325,7 @@ class TestCloseoutReservationDraft:
             public_reference="T-CO-009",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
             confirmed_at=timezone.now(),
         )
 
@@ -344,7 +345,7 @@ class TestCloseoutReservationDraft:
             public_reference="T-CO-004",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
         )
         user = django_user_model.objects.create_user(
             username="closeout_actor", password="p", is_staff=True
@@ -362,7 +363,7 @@ class TestCloseoutReservationDraft:
             public_reference="T-CO-005",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
             confirmed_at=timezone.now(),
         )
         user = django_user_model.objects.create_user(
@@ -382,7 +383,7 @@ class TestCloseoutReservationDraft:
             public_reference="T-CO-REPLAY-001",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
             confirmed_at=timezone.now(),
         )
         user = django_user_model.objects.create_user(
@@ -413,7 +414,7 @@ class TestCloseoutReservationDraft:
             public_reference="T-CO-006",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
             confirmed_at=timezone.now(),
         )
         user = django_user_model.objects.create_user(
@@ -445,7 +446,7 @@ class TestCloseoutExecuteAPI:
             public_reference="T-CO-API",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
             confirmed_at=timezone.now(),
         )
         response = sensitive_client.post(
@@ -480,7 +481,7 @@ class TestCloseoutExecuteAPI:
             public_reference="T-CO-FAIL",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
         )
         response = sensitive_client.post(
             f"/api/v1/reservations/drafts/{draft.id}/closeout/execute/"
