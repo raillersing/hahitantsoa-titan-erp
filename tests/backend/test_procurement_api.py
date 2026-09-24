@@ -247,3 +247,74 @@ def test_regular_authenticated_user_cannot_create_purchase_order(client):
     )
     assert response.status_code == 403
     assert PurchaseOrder.objects.count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_purchase_order_mutations_emit_audit_events(authenticated_client):
+    from apps.audit.models import AuditEvent
+
+    # Create
+    create_resp = authenticated_client.post(
+        PURCHASE_ORDER_LIST_URL,
+        {"supplier_name": "Audited Supplier", "amount": "120000.00"},
+        content_type="application/json",
+    )
+    assert create_resp.status_code == 201
+    po_id = create_resp.json()["id"]
+
+    assert AuditEvent.objects.filter(
+        target_type="purchase_order",
+        target_id=po_id,
+        action="procurement.purchase_order_created",
+    ).exists()
+
+    # Update
+    update_resp = authenticated_client.patch(
+        f"{PURCHASE_ORDER_LIST_URL}{po_id}/",
+        {"supplier_name": "Updated Supplier"},
+        content_type="application/json",
+    )
+    assert update_resp.status_code == 200
+    assert AuditEvent.objects.filter(
+        target_type="purchase_order",
+        target_id=po_id,
+        action="procurement.purchase_order_updated",
+    ).exists()
+
+    # Delete
+    del_resp = authenticated_client.delete(f"{PURCHASE_ORDER_LIST_URL}{po_id}/")
+    assert del_resp.status_code == 204
+    assert AuditEvent.objects.filter(
+        target_type="purchase_order",
+        target_id=po_id,
+        action="procurement.purchase_order_deleted",
+    ).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_quick_expense_mutations_emit_audit_events(authenticated_client):
+    from apps.audit.models import AuditEvent
+
+    # Create
+    create_resp = authenticated_client.post(
+        EXPENSE_LIST_URL,
+        {"description": "Carburant", "amount": "50000.00", "category": "transport"},
+        content_type="application/json",
+    )
+    assert create_resp.status_code == 201
+    exp_id = create_resp.json()["id"]
+
+    assert AuditEvent.objects.filter(
+        target_type="quick_expense",
+        target_id=exp_id,
+        action="procurement.quick_expense_created",
+    ).exists()
+
+    # Delete
+    del_resp = authenticated_client.delete(f"{EXPENSE_LIST_URL}{exp_id}/")
+    assert del_resp.status_code == 204
+    assert AuditEvent.objects.filter(
+        target_type="quick_expense",
+        target_id=exp_id,
+        action="procurement.quick_expense_deleted",
+    ).exists()

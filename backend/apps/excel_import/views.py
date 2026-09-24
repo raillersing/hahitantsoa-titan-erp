@@ -13,6 +13,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.audit.services import record_audit_event_on_commit
 from apps.excel_import.models import ImportJob
 from apps.excel_import.serializers import (
     ImportJobMappingSerializer,
@@ -365,11 +366,13 @@ class ImportJobValidateAPIView(APIView):
                             if field in mapped_targets | {"name", "kind"}
                             and field not in {"storage_location", "initial_stock"}
                         }
+                        was_deleted = False
                         if item is None:
                             item = InventoryItem(
                                 created_by=request.user, updated_by=request.user, **item_fields
                             )
                         else:
+                            was_deleted = bool(item.is_deleted)
                             for field, value in item_fields.items():
                                 setattr(item, field, value)
                             item.is_active = True
@@ -378,6 +381,19 @@ class ImportJobValidateAPIView(APIView):
                             item.updated_by = request.user
                         item.full_clean()
                         item.save()
+                        if was_deleted:
+                            record_audit_event_on_commit(
+                                actor=request.user,
+                                action="inventory.item_reactivated_from_import",
+                                target_type="inventory_item",
+                                target_id=str(item.id),
+                                metadata={
+                                    "code": item.code,
+                                    "name": item.name,
+                                    "import_job_id": str(job.id),
+                                    "filename": job.filename,
+                                },
+                            )
                         if payload["initial_stock"] and not existing_stock:
                             InventoryStockMovement.objects.create(
                                 inventory_item=item,
