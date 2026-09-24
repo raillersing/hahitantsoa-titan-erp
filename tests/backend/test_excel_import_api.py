@@ -337,3 +337,39 @@ def test_unauthenticated_validate_import_job_denied(client):
     url = f"{IMPORT_JOB_LIST_URL}00000000-0000-0000-0000-000000000000/validate/"
     response = client.post(url, content_type="application/json")
     assert response.status_code == 403
+
+
+@pytest.mark.django_db(transaction=True)
+def test_validate_import_job_reactivates_soft_deleted_item_with_audit(authenticated_client, user):
+    from apps.audit.models import AuditEvent
+
+    item = InventoryItem.objects.create(
+        name="Deleted Table",
+        code="TAB-001",
+        kind="material",
+        is_active=False,
+        is_deleted=True,
+        created_by=user,
+        updated_by=user,
+    )
+    job = ImportJob.objects.create(
+        created_by=user,
+        filename="reactivate.csv",
+        status="mapping",
+        target_model="inventory_item",
+        total_rows=1,
+        column_mapping={"Name": "name", "Code": "code", "Kind": "kind"},
+        source_rows=[{"Name": "Deleted Table", "Code": "TAB-001", "Kind": "material"}],
+    )
+    url = f"{IMPORT_JOB_LIST_URL}{job.id}/validate/"
+    resp = authenticated_client.post(url, content_type="application/json")
+    assert resp.status_code == 200
+    item.refresh_from_db()
+    assert item.is_deleted is False
+    assert item.is_active is True
+
+    assert AuditEvent.objects.filter(
+        target_type="inventory_item",
+        target_id=str(item.id),
+        action="inventory.item_reactivated_from_import",
+    ).exists()

@@ -25,6 +25,7 @@ def authenticated_client(client, django_user_model):
     user = django_user_model.objects.create_user(
         username="blacklist-tester",
         password="test-password",
+        is_staff=True,
     )
     client.force_login(user)
     return client
@@ -283,3 +284,80 @@ def test_soft_delete_via_patch_deactivates_intervenant(authenticated_client):
     detail_response = authenticated_client.get(f"{BLACKLIST_LIST_URL}{obj.id}/")
     assert detail_response.status_code == 200
     assert detail_response.json()["is_active"] is False
+
+
+def test_unauthorized_authenticated_user_cannot_create_or_modify(client, django_user_model):
+    normal_user = django_user_model.objects.create_user(
+        username="unauthorized-blacklist-user",
+        password="test-password",
+        is_staff=False,
+    )
+    client.force_login(normal_user)
+
+    # Can list (read-only)
+    assert client.get(BLACKLIST_LIST_URL).status_code == 200
+
+    # Cannot create
+    create_resp = client.post(
+        BLACKLIST_LIST_URL, {"name": "Unauthorized Add"}, content_type="application/json"
+    )
+    assert create_resp.status_code == 403
+
+    obj = _create_intervenant("Existing Person")
+    # Can read detail
+    assert client.get(f"{BLACKLIST_LIST_URL}{obj.id}/").status_code == 200
+
+    # Cannot patch
+    assert (
+        client.patch(
+            f"{BLACKLIST_LIST_URL}{obj.id}/",
+            {"name": "Changed"},
+            content_type="application/json",
+        ).status_code
+        == 403
+    )
+
+    # Cannot delete
+    assert client.delete(f"{BLACKLIST_LIST_URL}{obj.id}/").status_code == 403
+
+
+@pytest.mark.django_db(transaction=True)
+def test_audit_event_logged_on_blacklist_mutations(authenticated_client):
+    from apps.audit.models import AuditEvent
+
+    # Create
+    resp = authenticated_client.post(
+        BLACKLIST_LIST_URL,
+        {"name": "Audit Target Person", "note": "Testing audit"},
+        content_type="application/json",
+    )
+    assert resp.status_code == 201
+    item_id = resp.json()["id"]
+
+    assert AuditEvent.objects.filter(
+        target_type="blacklisted_intervenant",
+        target_id=item_id,
+        action="blacklist.intervenant_created",
+    ).exists()
+
+    # Update
+    resp = authenticated_client.patch(
+        f"{BLACKLIST_LIST_URL}{item_id}/",
+        {"note": "Updated audit note"},
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    assert AuditEvent.objects.filter(
+        target_type="blacklisted_intervenant",
+        target_id=item_id,
+        action="blacklist.intervenant_updated",
+    ).exists()
+
+    # Delete
+    resp = authenticated_client.delete(f"{BLACKLIST_LIST_URL}{item_id}/")
+    assert resp.status_code == 204
+    assert AuditEvent.objects.filter(
+        target_type="blacklisted_intervenant",
+        target_id=item_id,
+        action="blacklist.intervenant_deleted",
+    ).exists()

@@ -12,6 +12,13 @@ from .serializers import (
     QuickExpenseCreateSerializer,
     QuickExpenseSerializer,
 )
+from .services import (
+    create_purchase_order,
+    create_quick_expense,
+    delete_purchase_order,
+    delete_quick_expense,
+    update_purchase_order,
+)
 
 
 class PurchaseOrderListCreateAPIView(generics.ListCreateAPIView):
@@ -40,13 +47,10 @@ class PurchaseOrderListCreateAPIView(generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         serializer = PurchaseOrderCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        purchase_order = PurchaseOrder(
-            **serializer.validated_data,
-            created_by=request.user,
-            updated_by=request.user,
+        purchase_order = create_purchase_order(
+            actor=request.user,
+            validated_data=serializer.validated_data,
         )
-        purchase_order.full_clean()
-        purchase_order.save()
         return Response(
             PurchaseOrderSerializer(purchase_order).data, status=status.HTTP_201_CREATED
         )
@@ -66,9 +70,17 @@ class PurchaseOrderRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAP
         return super().get_permissions()
 
     def perform_update(self, serializer):
-        instance = serializer.save(updated_by=self.request.user)
-        instance.full_clean()
-        instance.save()
+        update_purchase_order(
+            actor=self.request.user,
+            instance=self.get_object(),
+            validated_data=serializer.validated_data,
+        )
+
+    def perform_destroy(self, instance):
+        delete_purchase_order(
+            actor=self.request.user,
+            instance=instance,
+        )
 
 
 class QuickExpenseListCreateAPIView(generics.ListCreateAPIView):
@@ -97,12 +109,10 @@ class QuickExpenseListCreateAPIView(generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         serializer = QuickExpenseCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        expense = QuickExpense(
-            **serializer.validated_data,
-            recorded_by=request.user,
+        expense = create_quick_expense(
+            actor=request.user,
+            validated_data=serializer.validated_data,
         )
-        expense.full_clean()
-        expense.save()
         return Response(QuickExpenseSerializer(expense).data, status=status.HTTP_201_CREATED)
 
 
@@ -118,3 +128,9 @@ class QuickExpenseRetrieveDestroyAPIView(generics.RetrieveDestroyAPIView):
         if self.request.method.lower() == "delete":
             return [HasManagementOrFinanceAccess()]
         return super().get_permissions()
+
+    def perform_destroy(self, instance):
+        delete_quick_expense(
+            actor=self.request.user,
+            instance=instance,
+        )
