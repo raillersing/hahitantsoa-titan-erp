@@ -274,7 +274,7 @@ class TestPDFGenerateAPI:
             public_reference="T-PDF",
             customer=customer,
             start_at=timezone.now(),
-            end_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=2),
         )
         instance = DocumentInstance.objects.create(
             reservation_draft=draft,
