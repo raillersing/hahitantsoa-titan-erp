@@ -11,6 +11,7 @@ from apps.hahitantsoa.views import (
     HahitantsoaEventDraftAmendmentRequestListCreateAPIView,
     HahitantsoaEventDraftAmendmentRequestRetrieveUpdateAPIView,
     HahitantsoaEventDraftAvailabilityPreviewAPIView,
+    HahitantsoaEventDraftCancelAPIView,
     HahitantsoaEventDraftCloseoutExecuteAPIView,
     HahitantsoaEventDraftCloseoutSummaryAPIView,
     HahitantsoaEventDraftConfirmAPIView,
@@ -24,6 +25,7 @@ from apps.hahitantsoa.views import (
     HahitantsoaEventDraftListCreateAPIView,
     HahitantsoaEventDraftMarkContractSignedAPIView,
     HahitantsoaEventDraftMarkRequiredDepositReceivedAPIView,
+    HahitantsoaEventDraftResumeAPIView,
     HahitantsoaEventDraftRetrieveUpdateAPIView,
     HahitantsoaEventDraftUpdateReferenceAPIView,
     HahitantsoaServiceListCreateAPIView,
@@ -130,6 +132,16 @@ urlpatterns = [
         "event-drafts/<uuid:pk>/confirm/",
         HahitantsoaEventDraftConfirmAPIView.as_view(),
         name="hahitantsoa-event-draft-confirm",
+    ),
+    path(
+        "event-drafts/<uuid:pk>/cancel/",
+        HahitantsoaEventDraftCancelAPIView.as_view(),
+        name="hahitantsoa-event-draft-cancel",
+    ),
+    path(
+        "event-drafts/<uuid:pk>/resume/",
+        HahitantsoaEventDraftResumeAPIView.as_view(),
+        name="hahitantsoa-event-draft-resume",
     ),
     path(
         "event-drafts/<uuid:pk>/contract-signed/",

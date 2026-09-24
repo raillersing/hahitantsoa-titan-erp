@@ -794,6 +794,15 @@ class HahitantsoaEventDraftUpdateReferenceSerializer(serializers.Serializer):
         return val
 
 
+class HahitantsoaEventDraftCancelSerializer(serializers.Serializer):
+    reason = serializers.CharField(
+        required=True,
+        min_length=15,
+        allow_blank=False,
+        help_text="Motif détaillé d'annulation en cas de force majeure (minimum 15 caractères).",
+    )
+
+
 class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
     public_reference = serializers.CharField(max_length=32, required=False, allow_blank=True)
     customer_id = serializers.PrimaryKeyRelatedField(
@@ -816,6 +825,9 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             "id",
             "public_reference",
             "status",
+            "cancellation_reason",
+            "cancelled_at",
+            "cancelled_by",
             "customer_id",
             "customer_display_name",
             "event_name",
@@ -836,14 +848,15 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             "lines",
             "prerequisite_status",
             "payment_schedule",
-            "logistics_amount",
-            "total_amount",
             "created_at",
             "updated_at",
         )
         read_only_fields = (
             "id",
             "status",
+            "cancellation_reason",
+            "cancelled_at",
+            "cancelled_by",
             "customer_display_name",
             "created_at",
             "updated_at",
