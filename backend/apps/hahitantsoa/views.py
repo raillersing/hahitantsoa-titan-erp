@@ -49,6 +49,7 @@ from apps.hahitantsoa.serializers import (
     HahitantsoaEventDraftAmendmentRequestSerializer,
     HahitantsoaEventDraftAmendmentRequestUpdateSerializer,
     HahitantsoaEventDraftAvailabilityPreviewSerializer,
+    HahitantsoaEventDraftCancelSerializer,
     HahitantsoaEventDraftConfirmationPreflightSerializer,
     HahitantsoaEventDraftConfirmationResultSerializer,
     HahitantsoaEventDraftDocumentInstanceCreateSerializer,
@@ -64,9 +65,11 @@ from apps.hahitantsoa.serializers import (
 from apps.hahitantsoa.services import (
     apply_hahitantsoa_event_draft_amendment_request,
     assert_hahitantsoa_event_draft_mutable,
+    cancel_hahitantsoa_event,
     confirm_hahitantsoa_event_draft,
     mark_hahitantsoa_event_draft_contract_signed,
     mark_hahitantsoa_event_draft_required_deposit_received,
+    resume_hahitantsoa_event_draft,
 )
 from apps.identity.permissions import (
     HasInventoryManagementAccess,
@@ -614,6 +617,82 @@ class HahitantsoaEventDraftConfirmAPIView(APIView):
 
         payload = HahitantsoaEventDraftConfirmationResultSerializer.from_result(result)
         return Response(payload.data, status=status.HTTP_200_OK)
+
+
+class HahitantsoaEventDraftCancelAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        request=HahitantsoaEventDraftCancelSerializer,
+        responses={
+            200: HahitantsoaEventDraftSerializer,
+            400: serializers.Serializer,
+            403: serializers.Serializer,
+            404: serializers.Serializer,
+        },
+    )
+    def post(self, request, pk):
+        from django.shortcuts import get_object_or_404
+
+        event_draft = get_object_or_404(active_hahitantsoa_event_drafts(), pk=pk)
+        serializer = HahitantsoaEventDraftCancelSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            cancelled_event = cancel_hahitantsoa_event(
+                event_draft=event_draft,
+                actor=request.user,
+                reason=serializer.validated_data["reason"],
+            )
+        except PermissionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)
+        except (ReservationLifecycleStateError, ReservationLifecycleError) as error:
+            return Response(
+                {"detail": str(error), "code": getattr(error, "code", None)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            HahitantsoaEventDraftSerializer(cancelled_event).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class HahitantsoaEventDraftResumeAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        responses={
+            200: HahitantsoaEventDraftSerializer,
+            400: serializers.Serializer,
+            403: serializers.Serializer,
+            404: serializers.Serializer,
+        },
+    )
+    def post(self, request, pk):
+        from django.shortcuts import get_object_or_404
+
+        event_draft = get_object_or_404(active_hahitantsoa_event_drafts(), pk=pk)
+
+        try:
+            resumed_event = resume_hahitantsoa_event_draft(
+                event_draft=event_draft,
+                actor=request.user,
+            )
+        except PermissionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)
+        except (ReservationLifecycleStateError, ReservationLifecycleError) as error:
+            return Response(
+                {"detail": str(error), "code": getattr(error, "code", None)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            HahitantsoaEventDraftSerializer(resumed_event).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class HahitantsoaEventDraftMarkRequiredDepositReceivedAPIView(APIView):

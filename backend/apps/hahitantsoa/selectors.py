@@ -3,7 +3,7 @@ from datetime import datetime
 from django.db.models import QuerySet
 
 from apps.hahitantsoa.discovery import HahitantsoaDiscoveryItem
-from apps.hahitantsoa.models import HahitantsoaEventDraft
+from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftStatus
 from apps.inventory.models import InventoryItem
 from apps.reservations.selectors import get_available_reservation_inventory_items_for_period
 
@@ -51,6 +51,11 @@ def list_hahitantsoa_venue_occupancies_for_period(
         is_deleted=False,
         start_at__lt=end_at,
         end_at__gt=start_at,
+    ).exclude(
+        status__in=[
+            HahitantsoaEventDraftStatus.CANCELLED,
+            HahitantsoaEventDraftStatus.ARCHIVED,
+        ]
     )
     if venue_key is not None:
         occupancies = occupancies.filter(venue_key=venue_key)

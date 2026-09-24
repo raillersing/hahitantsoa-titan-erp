@@ -25,6 +25,7 @@ from apps.hahitantsoa.models import (
     HahitantsoaEventDraftAmendmentRequest,
     HahitantsoaEventDraftAmendmentRequestLine,
     HahitantsoaEventDraftLine,
+    HahitantsoaEventDraftStatus,
     HahitantsoaVenueOccupancyLock,
     normalize_hahitantsoa_venue_key,
 )
@@ -882,6 +883,11 @@ def assert_hahitantsoa_event_draft_mutable(*, event_draft: HahitantsoaEventDraft
             "Confirmed Hahitantsoa event drafts are immutable until amendment workflow exists.",
             code="confirmed_draft_is_immutable",
         )
+    if event_draft.status == HahitantsoaEventDraftStatus.CANCELLED:
+        raise ReservationLifecycleStateError(
+            "Un événement annulé ne peut plus être modifié.",
+            code="cancelled_draft_is_immutable",
+        )
 
 
 def get_hahitantsoa_event_draft_amendment_preflight(
@@ -1289,6 +1295,37 @@ def confirm_hahitantsoa_event_draft(
             event_draft=locked_event_draft,
             actor=actor,
         )
+
+        competing_drafts = HahitantsoaEventDraft.objects.filter(
+            venue_key=locked_event_draft.venue_key,
+            status=HahitantsoaEventDraftStatus.DRAFT,
+            is_deleted=False,
+            start_at__lt=locked_event_draft.end_at,
+            end_at__gt=locked_event_draft.start_at,
+        ).exclude(pk=locked_event_draft.pk)
+
+        for competing in competing_drafts:
+            competing.status = HahitantsoaEventDraftStatus.ARCHIVED
+            competing.updated_by = actor
+            archive_note = (
+                f"Dossier archivé automatiquement suite à la confirmation du dossier "
+                f"{locked_event_draft.public_reference} sur le même lieu et créneau."
+            )
+            competing.notes = (
+                f"{competing.notes}\n{archive_note}".strip() if competing.notes else archive_note
+            )
+            competing.save(update_fields=["status", "notes", "updated_by", "updated_at"])
+            record_audit_event_on_commit(
+                actor=actor,
+                action="hahitantsoa.event_draft.auto_archived",
+                target_type="hahitantsoa_event_draft",
+                target_id=str(competing.id),
+                metadata={
+                    "confirmed_event_draft_id": str(locked_event_draft.id),
+                    "venue_key": locked_event_draft.venue_key,
+                },
+            )
+
         from apps.documents.services import (
             create_document_instance_from_hahitantsoa_event_draft,
             generate_document_instance_pdf,
@@ -1352,3 +1389,151 @@ def confirm_hahitantsoa_event_draft(
             event_draft=confirmed_event_draft,
             blocked_item_count=len(blocked_periods),
         )
+
+
+def cancel_hahitantsoa_event(
+    *,
+    event_draft: HahitantsoaEventDraft,
+    actor: object | None,
+    reason: str,
+) -> HahitantsoaEventDraft:
+    """Cancel a confirmed Hahitantsoa event draft under force majeure.
+
+    Per Hahitantsoa contract terms:
+    - Only allowed for confirmed events.
+    - Requires sensitive reservation authorization.
+    - Requires a detailed cancellation reason (at least 15 characters).
+    - Strictly NO refund of any received deposit or payments (funds remain acquired).
+    - Releases inventory reservation blocks so materials are available again.
+    - Releases venue occupancy lock.
+    - Emits hahitantsoa.event_cancelled audit event.
+    """
+    capture_reservation_sensitive_actor_attribution(actor=actor)
+
+    cleaned_reason = (reason or "").strip()
+    if len(cleaned_reason) < 15:
+        raise ReservationLifecycleStateError(
+            (
+                "Un motif d'annulation détaillé (au moins 15 caractères) "
+                "est obligatoire en cas de force majeure."
+            ),
+            code="cancellation_reason_insufficient",
+        )
+
+    with transaction.atomic():
+        locked_draft = _get_locked_hahitantsoa_event_draft(event_draft=event_draft)
+
+        if locked_draft.is_deleted:
+            raise ReservationLifecycleStateError(
+                "Hahitantsoa event draft must not be soft-deleted.",
+                code="soft_deleted_draft",
+            )
+
+        if locked_draft.status != HahitantsoaEventDraftStatus.CONFIRMED:
+            raise ReservationLifecycleStateError(
+                "Seul un événement confirmé peut être annulé.",
+                code="draft_not_confirmed",
+            )
+
+        now = timezone.now()
+        locked_draft.status = HahitantsoaEventDraftStatus.CANCELLED
+        locked_draft.cancellation_reason = cleaned_reason
+        locked_draft.cancelled_at = now
+        locked_draft.cancelled_by = actor
+        locked_draft.updated_by = actor
+        locked_draft.save(
+            update_fields=[
+                "status",
+                "cancellation_reason",
+                "cancelled_at",
+                "cancelled_by",
+                "updated_by",
+                "updated_at",
+            ]
+        )
+
+        inventory_blocks = InventoryAvailability.objects.filter(
+            hahitantsoa_event_draft=locked_draft,
+            is_deleted=False,
+        )
+        released_count = inventory_blocks.count()
+        inventory_blocks.update(
+            is_deleted=True,
+            deleted_at=now,
+            updated_by=actor,
+            updated_at=now,
+        )
+
+        record_audit_event_on_commit(
+            actor=actor,
+            action="hahitantsoa.event_cancelled",
+            target_type="hahitantsoa_event_draft",
+            target_id=str(locked_draft.id),
+            metadata={
+                "public_reference": locked_draft.public_reference,
+                "cancellation_reason": cleaned_reason,
+                "released_inventory_blocks": released_count,
+                "no_refund_policy_applied": True,
+            },
+        )
+
+        return locked_draft
+
+
+def resume_hahitantsoa_event_draft(
+    *,
+    event_draft: HahitantsoaEventDraft,
+    actor: object | None,
+) -> HahitantsoaEventDraft:
+    """Resume an archived Hahitantsoa event draft back to draft status,
+
+    provided there is no confirmed overlap on its venue and date.
+    """
+    capture_reservation_sensitive_actor_attribution(actor=actor)
+
+    with transaction.atomic():
+        locked_draft = _get_locked_hahitantsoa_event_draft(event_draft=event_draft)
+
+        if locked_draft.is_deleted:
+            raise ReservationLifecycleStateError(
+                "Hahitantsoa event draft must not be soft-deleted.",
+                code="soft_deleted_draft",
+            )
+
+        if locked_draft.status != HahitantsoaEventDraftStatus.ARCHIVED:
+            raise ReservationLifecycleStateError(
+                "Seul un dossier archivé peut être réactivé.",
+                code="draft_not_archived",
+            )
+
+        if _venue_has_confirmed_overlap(
+            venue_key=locked_draft.venue_key,
+            start_at=locked_draft.start_at,
+            end_at=locked_draft.end_at,
+            exclude_id=locked_draft.pk,
+        ):
+            raise ReservationLifecycleStateError(
+                (
+                    "Impossible de réactiver ce dossier : le lieu est réservé "
+                    "par un autre événement confirmé sur ce créneau."
+                ),
+                code="venue_has_confirmed_overlap",
+            )
+
+        locked_draft.status = HahitantsoaEventDraftStatus.DRAFT
+        locked_draft.updated_by = actor
+        resume_note = "Dossier réactivé depuis l'état archivé."
+        locked_draft.notes = (
+            f"{locked_draft.notes}\n{resume_note}".strip() if locked_draft.notes else resume_note
+        )
+        locked_draft.save(update_fields=["status", "notes", "updated_by", "updated_at"])
+
+        record_audit_event_on_commit(
+            actor=actor,
+            action="hahitantsoa.event_draft.resumed",
+            target_type="hahitantsoa_event_draft",
+            target_id=str(locked_draft.id),
+            metadata={"public_reference": locked_draft.public_reference},
+        )
+
+        return locked_draft
