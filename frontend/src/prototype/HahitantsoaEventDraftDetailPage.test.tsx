@@ -44,6 +44,8 @@ const mockGetDamageLossSettlements = vi.fn();
 const mockGetDamageLossSettlementExecutions = vi.fn();
 const mockCreateDamageLossSettlement = vi.fn();
 const mockValidateDamageLossSettlement = vi.fn();
+const mockCancelDraft = vi.fn();
+const mockResumeDraft = vi.fn();
 
 vi.mock("../api", () => ({
   getHahitantsoaEventDraft: (...args: unknown[]) => mockGetDraft(...args),
@@ -80,6 +82,8 @@ vi.mock("../api", () => ({
   getDamageLossSettlementExecutions: (...args: unknown[]) => mockGetDamageLossSettlementExecutions(...args) ?? Promise.resolve([]),
   createDamageLossSettlement: (...args: unknown[]) => mockCreateDamageLossSettlement(...args) ?? Promise.resolve({}),
   validateDamageLossSettlement: (...args: unknown[]) => mockValidateDamageLossSettlement(...args) ?? Promise.resolve({}),
+  cancelHahitantsoaEventDraft: (...args: unknown[]) => mockCancelDraft(...args) ?? Promise.resolve({}),
+  resumeHahitantsoaEventDraft: (...args: unknown[]) => mockResumeDraft(...args) ?? Promise.resolve({}),
 }));
 
 vi.mock("../PaymentWhatsAppReminderButton", () => ({ default: () => null }));
@@ -258,6 +262,8 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     mockValidateDamageLossSettlement.mockResolvedValue({ id: "settle-new-1", settlement_status: "validated", lines: [] });
     mockMarkDepositReceived.mockResolvedValue({});
     mockConfirmDraft.mockResolvedValue({});
+    mockCancelDraft.mockResolvedValue({});
+    mockResumeDraft.mockResolvedValue({});
     mockGetCloseoutSummary.mockImplementation(() => Promise.resolve(closeoutSummary()));
     mockCloseDraft.mockImplementation(() => {
       const closed = closeoutSummary({
@@ -1445,14 +1451,91 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     // Submit
     fireEvent.click(screen.getByRole("button", { name: /valider et créer l'avenant/i }));
 
-    await waitFor(() => {
-      expect(mockCreateAmendment).toHaveBeenCalledWith(
-        DRAFT.id,
-        expect.objectContaining({
-          reason: "Suppression des services",
-          changed_service_notes: "",
-        }),
-      );
+      await waitFor(() => {
+        expect(mockCreateAmendment).toHaveBeenCalledWith(
+          DRAFT.id,
+          expect.objectContaining({
+            reason: "Suppression des services",
+            changed_service_notes: "",
+          }),
+        );
+      });
+    });
+
+    it("opens cancellation modal for confirmed draft, enforces min 15 chars, and cancels with no refund clause", async () => {
+      currentDraft = { ...DRAFT, status: "confirmed" };
+      render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+      const cancelBtn = await screen.findByRole("button", { name: /Annuler l'événement/i });
+      expect(cancelBtn).toBeInTheDocument();
+
+      fireEvent.click(cancelBtn);
+
+      // Modal is opened
+      expect(screen.getByTestId("cancellation-modal")).toBeInTheDocument();
+      expect(screen.getByText(/Conditions Contractuelles Hahitantsoa/i)).toBeInTheDocument();
+      expect(screen.getByText(/Aucun remboursement des acomptes ou versements déjà effectués/i)).toBeInTheDocument();
+
+      // Confirm button is initially disabled (reason empty)
+      const confirmCancelBtn = screen.getByRole("button", { name: /Confirmer l'annulation/i });
+      expect(confirmCancelBtn).toBeDisabled();
+
+      // Type short reason (<15 chars)
+      const textarea = screen.getByPlaceholderText(/Décrivez précisément les circonstances de force majeure/i);
+      fireEvent.change(textarea, { target: { value: "Trop court" } });
+      expect(confirmCancelBtn).toBeDisabled();
+
+      // Type valid force majeure reason (>= 15 chars)
+      fireEvent.change(textarea, {
+        target: { value: "Inondation majeure rendant la salle totalement inaccessible suite à un cyclone" },
+      });
+      expect(confirmCancelBtn).not.toBeDisabled();
+
+      // Submit cancellation
+      fireEvent.click(confirmCancelBtn);
+
+      await waitFor(() => {
+        expect(mockCancelDraft).toHaveBeenCalledWith(
+          DRAFT.id,
+          "Inondation majeure rendant la salle totalement inaccessible suite à un cyclone",
+        );
+      });
+    });
+
+    it("renders cancellation banner with force majeure details and no-refund clause when draft is cancelled", async () => {
+      currentDraft = {
+        ...DRAFT,
+        status: "cancelled",
+        cancellation_reason: "Arrêté préfectoral d'interdiction de rassemblement",
+        cancelled_at: "2026-09-24T12:00:00Z",
+        cancelled_by: "dir_commercial",
+      };
+      render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+      expect(await screen.findByTestId("cancelled-event-banner")).toBeInTheDocument();
+      expect(screen.getByText(/Événement annulé \(Cas de force majeure\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/Arrêté préfectoral d'interdiction de rassemblement/i)).toBeInTheDocument();
+      expect(screen.getByText(/ne font l'objet d'aucun remboursement/i)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Annuler l'événement/i })).not.toBeInTheDocument();
+    });
+
+    it("renders archived banner and allows resuming an archived draft", async () => {
+      currentDraft = {
+        ...DRAFT,
+        status: "archived",
+      };
+      render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+      expect(await screen.findByTestId("archived-event-banner")).toBeInTheDocument();
+      expect(screen.getByText(/Dossier archivé/i)).toBeInTheDocument();
+
+      const resumeBtn = screen.getByRole("button", { name: /Réactiver le dossier/i });
+      expect(resumeBtn).toBeInTheDocument();
+
+      fireEvent.click(resumeBtn);
+
+      await waitFor(() => {
+        expect(mockResumeDraft).toHaveBeenCalledWith(DRAFT.id);
+      });
     });
   });
-});

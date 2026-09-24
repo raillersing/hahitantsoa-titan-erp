@@ -451,7 +451,10 @@ export type HahitantsoaEventDraftLine = {
 export type HahitantsoaEventDraft = {
   id: string;
   public_reference: string;
-  status: "draft" | "confirmed";
+  status: "draft" | "confirmed" | "cancelled" | "archived";
+  cancellation_reason?: string;
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
   customer_id: string;
   customer_display_name: string;
   event_name: string;

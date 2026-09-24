@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  cancelHahitantsoaEventDraft,
   confirmHahitantsoaEventDraft,
   closeHahitantsoaEventDraft,
   createHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstancePdf,
+  resumeHahitantsoaEventDraft,
   getHahitantsoaEventDraft,
   getHahitantsoaEventDrafts,
   updateHahitantsoaEventDraft,
@@ -310,6 +312,11 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [paymentKindSelection, setPaymentKindSelection] = useState<"deposit" | "installment_1" | "installment_2" | "caution">("deposit");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+
+  // Cancellation modal states (Force Majeure)
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   // Amendment Studio states (5-step interactive wizard following exact app parcours)
   const [showAmendmentModal, setShowAmendmentModal] = useState(false);
@@ -642,6 +649,46 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       await load();
     } catch (err) {
       setError(errorMessage(err, "Impossible de confirmer le dossier Hahitantsoa."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleCancelEvent = async () => {
+    if (!param) return;
+    const trimmed = cancellationReason.trim();
+    if (trimmed.length < 15) {
+      setCancelError("Le motif d'annulation de force majeure doit comporter au moins 15 caractères.");
+      return;
+    }
+    setBusy("cancel");
+    setCancelError(null);
+    setError(null);
+    setActionNotice(null);
+    try {
+      await cancelHahitantsoaEventDraft(param, trimmed);
+      setActionNotice("L'événement a été annulé conformément aux conditions contractuelles de force majeure.");
+      setShowCancelModal(false);
+      setCancellationReason("");
+      await load();
+    } catch (err) {
+      setCancelError(errorMessage(err, "Impossible d'annuler l'événement."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleResumeDraft = async () => {
+    if (!param) return;
+    setBusy("resume");
+    setError(null);
+    setActionNotice(null);
+    try {
+      await resumeHahitantsoaEventDraft(param);
+      setActionNotice("Le dossier a été réactivé avec succès.");
+      await load();
+    } catch (err) {
+      setError(errorMessage(err, "Impossible de réactiver le dossier."));
     } finally {
       setBusy(null);
     }
@@ -1622,6 +1669,27 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             </button>
           )}
 
+          {draft.status === "confirmed" && (
+            <button
+              type="button"
+              onClick={() => setShowCancelModal(true)}
+              className="flex items-center gap-2 rounded-xl border border-rose-300 bg-rose-50 px-3.5 py-2 font-semibold text-rose-700 shadow-sm hover:bg-rose-100 text-sm transition-all"
+            >
+              <i className="fa-solid fa-ban"></i> Annuler l'événement
+            </button>
+          )}
+
+          {draft.status === "archived" && (
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => void handleResumeDraft()}
+              className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 font-bold text-white shadow-sm hover:bg-amber-700 disabled:opacity-50 text-sm transition-all"
+            >
+              <i className="fa-solid fa-rotate-left"></i> Réactiver le dossier
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => void openAmendmentModal()}
@@ -1642,8 +1710,64 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         </div>
       </div>
 
+      {/* ── Cancelled Event Banner ── */}
+      {draft.status === "cancelled" && (
+        <div
+          data-testid="cancelled-event-banner"
+          className="rounded-3xl border-2 border-rose-300 dark:border-rose-700 bg-rose-50/90 dark:bg-rose-950/40 p-6 shadow-md space-y-3"
+        >
+          <div className="flex items-start gap-4">
+            <div className="rounded-2xl bg-rose-100 dark:bg-rose-900/60 p-3 text-rose-700 dark:text-rose-300 text-2xl shrink-0">
+              <i className="fa-solid fa-circle-xmark"></i>
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-rose-600 text-white">
+                  Événement annulé (Cas de force majeure)
+                </span>
+                {draft.cancelled_at && (
+                  <span className="text-xs text-rose-700 dark:text-rose-400">
+                    le {new Date(draft.cancelled_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm font-semibold text-rose-950 dark:text-rose-100">
+                Motif officiel : <span className="font-normal italic">« {draft.cancellation_reason || "Non spécifié"} »</span>
+              </p>
+              <p className="text-xs text-rose-800/80 dark:text-rose-300/80">
+                Clause contractuelle appliquée : Conformément aux conditions générales du contrat commercial Hahitantsoa, les acomptes et versements déjà perçus restent acquis à l'établissement à titre d'indemnité forfaitaire et ne font l'objet d'aucun remboursement.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Archived Event Banner ── */}
+      {draft.status === "archived" && (
+        <div
+          data-testid="archived-event-banner"
+          className="rounded-3xl border-2 border-slate-300 dark:border-slate-700 bg-slate-50/90 dark:bg-slate-900/40 p-6 shadow-md space-y-3"
+        >
+          <div className="flex items-start gap-4">
+            <div className="rounded-2xl bg-slate-200 dark:bg-slate-800 p-3 text-slate-700 dark:text-slate-300 text-2xl shrink-0">
+              <i className="fa-solid fa-box-archive"></i>
+            </div>
+            <div className="space-y-1 flex-1">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-slate-600 text-white">
+                  Dossier archivé
+                </span>
+              </div>
+              <p className="text-sm text-slate-700 dark:text-slate-300">
+                Ce dossier a été archivé automatiquement suite à la confirmation d'un autre événement sur le même créneau et lieu. Il reste conservé et peut être réactivé une fois déplacé sur une date libre.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Unconfirmed Reservation Highlight & Confirmation Studio Banner ── */}
-      {draft.status !== "confirmed" && !conflictedWithEvent && (
+      {draft.status === "draft" && !conflictedWithEvent && (
         <div
           data-testid="unconfirmed-highlight-banner"
           className="rounded-3xl border-2 border-amber-300 dark:border-amber-700 bg-gradient-to-r from-amber-50 via-orange-50/70 to-amber-50 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-amber-950/40 p-6 shadow-md space-y-4 animate-in fade-in duration-200"
@@ -5149,6 +5273,116 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             setActionNotice("Document modifié et PDF synchronisé avec succès.");
           }}
         />
+      )}
+
+      {/* ── Cancellation Modal (Force Majeure) ───────────────────────── */}
+      {showCancelModal && (
+        <div
+          data-testid="cancellation-modal"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-in fade-in"
+        >
+          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 text-xl">
+                  <i className="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                    Annulation de l'événement
+                  </h3>
+                  <p className="text-xs font-medium text-rose-600 dark:text-rose-400">
+                    Cas de force majeure exclusivement
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelError(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+              >
+                <i className="fa-solid fa-xmark text-lg"></i>
+              </button>
+            </div>
+
+            {/* Contractual Warning */}
+            <div className="rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/80 dark:bg-rose-950/30 p-4 text-xs text-rose-900 dark:text-rose-200 space-y-2">
+              <div className="flex items-center gap-2 font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wide">
+                <i className="fa-solid fa-scale-balanced"></i>
+                Conditions Contractuelles Hahitantsoa
+              </div>
+              <p className="leading-relaxed">
+                Conformément aux conditions générales du contrat Hahitantsoa, une réservation confirmée ne peut être annulée qu'en cas de <strong>force majeure dument justifié</strong> (catastrophe naturelle, deuil direct, arrêté administratif).
+              </p>
+              <p className="leading-relaxed font-semibold text-rose-800 dark:text-rose-300">
+                ⚠️ Aucun remboursement des acomptes ou versements déjà effectués ne sera consenti. Les sommes versées restent acquises à titre d'indemnité contractuelle forfaitaire.
+              </p>
+            </div>
+
+            {cancelError && (
+              <div className="rounded-xl border border-rose-200 bg-rose-100 p-3 text-xs font-semibold text-rose-800">
+                {cancelError}
+              </div>
+            )}
+
+            {/* Mandatory detailed reason */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                Motif détaillé de force majeure *
+              </label>
+              <textarea
+                value={cancellationReason}
+                onChange={(e) => {
+                  setCancellationReason(e.target.value);
+                  if (cancelError) setCancelError(null);
+                }}
+                rows={4}
+                placeholder="Décrivez précisément les circonstances de force majeure (ex : inondation majeure, arrêté préfectoral interdisant les rassemblements)..."
+                className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+              />
+              <div className="flex justify-between items-center text-xs text-slate-500">
+                <span>Au moins 15 caractères requis</span>
+                <span className={cancellationReason.trim().length >= 15 ? "text-emerald-600 font-bold" : "text-amber-600"}>
+                  {cancellationReason.trim().length} / 15 min.
+                </span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelError(null);
+                }}
+                disabled={busy !== null}
+                className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                Retour
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCancelEvent()}
+                disabled={cancellationReason.trim().length < 15 || busy !== null}
+                className="flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {busy === "cancel" ? (
+                  <>
+                    <i className="fa-solid fa-spinner fa-spin"></i> Annulation...
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-ban"></i> Confirmer l'annulation
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
