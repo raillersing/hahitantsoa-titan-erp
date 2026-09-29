@@ -70,6 +70,13 @@ const mockUpdateReservationDraftPublicReference = vi.fn();
 const mockCreateReservationDraftDocumentInstance = vi.fn();
 const mockGenerateReservationDraftDocumentInstance = vi.fn();
 const mockGenerateReservationDraftDocumentInstancePdf = vi.fn();
+const mockGetReturnOperations = vi.fn();
+const mockCreateReturnOperation = vi.fn();
+const mockValidateReturnOperation = vi.fn();
+const mockGetDamageLossSettlements = vi.fn();
+const mockGetDamageLossSettlementExecutions = vi.fn();
+const mockCreateDamageLossSettlement = vi.fn();
+const mockValidateDamageLossSettlement = vi.fn();
 
 vi.mock('../api', () => ({
   getReservationDraft: (...args: any[]) => mockGetReservationDraft(...args),
@@ -86,6 +93,13 @@ vi.mock('../api', () => ({
   createReservationDraftDocumentInstance: (...args: any[]) => mockCreateReservationDraftDocumentInstance(...args),
   generateReservationDraftDocumentInstance: (...args: any[]) => mockGenerateReservationDraftDocumentInstance(...args),
   generateReservationDraftDocumentInstancePdf: (...args: any[]) => mockGenerateReservationDraftDocumentInstancePdf(...args),
+  getReturnOperations: (...args: any[]) => mockGetReturnOperations(...args),
+  createReturnOperation: (...args: any[]) => mockCreateReturnOperation(...args),
+  validateReturnOperation: (...args: any[]) => mockValidateReturnOperation(...args),
+  getDamageLossSettlements: (...args: any[]) => mockGetDamageLossSettlements(...args),
+  getDamageLossSettlementExecutions: (...args: any[]) => mockGetDamageLossSettlementExecutions(...args),
+  createDamageLossSettlement: (...args: any[]) => mockCreateDamageLossSettlement(...args),
+  validateDamageLossSettlement: (...args: any[]) => mockValidateDamageLossSettlement(...args),
 }));
 
 vi.mock('../DocumentArtifactPreviewPanel', () => ({
@@ -125,6 +139,13 @@ describe('ReservationDetailPage', () => {
     mockGetCustomer.mockResolvedValue(MOCK_CUSTOMER);
     mockGetReservationDraftDocumentInstances.mockResolvedValue([]);
     mockGetPayments.mockResolvedValue([]);
+    mockGetReturnOperations.mockResolvedValue([]);
+    mockGetDamageLossSettlements.mockResolvedValue([]);
+    mockGetDamageLossSettlementExecutions.mockResolvedValue([]);
+    mockGetInventoryItems.mockResolvedValue([
+      { id: 'ITEM-01', name: 'Chaise Napoleon', kind: 'article', rental_price: '5000.00', breakage_price: '30000.00' },
+      { id: 'ITEM-02', name: 'Table rectangulaire', kind: 'article', rental_price: '5000.00', breakage_price: '50000.00' },
+    ]);
     mockRecordConfirmedDeposit.mockResolvedValue({ payment: { id: 'payment-deposit-1' }, replayed: false });
     mockGetLifecycle.mockResolvedValue({
       domain: 'titan',
@@ -179,14 +200,17 @@ describe('ReservationDetailPage', () => {
   });
 
   it('2. Retour Titan: redirects quantity and condition entry to the persisted return workflow', async () => {
-    render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
+    const mockNav = vi.fn();
+    render(<ReservationDetailPage onNavigate={mockNav} param="LOC-2026-0089" />);
     await waitForDraftLoad();
 
     fireEvent.click(screen.getByRole('button', { name: /Retour \/ Restitution/i }));
 
-    expect(await screen.findAllByText('À saisir dans le retour réel')).toHaveLength(2);
-    expect(screen.getAllByText('État enregistré dans le retour réel')).toHaveLength(2);
-    expect(screen.queryAllByRole('spinbutton')).toHaveLength(0);
+    expect(screen.getByText("Retour & Restitution du Matériel Titan")).toBeInTheDocument();
+    const logisticsBtn = screen.getByRole('button', { name: /Ouvrir dans Retours logistiques/i });
+    expect(logisticsBtn).toBeInTheDocument();
+    fireEvent.click(logisticsBtn);
+    expect(mockNav).toHaveBeenCalledWith("logistics-returns", "titan:draft-loc-089");
   });
 
   it('3. Actions: contract-signed, deposit-received, confirm buttons appear in sequence', async () => {
@@ -850,5 +874,127 @@ describe('ReservationDetailPage', () => {
       expect(screen.getByText(/Réservation confirmée avec succès \(5 article\(s\) réservé\(s\)\)\./i)).toBeInTheDocument();
       expect(screen.queryByText(/en conflit/i)).not.toBeInTheDocument();
     });
+  });
+
+  it("Lot 5: synchronise automatiquement les anomalies de retour vers Casse & Pertes avec les tarifs catalogue breakage_price", async () => {
+    render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
+    await waitForDraftLoad();
+
+    // 1. Switch to Retour tab
+    const retourTab = screen.getByRole("button", { name: /Retour \/ Restitution/i });
+    fireEvent.click(retourTab);
+
+    expect(screen.getByText("Retour & Restitution du Matériel Titan")).toBeInTheDocument();
+
+    // Mark Chaise Napoleon as degraded
+    const statusSelects = screen.getAllByRole("combobox");
+    fireEvent.change(statusSelects[0], { target: { value: "degrade" } });
+
+    // 2. Switch to Casse tab
+    const casseTab = screen.getByRole("button", { name: /Casse & Pertes/i });
+    fireEvent.click(casseTab);
+
+    // Verify auto-fed table displays Chaise Napoleon with catalog breakage_price 30 000 Ar
+    expect(screen.getByText("Casse & Pertes de Matériel Titan (Grille Tarifaire)")).toBeInTheDocument();
+    expect(screen.getByText(/Alimentation automatique depuis le Retour/i)).toBeInTheDocument();
+    expect(screen.getByDisplayValue("30000")).toBeInTheDocument();
+
+    // 3. Switch to Caution tab
+    const cautionTab = screen.getByRole("button", { name: /Caution & Solde/i });
+    fireEvent.click(cautionTab);
+
+    expect(screen.getByText("Suivi de la Caution & Restitution")).toBeInTheDocument();
+    expect(screen.getByText("Caution Déposée (Dépôt)")).toBeInTheDocument();
+    expect(screen.getByText("Déduction Casses & Pertes")).toBeInTheDocument();
+    expect(screen.getByText("Solde Caution Restituable")).toBeInTheDocument();
+  });
+
+  it("Lot 5: affiche les données réelles de retour validé et de règlement de casse avec imputation caution", async () => {
+    const mockReturn = {
+      id: "ret-tit-001",
+      reservation_draft: "draft-loc-089",
+      notes: "Retour matériel",
+      status: "validated" as const,
+      validated_at: "2026-06-17T10:00:00Z",
+      lines: [
+        {
+          id: "ret-l1",
+          inventory_item: "ITEM-01",
+          expected_quantity: 100,
+          returned_quantity: 98,
+          damaged_quantity: 2,
+          missing_quantity: 0,
+          condition_status: "damaged" as const,
+          notes: "2 chaises cassées",
+        },
+      ],
+    };
+
+    const mockSettlement = {
+      id: "settle-tit-001",
+      return_operation: "ret-tit-001",
+      settlement_status: "validated" as const,
+      damage_loss_total: 60000,
+      caution_available: 290000,
+      caution_applied: 60000,
+      refund_due: 230000,
+      excess_due: 0,
+      notes: "Casse 2 chaises",
+      validated_at: "2026-06-17T11:00:00Z",
+      lines: [
+        {
+          id: "sl1",
+          return_operation_line: "ret-l1",
+          manual_label: "Chaise Napoleon dégradée",
+          settlement_line_kind: "damage" as const,
+          quantity: 2,
+          unit_amount: 30000,
+          amount_source: "inventory_default" as const,
+          total_amount: 60000,
+          notes: "Dossier cassé",
+        },
+      ],
+    };
+
+    const mockExecution = {
+      id: "exec-tit-001",
+      settlement: "settle-tit-001",
+      status: "executed" as const,
+      executed_at: "2026-06-17T12:00:00Z",
+      damage_loss_total_snapshot: 60000,
+      caution_available_snapshot: 290000,
+      caution_applied_snapshot: 60000,
+      refund_due_snapshot: 230000,
+      excess_due_snapshot: 0,
+      refund_obligation: {
+        id: "ro-tit-001",
+        amount: 230000,
+        status: "settled",
+        receipt_document_id: "doc-refund-receipt-titan-1",
+      },
+    };
+
+    mockGetReturnOperations.mockResolvedValue([mockReturn]);
+    mockGetDamageLossSettlements.mockResolvedValue([mockSettlement]);
+    mockGetDamageLossSettlementExecutions.mockResolvedValue([mockExecution]);
+
+    render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
+    await waitForDraftLoad();
+
+    // 1. Retour tab
+    fireEvent.click(screen.getByRole("button", { name: /Retour \/ Restitution/i }));
+    expect(await screen.findByText(/Opération de retour réceptionnée et validée/i)).toBeInTheDocument();
+    expect(screen.getByText("Dégradé / Cassé")).toBeInTheDocument();
+
+    // 2. Casse tab
+    fireEvent.click(screen.getByRole("button", { name: /Casse & Pertes/i }));
+    expect(await screen.findByText(/Règlement de casse validé/i)).toBeInTheDocument();
+    expect(screen.getByText("Chaise Napoleon dégradée")).toBeInTheDocument();
+
+    // 3. Caution tab
+    fireEvent.click(screen.getByRole("button", { name: /Caution & Solde/i }));
+    expect(await screen.findByText(/Suivi de la Caution & Restitution/i)).toBeInTheDocument();
+    expect(screen.getByText(/230\s*000\s*Ar/)).toBeInTheDocument();
+    expect(screen.getByTestId("preview-refund-receipt-btn")).toBeInTheDocument();
   });
 });

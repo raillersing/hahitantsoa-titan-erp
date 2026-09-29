@@ -464,6 +464,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         allReturns,
         allSettlements,
         allExecutions,
+        allItems,
       ] = await Promise.all([
         getHahitantsoaEventDraftConfirmationPreflight(param).catch(() => null),
         getHahitantsoaEventDraftDocumentInstances(param).catch(() => []),
@@ -472,11 +473,13 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         getReturnOperations().catch(() => [] as InventoryReturnOperation[]),
         getDamageLossSettlements().catch(() => [] as InventoryDamageLossSettlement[]),
         getDamageLossSettlementExecutions().catch(() => [] as InventoryDamageLossSettlementExecution[]),
+        getInventoryItems().catch(() => [] as InventoryItem[]),
       ]);
 
       setPreflight(nextPreflight);
       setDocuments(nextDocuments);
       setPayments(nextPayments);
+      setCatalogItems(allItems);
 
       const draftReturns = allReturns.filter((r) => r.hahitantsoa_event_draft === param);
       setReturnOperations(draftReturns);
@@ -1368,6 +1371,89 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     );
   }, [payments]);
 
+  const getItemBreakagePrice = useCallback(
+    (inventoryItemId: string | undefined): number => {
+      if (!inventoryItemId) return 25000;
+      const item = catalogItems.find((it) => it.id === inventoryItemId);
+      if (item?.breakage_price && Number(item.breakage_price) > 0) {
+        return Number(item.breakage_price);
+      }
+      if (item?.rental_price && Number(item.rental_price) > 0) {
+        return Number(item.rental_price);
+      }
+      return 25000;
+    },
+    [catalogItems],
+  );
+
+  useEffect(() => {
+    if (!draft?.lines) return;
+    setBreakageDeductions((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      if (currentReturnOp && currentReturnOp.lines && currentReturnOp.lines.length > 0) {
+        currentReturnOp.lines.forEach((ol) => {
+          const dl = draft.lines.find((l) => l.inventory_item_id === ol.inventory_item);
+          if (!dl) return;
+          const isAnomaly =
+            ol.condition_status !== "intact" ||
+            (ol.damaged_quantity || 0) > 0 ||
+            (ol.missing_quantity || 0) > 0;
+          const anomalyQty = (ol.damaged_quantity || 0) + (ol.missing_quantity || 0);
+          const qty = isAnomaly ? (anomalyQty > 0 ? anomalyQty : 1) : 0;
+          const unitCost = getItemBreakagePrice(dl.inventory_item_id);
+          const current = next[dl.id];
+          if (!current || current.qty !== qty || current.unitCost !== unitCost) {
+            next[dl.id] = {
+              qty,
+              unitCost,
+              notes: ol.notes || (ol.condition_status === "missing" ? "Manquant / Perdu au retour" : "Dégradé / Cassé au retour"),
+            };
+            changed = true;
+          }
+        });
+      } else {
+        draft.lines.forEach((line) => {
+          const retState = returnCheckedItems[line.id];
+          const unitCost = getItemBreakagePrice(line.inventory_item_id);
+          const current = next[line.id];
+
+          if (retState) {
+            const isAnomaly =
+              retState.status === "degrade" ||
+              retState.status === "manquant" ||
+              retState.returned < line.quantity;
+            const diff = Math.max(0, line.quantity - retState.returned);
+            const qty = isAnomaly
+              ? diff > 0
+                ? diff
+                : 1
+              : 0;
+
+            if (!current || current.qty !== qty || current.unitCost !== unitCost) {
+              next[line.id] = {
+                qty,
+                unitCost,
+                notes: retState.status === "manquant" ? "Manquant au retour" : "Dégradé au retour",
+              };
+              changed = true;
+            }
+          } else if (!current) {
+            next[line.id] = {
+              qty: 0,
+              unitCost,
+              notes: "",
+            };
+            changed = true;
+          }
+        });
+      }
+
+      return changed ? next : prev;
+    });
+  }, [draft?.lines, currentReturnOp, returnCheckedItems, getItemBreakagePrice]);
+
   const totalDamageCost = useMemo(() => {
     if (currentSettlement) {
       return Number(currentSettlement.damage_loss_total || 0);
@@ -1448,12 +1534,13 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       );
       const linesToSettle = damagedLines.map((l) => {
         const itemLabel = draft?.lines.find((dl) => dl.inventory_item_id === l.inventory_item)?.inventory_item_name || "";
+        const unitAmount = String(getItemBreakagePrice(l.inventory_item));
         return {
           return_operation_line: l.id,
           settlement_line_kind: (l.condition_status === "missing" || (l.missing_quantity || 0) > 0 ? "loss" : "damage") as "loss" | "damage",
           quantity: (l.missing_quantity || 0) + (l.damaged_quantity || 0) || 1,
-          unit_amount: "25000",
-          amount_source: "manual" as const,
+          unit_amount: unitAmount,
+          amount_source: "inventory_default" as const,
           notes: itemLabel ? `Constat sur retour ${itemLabel}` : `Constat sur ligne ${l.id}`,
         };
       });
@@ -3565,9 +3652,10 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {refundReceiptDocId && (
+                  {refundReceiptDocId ? (
                     <button
                       type="button"
+                      data-testid="preview-refund-receipt-btn"
                       onClick={() => setPreviewModal({
                         title: "Reçu de Remboursement de Caution",
                         documentInstanceId: refundReceiptDocId,
@@ -3578,7 +3666,17 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     >
                       <i className="fa-solid fa-eye text-indigo-600"></i> Aperçu Reçu de Remboursement
                     </button>
-                  )}
+                  ) : refundableCautionBalance > 0 ? (
+                    <button
+                      type="button"
+                      data-testid="generate-refund-receipt-btn"
+                      disabled={busy !== null}
+                      onClick={() => void generateDocument("shared.payment_refund_receipt.v1", "Reçu de remboursement")}
+                      className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 font-bold text-white hover:bg-emerald-700 disabled:opacity-50 text-xs shadow-sm transition-colors"
+                    >
+                      <i className="fa-solid fa-file-invoice-dollar"></i> Émettre Reçu de Remboursement
+                    </button>
+                  ) : null}
                   {currentExecution?.refund_obligation?.status === "pending" && (
                     <button
                       type="button"
@@ -3655,14 +3753,40 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   <span className="text-xs font-bold text-slate-500 block uppercase">Déduction Casses & Pertes</span>
                   <span className="text-lg font-black text-rose-600 mt-1 block">− {formatMoney(totalDamageCost)}</span>
                   <span className="text-[11px] text-slate-400 mt-1 block">
-                    {currentSettlement ? "Constat validé" : "Estimation selon constat"}
+                    {currentSettlement ? "Constat validé" : "Estimation selon retour"}
                   </span>
                 </div>
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
-                  <span className="text-xs font-bold text-emerald-800 block uppercase">Solde Caution Restituable</span>
-                  <span className="text-lg font-black text-emerald-700 mt-1 block">{formatMoney(refundableCautionBalance)}</span>
-                  <span className="text-[11px] text-emerald-600 mt-1 block">
-                    {currentExecution?.refund_obligation?.status === "settled"
+                <div className={`rounded-xl border p-4 ${
+                  totalDamageCost > (cautionDeposited > 0 ? cautionDeposited : standardCautionAmount)
+                    ? "border-rose-200 bg-rose-50/60"
+                    : "border-emerald-200 bg-emerald-50/60"
+                }`}>
+                  <span className={`text-xs font-bold block uppercase ${
+                    totalDamageCost > (cautionDeposited > 0 ? cautionDeposited : standardCautionAmount)
+                      ? "text-rose-800"
+                      : "text-emerald-800"
+                  }`}>
+                    {totalDamageCost > (cautionDeposited > 0 ? cautionDeposited : standardCautionAmount)
+                      ? "Excédent Dû par le Client"
+                      : "Solde Caution Restituable"}
+                  </span>
+                  <span className={`text-lg font-black mt-1 block ${
+                    totalDamageCost > (cautionDeposited > 0 ? cautionDeposited : standardCautionAmount)
+                      ? "text-rose-700"
+                      : "text-emerald-700"
+                  }`}>
+                    {totalDamageCost > (cautionDeposited > 0 ? cautionDeposited : standardCautionAmount)
+                      ? formatMoney(totalDamageCost - (cautionDeposited > 0 ? cautionDeposited : standardCautionAmount))
+                      : formatMoney(refundableCautionBalance)}
+                  </span>
+                  <span className={`text-[11px] mt-1 block ${
+                    totalDamageCost > (cautionDeposited > 0 ? cautionDeposited : standardCautionAmount)
+                      ? "text-rose-600"
+                      : "text-emerald-600"
+                  }`}>
+                    {totalDamageCost > (cautionDeposited > 0 ? cautionDeposited : standardCautionAmount)
+                      ? "Dégâts supérieurs à la caution déposée"
+                      : currentExecution?.refund_obligation?.status === "settled"
                       ? "Restitution soldée"
                       : currentExecution?.refund_obligation?.status === "pending"
                       ? "En attente de paiement"
