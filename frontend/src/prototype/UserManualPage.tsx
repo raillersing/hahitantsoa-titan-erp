@@ -22,7 +22,7 @@ export default function UserManualPage({ onNavigate }: UserManualPageProps) {
           </p>
           <ol className="mt-4 list-decimal space-y-2 pl-5 text-slate-700">
             <li><strong>Authentification</strong> : Connectez-vous avec votre identifiant et votre mot de passe attribué.</li>
-            <li><strong>Menu latéral</strong> : Naviguez facilement entre les espaces commerciaux (Réservations, Clients, Packs, Services), opérationnels (Planning, Préparation, Livraison, Retours, Casse & Caution) et financiers (Caisse, Facturation).</li>
+            <li><strong>Menu latéral</strong> : Naviguez facilement entre les espaces commerciaux (Réservations, Clients, Sets, Services), opérationnels (Planning, Préparation, Livraison, Retours, Casse & Caution) et financiers (Caisse, Facturation).</li>
             <li><strong>Rôles & Habilitations</strong> : Selon votre rôle (Super-Admin, Commercial, Caissier, Logisticien), certaines actions sensibles (confirmation, encaissement, clôture) sont automatiquement filtrées et protégées.</li>
             <li><strong>Indicateur d'état</strong> : Le badge en haut à droite indique l'état de la connexion en direct avec le serveur d'agence.</li>
           </ol>
@@ -73,6 +73,21 @@ export default function UserManualPage({ onNavigate }: UserManualPageProps) {
               <li><strong>Sécurité de Nuit</strong> : <strong>+120 000 Ar</strong> (Automatiquement ajoutée dès qu'une option nuit est cochée).</li>
               <li><strong>Caution de garantie</strong> : <strong>500 000 Ar</strong> (Obligatoire, restituée après état des lieux de retour).</li>
             </ul>
+
+            <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700">
+              <p className="font-bold text-slate-900 mb-1"><i className="fa-solid fa-clipboard-list text-indigo-600 mr-1"></i> Composition obligatoire de la Salle Nue (Inventaire contractuel) :</p>
+              <p>Toute réservation de salle nue Hahitantsoa comprend obligatoirement dans son inventaire contractuel les 7 éléments suivants :</p>
+              <ul className="list-disc pl-5 mt-1 space-y-0.5 text-slate-600">
+                <li>Salle</li>
+                <li>Espace vert</li>
+                <li>Estrade mariés</li>
+                <li>Estrade animation</li>
+                <li>Table mariés</li>
+                <li>Table DJ</li>
+                <li>10 Chaises pliables</li>
+              </ul>
+              <p className="mt-1.5 text-slate-500 italic">Ces articles doivent être impérativement tracés dans la passation d'entrée et de sortie.</p>
+            </div>
           </div>
           <ol className="mt-4 list-decimal space-y-2 pl-5 text-slate-700">
             <li>Ouvrez l'assistant de nouvelle réservation (<code>#reservation-new</code>) et sélectionnez <strong>Hahitantsoa</strong>.</li>

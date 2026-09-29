@@ -115,7 +115,7 @@ describe('PackageBuilderPage', () => {
     });
 
     // Open creation modal
-    fireEvent.click(screen.getByRole('button', { name: /Nouveau Pack/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Nouveau (Set|Pack)/i }));
     expect(screen.getByText('Créer un nouveau Pack Commercial')).toBeInTheDocument();
 
     // Verify local file dropzone and file input exist
@@ -130,7 +130,7 @@ describe('PackageBuilderPage', () => {
       expect(screen.queryByText('Chargement des packages…')).not.toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Nouveau Pack/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Nouveau (Set|Pack)/i }));
 
     // Mock FileReader
     vi.spyOn(FileReader.prototype, 'readAsDataURL').mockImplementation(function (this: FileReader) {
@@ -155,7 +155,7 @@ describe('PackageBuilderPage', () => {
       expect(screen.queryByText('Chargement des packages…')).not.toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Nouveau Pack/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Nouveau (Set|Pack)/i }));
 
     vi.spyOn(FileReader.prototype, 'readAsDataURL').mockImplementation(function (this: FileReader) {
       Object.defineProperty(this, 'result', { value: 'data:image/png;base64,mockPackImageData', configurable: true });
