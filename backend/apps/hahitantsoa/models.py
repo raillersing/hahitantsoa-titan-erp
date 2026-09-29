@@ -368,7 +368,7 @@ class HahitantsoaCommercialTerms(UUIDModel, TimestampedModel, AuditableModel):
     logistics_deposit_amount = models.DecimalField(max_digits=14, decimal_places=2, default=1500000)
     night_option_1_amount = models.DecimalField(max_digits=14, decimal_places=2, default=300000)
     night_option_2_amount = models.DecimalField(max_digits=14, decimal_places=2, default=500000)
-    night_security_amount = models.DecimalField(max_digits=14, decimal_places=2, default=120000)
+    night_security_amount = models.DecimalField(max_digits=14, decimal_places=2, default=150000)
     caution_amount = models.DecimalField(max_digits=14, decimal_places=2, default=500000)
 
     class Meta:
