@@ -50,4 +50,16 @@ describe("HahitantsoaCommercialTermsPage", () => {
     // Check Hub Navigation
     expect(screen.getByText("Catalogue Visuel des Prestations & Scénographies")).toBeInTheDocument();
   });
+
+  it("uses 150000 Ar default fallback for night_security_amount when unspecified", async () => {
+    vi.spyOn(api, "getHahitantsoaCommercialTerms").mockResolvedValue({
+      ...mockTerms,
+      night_security_amount: "",
+    });
+    render(<HahitantsoaCommercialTermsPage canEdit={true} />);
+    await waitFor(() => {
+      expect(screen.queryByText("Chargement des paramètres…")).not.toBeInTheDocument();
+    });
+    expect(screen.getByLabelText("Sécurité nocturne obligatoire")).toHaveValue(150000);
+  });
 });

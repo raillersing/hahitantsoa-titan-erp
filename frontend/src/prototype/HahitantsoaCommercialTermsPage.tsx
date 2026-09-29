@@ -35,7 +35,7 @@ function toForm(terms: HahitantsoaCommercialTerms): FormState {
     logistics_deposit_amount: terms.logistics_deposit_amount,
     night_option_1_amount: terms.night_option_1_amount || "300000",
     night_option_2_amount: terms.night_option_2_amount || "500000",
-    night_security_amount: terms.night_security_amount || "120000",
+    night_security_amount: terms.night_security_amount || "150000",
     caution_amount: terms.caution_amount || "500000",
   };
 }

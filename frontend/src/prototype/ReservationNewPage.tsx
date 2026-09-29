@@ -405,6 +405,20 @@ export function resolveHahitantsoaEventName(
   return details.eventType?.trim() || "Événement Hahitantsoa";
 }
 
+const formatHahitantsoaNotes = (details: HahitantsoaDetails) => {
+  const parts: string[] = [];
+  if (details.eventType === "Autre" && details.eventTypeOther?.trim()) {
+    parts.push(`[Type d'événement: ${details.eventTypeOther.trim()}]`);
+  }
+  if (details.remarks?.trim()) {
+    parts.push(details.remarks.trim());
+  }
+  if (details.guests?.trim()) {
+    parts.push(`(${details.guests.trim()} pax)`);
+  }
+  return parts.length > 0 ? parts.join(" ") : undefined;
+};
+
 interface PaymentData {
   method: string;
   amount: string;
@@ -1350,7 +1364,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           rental_type: hDetails.rentalType === "Location + logistique" ? "logistics" as const : "bare" as const,
           duration_option: hDetails.durationOption,
           guest_count: Number(hDetails.guests || 0),
-          notes: `${hDetails.remarks || ""} ${hDetails.guests ? `(${hDetails.guests} pax)` : ""}`.trim() || undefined,
+          notes: formatHahitantsoaNotes(hDetails),
           lines,
         };
         const draft = emission.draftId
@@ -1564,7 +1578,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           rental_type: hDetails.rentalType === "Location + logistique" ? "logistics" : "bare",
           duration_option: hDetails.durationOption,
           guest_count: Number(hDetails.guests || 0),
-          notes: `${hDetails.remarks || ""} ${hDetails.guests ? `(${hDetails.guests} pax)` : ""}`.trim() || undefined,
+          notes: formatHahitantsoaNotes(hDetails),
           lines,
         });
         emission = { ...emission, draftId: eventDraft.id };
@@ -1603,7 +1617,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           rental_type: hDetails.rentalType === "Location + logistique" ? "logistics" : "bare",
           duration_option: hDetails.durationOption,
           guest_count: Number(hDetails.guests || 0),
-          notes: `${hDetails.remarks || ""} ${hDetails.guests ? `(${hDetails.guests} pax)` : ""}`.trim() || undefined,
+          notes: formatHahitantsoaNotes(hDetails),
           lines,
         });
       } else {
