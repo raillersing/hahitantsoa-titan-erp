@@ -1559,4 +1559,35 @@ describe("HahitantsoaEventDraftDetailPage", () => {
       const printBtn = screen.getByTestId("preview-modal-print-button");
       expect(printBtn).toBeDisabled();
     });
+
+    it("Lot 5: synchronise automatiquement les anomalies du retour dans Casse & Pertes avec les prix catalogue breakage_price", async () => {
+      mockGetInventoryItems.mockResolvedValue([
+        { id: "item-1", name: "Chaise Napoléon Blanche", kind: "material", rental_price: "4500", breakage_price: "35000", section: "furniture" },
+      ]);
+      render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+      // Switch to Retour tab
+      const retourTab = await screen.findByRole("button", { name: /Retour \/ Restitution/i });
+      fireEvent.click(retourTab);
+
+      // Select 'degrade' on line item
+      const selectStatus = screen.getAllByRole("combobox")[0];
+      fireEvent.change(selectStatus, { target: { value: "degrade" } });
+
+      // Switch to Casse tab
+      const casseTab = screen.getByRole("button", { name: /Casse & Pertes/i });
+      fireEvent.click(casseTab);
+
+      // Verify that the table automatically displays catalog breakage price 35 000
+      expect(await screen.findByText(/Articles nécessitant un dédommagement/i)).toBeInTheDocument();
+      expect(screen.getByDisplayValue("35000")).toBeInTheDocument();
+
+      // Switch to Caution tab
+      const cautionTab = screen.getByRole("button", { name: /Caution & Solde/i });
+      fireEvent.click(cautionTab);
+
+      expect(await screen.findByText(/Suivi de la Caution & Restitution/i)).toBeInTheDocument();
+      expect(screen.getByText(/465\s*000\s*Ar/)).toBeInTheDocument(); // 500 000 - 35 000 = 465 000
+      expect(screen.getByTestId("generate-refund-receipt-btn")).toBeInTheDocument();
+    });
   });
