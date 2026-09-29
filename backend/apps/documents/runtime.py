@@ -325,6 +325,14 @@ def _build_hahitantsoa_contract_runtime_context(
     customer_phone_contacts, customer_email_contacts = _document_contact_displays(
         document_instance=document_instance
     )
+    custom_event_type = ""
+    if linked_event_draft.notes and "Type d'événement:" in linked_event_draft.notes:
+        import re
+
+        match = re.search(r"\[?Type d'événement:\s*([^\]\n]+)\]?", linked_event_draft.notes)
+        if match:
+            custom_event_type = match.group(1).strip()
+
     return {
         "template": {
             "label": document_instance.template_label,
@@ -336,10 +344,8 @@ def _build_hahitantsoa_contract_runtime_context(
             "party_type": document_instance.customer_party_type,
             "event_name": linked_event_draft.event_name,
             "event_type": (
-                linked_event_draft.event_name
-                if linked_event_draft.event_type == "other"
-                and linked_event_draft.event_name
-                and linked_event_draft.event_name != "Événement Hahitantsoa"
+                custom_event_type
+                if custom_event_type
                 else (
                     linked_event_draft.get_event_type_display()
                     if hasattr(linked_event_draft, "get_event_type_display")

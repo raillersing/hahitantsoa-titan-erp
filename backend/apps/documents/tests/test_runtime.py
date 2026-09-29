@@ -803,7 +803,7 @@ def test_hahitantsoa_contract_duration_rendering_strict_and_model() -> None:
         )
     )
     expected_night1 = (
-        "Durée : Utilisation de nuit Option 1 : Arrêt de fête 21 :00 / Sortie J-J à 22:30"
+        "Durée : Utilisation de nuit Option 1 (Arrêt de fête 21:00 / Sortie J-J à 22:30)"
     )
     assert expected_night1 in contract_night1_html
     assert "Fête de jour : Sortie J-J à 20 :00" not in contract_night1_html
@@ -818,7 +818,7 @@ def test_hahitantsoa_contract_duration_rendering_strict_and_model() -> None:
         )
     )
     expected_night2 = (
-        "Durée : Utilisation de nuit Option 2 : Arrêt de fête 00 :00 / Sortie J+1 à 03:30"
+        "Durée : Utilisation de nuit Option 2 (Arrêt de fête 00:00 / Sortie J+1 à 03:30)"
     )
     assert expected_night2 in contract_night2_html
     assert "Fête de jour : Sortie J-J à 20 :00" not in contract_night2_html
@@ -847,6 +847,7 @@ def test_hahitantsoa_contract_custom_event_type_preamble() -> None:
         customer=customer,
         event_name="Inauguration de l'Entreprise",
         event_type="other",
+        notes="[Type d'événement: Inauguration de l'Entreprise]",
         start_at=start_at,
         end_at=start_at + timedelta(hours=10),
         rental_type="bare",
