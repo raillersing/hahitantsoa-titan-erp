@@ -175,7 +175,8 @@ def build_payment_receipt_context(
         ]
     else:
         relevant_payments = [
-            p for p in all_payments_list
+            p
+            for p in all_payments_list
             if p.payment_kind not in {PaymentKind.CAUTION, PaymentKind.NIGHT_SECURITY}
         ]
 
