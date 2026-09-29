@@ -1346,6 +1346,14 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   }, [payments]);
   const cautionDeposited = cautionPayment ? Number(cautionPayment.amount) : 0;
 
+  const nightSecurityPayment = useMemo(() => {
+    return payments.find(
+      (p) => p.payment_kind === "night_security" && (p.payment_status === "confirmed" || p.payment_status === "reconciled"),
+    );
+  }, [payments]);
+  const nightSecurityPaidAmount = nightSecurityPayment ? Number(nightSecurityPayment.amount) : 0;
+  const nightSecurityRequiredAmount = draft?.duration_option === "night_2" ? 150000 : 0;
+
   const currentReturnOp = useMemo(() => {
     return returnOperations.find((r) => r.hahitantsoa_event_draft === draft?.id) || returnOperations[0] || null;
   }, [returnOperations, draft?.id]);
@@ -2300,6 +2308,59 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 </div>
               </div>
             </div>
+
+            {/* Frais de sécurité nocturne (Nuit 2) */}
+            {nightSecurityRequiredAmount > 0 && (
+              <div className="rounded-xl border border-purple-200 bg-purple-50/70 p-3.5 text-xs text-purple-900 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <i className="fa-solid fa-moon text-purple-600"></i>
+                    <span className="font-bold">Frais de sécurité nocturne (Option Nuit 2)</span>
+                    <span className="text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full font-bold">
+                      Obligatoire (Non remboursable)
+                    </span>
+                  </div>
+                  <span className="font-mono font-bold text-sm text-purple-950">
+                    {formatMoney(nightSecurityRequiredAmount)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <span className="text-[10px] text-purple-700 italic">
+                    Applicable pour prestation avec fin à 03h30. Exclu du montant HT/TTC du proforma.
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {nightSecurityPayment && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPreviewModal({
+                            title: "Reçu de Frais de Sécurité Nocturne",
+                            documentInstanceId: nightSecurityPayment.receipt_document?.id || null,
+                            templateKey: "hahitantsoa.payment_receipt.v1",
+                          });
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-white border border-purple-200 text-purple-700 hover:bg-purple-100 font-bold text-[11px] transition cursor-pointer"
+                      >
+                        <i className="fa-solid fa-file-invoice mr-1 text-purple-600"></i> Reçu Sécurité
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentKindSelection("night_security");
+                        setShowPaymentModal(true);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white font-bold text-[11px] shadow-2xs transition cursor-pointer"
+                    >
+                      <i className="fa-solid fa-moon mr-1"></i>
+                      {nightSecurityPaidAmount >= nightSecurityRequiredAmount
+                        ? "Sécurité réglée ✓"
+                        : `+ Encaisser Sécurité (${formatMoney(Math.max(0, nightSecurityRequiredAmount - nightSecurityPaidAmount))})`}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* 3-tier multi-installment schedule boxes with waterfall progress */}
             {effectiveSchedule && (
@@ -4159,7 +4220,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 : "Versement enregistré et chaîne documentaire synchronisée avec succès.",
             );
           }}
-          initialAmount={depositAmount || undefined}
+          initialAmount={paymentKindSelection === "night_security" ? "150000" : (depositAmount || undefined)}
           initialPaymentKind={paymentKindSelection}
         />
       )}

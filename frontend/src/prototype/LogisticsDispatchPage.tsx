@@ -1,13 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   completeLogisticsPassation,
+  createLogisticsEvent,
   createReturnOperation,
+  getHahitantsoaEventDrafts,
   getLogisticsEvents,
+  getReservationDrafts,
   getReturnOperations,
   transitionLogisticsEvent,
   updateLogisticsEventSignature,
 } from "../api";
-import type { InventoryReturnOperation, InventoryReturnOperationCreatePayload, LogisticsEvent } from "../types";
+import type {
+  HahitantsoaEventDraft,
+  InventoryReturnOperation,
+  InventoryReturnOperationCreatePayload,
+  LogisticsEvent,
+  ReservationDraft,
+} from "../types";
 
 const eventTypeLabels: Record<string, string> = {
   delivery: "Livraison Titan",
@@ -38,6 +47,8 @@ const statusConfig: Record<string, { label: string; className: string }> = {
 export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (scope: any, param?: string) => void }) {
   const [events, setEvents] = useState<LogisticsEvent[]>([]);
   const [returnOperations, setReturnOperations] = useState<InventoryReturnOperation[]>([]);
+  const [reservationDrafts, setReservationDrafts] = useState<ReservationDraft[]>([]);
+  const [hahiDrafts, setHahiDrafts] = useState<HahitantsoaEventDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("Tous");
@@ -53,10 +64,14 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
     Promise.all([
       getLogisticsEvents(controller.signal),
       getReturnOperations(controller.signal).catch(() => []),
+      getReservationDrafts(controller.signal).catch(() => []),
+      getHahitantsoaEventDrafts(controller.signal).catch(() => []),
     ])
-      .then(([eventsData, returnsData]) => {
-        setEvents(eventsData);
+      .then(([eventsData, returnsData, resDrafts, hDrafts]) => {
+        setEvents(Array.isArray(eventsData) ? eventsData : []);
         setReturnOperations(Array.isArray(returnsData) ? returnsData : []);
+        setReservationDrafts(Array.isArray(resDrafts) ? resDrafts : []);
+        setHahiDrafts(Array.isArray(hDrafts) ? hDrafts : []);
         setLoading(false);
       })
       .catch((err) => {
@@ -163,6 +178,57 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
     }
   };
 
+  const pendingConfirmedDrafts = useMemo(() => {
+    const existingDraftIds = new Set(
+      events.map((e) => e.reservation_draft || e.hahitantsoa_event_draft).filter(Boolean)
+    );
+    const titanPending = reservationDrafts
+      .filter((d) => d.status === "confirmed" && !existingDraftIds.has(d.id))
+      .map((d) => ({
+        id: d.id,
+        reference: d.public_reference,
+        customerName: d.customer_display_name,
+        domain: "titan" as const,
+        date: d.start_at,
+        itemCount: d.lines?.length || 0,
+      }));
+    const hahiPending = hahiDrafts
+      .filter((d) => d.status === "confirmed" && !existingDraftIds.has(d.id))
+      .map((d) => ({
+        id: d.id,
+        reference: d.public_reference,
+        customerName: d.customer_display_name || d.event_name,
+        domain: "hahitantsoa" as const,
+        date: d.start_at,
+        itemCount: d.lines?.length || 0,
+      }));
+    return [...titanPending, ...hahiPending];
+  }, [events, reservationDrafts, hahiDrafts]);
+
+  const handleCreateDispatchFromDraft = async (item: {
+    id: string;
+    domain: "titan" | "hahitantsoa";
+    reference: string;
+  }) => {
+    if (busyEventId === item.id) return;
+    setBusyEventId(item.id);
+    try {
+      const created = await createLogisticsEvent({
+        reservation_draft: item.domain === "titan" ? item.id : undefined,
+        hahitantsoa_event_draft: item.domain === "hahitantsoa" ? item.id : undefined,
+        event_type: "delivery",
+        operation: "outbound",
+        notes: `Expédition créée depuis le planning logistique pour le dossier ${item.reference}.`,
+      });
+      setEvents((curr) => [created, ...curr]);
+      showToast(`Ordre d'expédition créé pour ${item.reference}.`, "success");
+    } catch (err: any) {
+      showToast(err?.message || "Impossible de créer l'ordre d'expédition.", "error");
+    } finally {
+      setBusyEventId(null);
+    }
+  };
+
   const filteredData = events.filter(e => {
     if (filter === "Tous") return true;
     if (filter === "Livraison") return e.event_type === "delivery";
@@ -245,6 +311,52 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
           </div>
         </div>
         
+        {pendingConfirmedDrafts.length > 0 && (
+          <div className="m-4 p-4 rounded-xl border border-indigo-200 bg-indigo-50/80 dark:border-indigo-800 dark:bg-indigo-950/40">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="font-extrabold text-indigo-950 dark:text-indigo-200 flex items-center gap-2">
+                  <i className="fas fa-calendar-check text-indigo-600" />
+                  Dossiers confirmés à expédier / livrer ({pendingConfirmedDrafts.length})
+                </h3>
+                <p className="text-xs text-indigo-700 dark:text-indigo-300 mt-0.5">
+                  Ces réservations sont confirmées mais leur ordre de livraison/sortie n'a pas encore été ouvert.
+                </p>
+              </div>
+            </div>
+            <div className="divide-y divide-indigo-200/60 dark:divide-indigo-800/60">
+              {pendingConfirmedDrafts.map((d) => (
+                <div key={d.id} className="py-2.5 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <span className="font-bold text-slate-800 dark:text-slate-100 font-mono">
+                      {d.reference}
+                    </span>
+                    <span className={`ml-2 px-2 py-0.5 text-xs font-bold rounded-full ${
+                      d.domain === "hahitantsoa"
+                        ? "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300"
+                        : "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300"
+                    }`}>
+                      {d.domain === "hahitantsoa" ? "Hahitantsoa" : "Titan"}
+                    </span>
+                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                      • Client : {d.customerName || "—"} • {d.itemCount} article(s) • Prévu le {formatDate(d.date)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                    disabled={busyEventId === d.id}
+                    onClick={() => void handleCreateDispatchFromDraft(d)}
+                  >
+                    <i className={`fas ${busyEventId === d.id ? "fa-spinner fa-spin" : "fa-truck-fast"}`} />
+                    <span>Créer l'ordre de sortie / livraison</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="divide-y divide-slate-100">
           {filteredData.map(evt => {
             const statusInfo = statusConfig[evt.status] || { label: evt.status, className: "" };
@@ -252,20 +364,50 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
               <div key={evt.id} className="p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="font-extrabold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-3">
-                      <span className="text-tit-600 dark:text-tit-400 hover:underline cursor-pointer" onClick={() => evt.reservation_draft && onNavigate("reservation-detail", evt.reservation_draft)}>
-                        {evt.reservation_draft}
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span
+                        className="text-tit-600 dark:text-tit-400 hover:underline cursor-pointer font-black text-lg font-mono"
+                        onClick={() => {
+                          if (evt.domain === "hahitantsoa" || evt.hahitantsoa_event_draft) {
+                            onNavigate("h-event-draft-detail", evt.hahitantsoa_event_draft || undefined);
+                          } else if (evt.reservation_draft) {
+                            onNavigate("reservation-detail", evt.reservation_draft);
+                          }
+                        }}
+                      >
+                        {evt.dossier_reference || evt.reservation_draft || evt.hahitantsoa_event_draft || "Dossier"}
                       </span>
-                    </h3>
-                    <div className="flex gap-4 mt-2">
+                      {evt.domain && (
+                        <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                          evt.domain === "hahitantsoa"
+                            ? "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300"
+                            : "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300"
+                        }`}>
+                          {evt.domain === "hahitantsoa" ? "Hahitantsoa" : "Titan"}
+                        </span>
+                      )}
+                      {evt.delivery_note_reference && (
+                        <span className="px-2.5 py-0.5 text-xs font-mono font-bold rounded-full bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-900/50 dark:text-amber-200">
+                          <i className="fas fa-file-invoice mr-1 text-amber-700"></i>
+                          BL : {evt.delivery_note_reference}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-4 mt-2">
+                      <p className="text-sm text-slate-800 dark:text-slate-200 font-bold">
+                        <i className="fas fa-user mr-2 text-slate-400"></i>
+                        Client : {evt.customer_name || evt.contact_name || "—"}
+                      </p>
                       <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">
                         <i className="fas fa-truck mr-2 text-slate-400"></i>
                         {eventTypeLabels[evt.event_type] || evt.event_type}
                       </p>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">
-                        <i className="fas fa-user mr-2 text-slate-400"></i>
-                        Contact : {evt.contact_name}
-                      </p>
+                      {evt.contact_phone && (
+                        <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">
+                          <i className="fas fa-phone mr-2 text-slate-400"></i>
+                          {evt.contact_phone}
+                        </p>
+                      )}
                       <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">
                         <i className="fas fa-clock mr-2 text-slate-400"></i>
                         Prévu le : {formatDate(evt.scheduled_at)}
@@ -331,6 +473,22 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
+                    {evt.delivery_note_reference && (
+                      <button
+                        type="button"
+                        className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 font-bold rounded-lg text-sm flex items-center gap-2 transition cursor-pointer"
+                        onClick={() => {
+                          if (evt.domain === "hahitantsoa" || evt.hahitantsoa_event_draft) {
+                            onNavigate("h-event-draft-detail", evt.hahitantsoa_event_draft || undefined);
+                          } else if (evt.reservation_draft) {
+                            onNavigate("reservation-detail", evt.reservation_draft);
+                          }
+                        }}
+                      >
+                        <i className="fas fa-file-invoice text-amber-600"></i>
+                        <span>BL : {evt.delivery_note_reference}</span>
+                      </button>
+                    )}
                     {(() => {
                       const isCompletedOutbound =
                         (evt.status === "completed" || evt.signature_received) &&
