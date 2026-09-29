@@ -2457,9 +2457,22 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
           <div className="flex justify-between mt-8 pt-4 border-t border-slate-100">
             <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour</button>
-            <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>
-            {hDetails.rentalType === 'Location nue' ? 'Suivant (Services)' : 'Aller au catalogue / articles et packs'}
-            </button>
+            <div className="flex items-center gap-2">
+              {editingDraftContext.isEditing && (
+                <button
+                  type="button"
+                  data-testid="jump-to-proforma-step-btn-hahi"
+                  onClick={() => jumpTo(7)}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-sm transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <i className="fa-solid fa-bolt"></i>
+                  <span>Aller au Proforma</span>
+                </button>
+              )}
+              <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>
+                {hDetails.rentalType === 'Location nue' ? 'Suivant (Services)' : 'Aller au catalogue / articles et packs'}
+              </button>
+            </div>
           </div>
         </div>
       );
@@ -2751,7 +2764,20 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           </div>
           <div className="flex justify-between mt-8 pt-4 border-t border-slate-100">
             <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour</button>
-            <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>Aller au catalogue</button>
+            <div className="flex items-center gap-2">
+              {editingDraftContext.isEditing && (
+                <button
+                  type="button"
+                  data-testid="jump-to-proforma-step-btn-titan"
+                  onClick={() => jumpTo(7)}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-sm transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <i className="fa-solid fa-bolt"></i>
+                  <span>Aller au Proforma</span>
+                </button>
+              )}
+              <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>Aller au catalogue</button>
+            </div>
           </div>
         </div>
       );
@@ -3213,7 +3239,20 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
         <div ref={catalogActionRef} className="sticky bottom-0 z-10 flex justify-between mt-8 pt-4 border-t border-slate-100 bg-white/95 pb-1 backdrop-blur">
           <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour</button>
-          <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>{domain === 'hahitantsoa' ? 'Aller aux Services' : 'Aller à la Livraison'}</button>
+          <div className="flex items-center gap-2">
+            {editingDraftContext.isEditing && (
+              <button
+                type="button"
+                data-testid="jump-to-proforma-step-btn-catalog"
+                onClick={() => jumpTo(7)}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-sm transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5"
+              >
+                <i className="fa-solid fa-bolt"></i>
+                <span>Aller au Proforma</span>
+              </button>
+            )}
+            <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>{domain === 'hahitantsoa' ? 'Aller aux Services' : 'Aller à la Livraison'}</button>
+          </div>
         </div>
       </div>
     );
@@ -3436,7 +3475,20 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
           <div className="flex justify-between mt-8 pt-4 border-t border-slate-100">
             <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour</button>
-            <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>Vérifier le résumé</button>
+            <div className="flex items-center gap-2">
+              {editingDraftContext.isEditing && (
+                <button
+                  type="button"
+                  data-testid="jump-to-proforma-step-btn-hahi-services"
+                  onClick={() => jumpTo(7)}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-sm transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <i className="fa-solid fa-bolt"></i>
+                  <span>Aller au Proforma</span>
+                </button>
+              )}
+              <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>Vérifier le résumé</button>
+            </div>
           </div>
         </div>
       );
@@ -3463,7 +3515,20 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
           <div className="flex justify-between mt-8 pt-4 border-t border-slate-100">
             <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour</button>
-            <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>Vérifier le résumé</button>
+            <div className="flex items-center gap-2">
+              {editingDraftContext.isEditing && (
+                <button
+                  type="button"
+                  data-testid="jump-to-proforma-step-btn-titan-services"
+                  onClick={() => jumpTo(7)}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-sm transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <i className="fa-solid fa-bolt"></i>
+                  <span>Aller au Proforma</span>
+                </button>
+              )}
+              <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>Vérifier le résumé</button>
+            </div>
           </div>
         </div>
       );
@@ -4775,13 +4840,27 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => onNavigate('reservation-detail', editingDraftContext.domain === "hahitantsoa" ? `hahitantsoa:${editingDraftContext.draftId}` : editingDraftContext.draftId)}
-            className="text-xs font-bold text-amber-900 hover:text-amber-950 underline px-2 py-1 shrink-0 cursor-pointer"
-          >
-            Abandonner
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {step < 7 && (
+              <button
+                type="button"
+                data-testid="jump-to-proforma-step-btn"
+                onClick={() => jumpTo(7)}
+                className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                title="Accéder directement au récapitulatif & proforma révisé"
+              >
+                <i className="fa-solid fa-bolt"></i>
+                <span>Accéder directement au Proforma</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onNavigate('reservation-detail', editingDraftContext.domain === "hahitantsoa" ? `hahitantsoa:${editingDraftContext.draftId}` : editingDraftContext.draftId)}
+              className="text-xs font-bold text-amber-900 hover:text-amber-950 underline px-2 py-1 cursor-pointer"
+            >
+              Abandonner
+            </button>
+          </div>
         </div>
       )}
       {editingDraftContext.loading && (
