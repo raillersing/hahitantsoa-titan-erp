@@ -493,4 +493,28 @@ describe("PlanningPage (Modern Enterprise Agenda)", () => {
       expect(screen.queryByText("Erreur lors du chargement du planning")).not.toBeInTheDocument();
     });
   });
+
+  it("displays next-day access badge and previous night duration impact", async () => {
+    const monday = currentMonday();
+    vi.spyOn(api, "getHahitantsoaEventDrafts").mockResolvedValue([
+      {
+        id: "hah-night2",
+        public_reference: "H-N2",
+        event_name: "Mariage Nuit 2",
+        venue_name: "Grande Salle",
+        customer_display_name: "M. Client",
+        duration_option: "night_2",
+        start_at: monday.toISOString(),
+        end_at: monday.toISOString(),
+        status: "confirmed",
+        lines: [],
+      } as any,
+    ]);
+
+    render(<PlanningPage />);
+
+    expect(await screen.findByText("Mariage Nuit 2")).toBeInTheDocument();
+    expect(screen.getByText("Accès J+1 à 03:30 (ou matinée décalée selon contrat)")).toBeInTheDocument();
+    expect(screen.getByText("Accès dès 03:30 (veille Nuit 2)")).toBeInTheDocument();
+  });
 });

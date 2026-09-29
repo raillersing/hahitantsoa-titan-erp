@@ -1114,6 +1114,54 @@ describe('ReservationNewPage', () => {
     });
   });
 
+  it('20b. tague le type d’événement personnalisé dans les notes et le nom du draft quand événement Autre', async () => {
+    vi.mocked(createHahitantsoaEventDraft).mockClear();
+    vi.mocked(createHahitantsoaEventDraftDocumentInstance).mockClear();
+    vi.mocked(createHahitantsoaEventDraft).mockResolvedValue({ id: 'EVENT-003', status: 'draft' } as any);
+    vi.mocked(createHahitantsoaEventDraftDocumentInstance).mockResolvedValue({ id: 'DOC-H-003' } as any);
+
+    render(<ReservationNewPage onNavigate={mockNavigate} param="prospect-proforma-h/CUST-001" />);
+
+    await screen.findByText('Détails Événement (Hahitantsoa)');
+    const dateInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'date');
+    if (dateInputs.length > 0) {
+      fireEvent.change(dateInputs[0], { target: { value: '2026-10-15' } });
+      fireEvent.change(dateInputs[1], { target: { value: '2026-10-16' } });
+    }
+
+    const selects = screen.getAllByRole('combobox');
+    const eventTypeSelect = selects[0];
+    fireEvent.change(eventTypeSelect, { target: { value: 'Autre' } });
+
+    const customTypeInput = await screen.findByPlaceholderText("Préciser le type d'événement");
+    fireEvent.change(customTypeInput, { target: { value: 'Gala Annuel de Charité' } });
+
+    // Go to Services
+    fireEvent.click(screen.getByRole('button', { name: /Suivant \(Services\)/i }));
+    await screen.findByText('Services Hahitantsoa');
+
+    // Go to Summary
+    fireEvent.click(screen.getByRole('button', { name: /Vérifier le résumé/i }));
+    await screen.findByText('Résumé modifiable');
+
+    // Go to Proforma
+    fireEvent.click(screen.getByRole('button', { name: /Générer Devis\/Proforma/i }));
+    await screen.findByText('Aperçu Proforma');
+
+    // Click Emit
+    fireEvent.click(screen.getByRole('button', { name: /Émettre le proforma/i }));
+
+    await waitFor(() => {
+      expect(createHahitantsoaEventDraft).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customer_id: 'CUST-001',
+          event_name: 'Gala Annuel de Charité',
+          notes: expect.stringContaining("[Type d'événement: Gala Annuel de Charité]"),
+        })
+      );
+    });
+  });
+
   it('21. permet un versement supérieur à l’acompte minimum requis jusqu’au solde total', async () => {
     vi.mocked(recordConfirmedDeposit).mockClear();
     vi.mocked(recordConfirmedDeposit).mockResolvedValue({ payment: { id: 'PAY-OVER' }, replayed: false } as any);

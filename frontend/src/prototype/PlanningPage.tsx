@@ -73,20 +73,24 @@ export interface UnifiedPlanningEvent {
 type HahitantsoaDurationPresentation = {
   label: string;
   badgeClass: string;
+  nextDayAccess: string;
 };
 
 const HAHITANTSOA_DURATION_PRESENTATIONS: Record<HahitantsoaDurationOption, HahitantsoaDurationPresentation> = {
   day: {
     label: "Jour · sortie J-J 20:00",
     badgeClass: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300",
+    nextDayAccess: "Accès lendemain standard (sortie J-J 20:00)",
   },
   night_1: {
     label: "Nuit 1 · arrêt 21:00 / sortie 22:30",
     badgeClass: "bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300",
+    nextDayAccess: "Accès lendemain standard (sortie 22:30)",
   },
   night_2: {
     label: "Nuit 2 · arrêt 00:00 / sortie J+1 03:30",
     badgeClass: "bg-violet-100 text-violet-800 dark:bg-violet-950/70 dark:text-violet-300",
+    nextDayAccess: "Accès J+1 à 03:30 (ou matinée décalée selon contrat)",
   },
 };
 
@@ -1448,6 +1452,11 @@ function WeekViewGrid({
         currentDay.setDate(currentDay.getDate() + dayIndex);
         const isToday = isSameDay(currentDay, today);
         const dayEvents = events.filter((e) => isEventOnDay(e, currentDay));
+        const prevDay = new Date(currentDay);
+        prevDay.setDate(prevDay.getDate() - 1);
+        const prevHahEvents = events.filter((e) => isEventOnDay(e, prevDay) && e.category === "hahitantsoa");
+        const prevNight2 = prevHahEvents.find((e) => e.durationOption === "night_2");
+        const prevNight1 = prevHahEvents.find((e) => e.durationOption === "night_1");
 
         return (
           <div
@@ -1481,6 +1490,19 @@ function WeekViewGrid({
                 </span>
               </div>
 
+              {prevNight2 && (
+                <div className="mb-2.5 px-2 py-1 rounded-xl bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 text-[10px] text-violet-800 dark:text-violet-300 font-bold flex items-center gap-1.5" title="Accès le lendemain à 03:30 suite à fête nocturne Option 2 la veille">
+                  <i className="fa-solid fa-moon text-[9px] text-violet-600 shrink-0"></i>
+                  <span className="truncate">Accès dès 03:30 (veille Nuit 2)</span>
+                </div>
+              )}
+              {!prevNight2 && prevNight1 && (
+                <div className="mb-2.5 px-2 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[10px] text-blue-800 dark:text-blue-300 font-medium flex items-center gap-1.5" title="Sortie à 22:30 la veille (Option 1)">
+                  <i className="fa-solid fa-clock text-[9px] text-blue-600 shrink-0"></i>
+                  <span className="truncate">Accès standard (veille Nuit 1 22:30)</span>
+                </div>
+              )}
+
               {/* Event Cards */}
               <div className="space-y-2.5">
                 {dayEvents.length === 0 ? (
@@ -1513,9 +1535,15 @@ function WeekViewGrid({
                         </div>
 
                         {duration && (
-                          <span className={`inline-flex mb-2 px-2 py-0.5 rounded-md text-[10px] font-bold ${duration.badgeClass}`}>
-                            {duration.label}
-                          </span>
+                          <div className="mb-2 space-y-1">
+                            <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold ${duration.badgeClass}`}>
+                              {duration.label}
+                            </span>
+                            <span className="block text-[9px] text-slate-500 dark:text-slate-400 font-medium">
+                              <i className="fa-solid fa-arrow-right-to-bracket text-[8px] mr-1 text-slate-400"></i>
+                              {duration.nextDayAccess}
+                            </span>
+                          </div>
                         )}
 
                         {event.statusKind === "conflict" && (
@@ -1628,6 +1656,17 @@ function DayViewTimeline({
     [events, currentDate],
   );
 
+  const prevDay = useMemo(() => {
+    const d = new Date(currentDate);
+    d.setDate(d.getDate() - 1);
+    return d;
+  }, [currentDate]);
+
+  const prevNightEvent = useMemo(() => {
+    const prevHah = events.filter((e) => isEventOnDay(e, prevDay) && e.category === "hahitantsoa");
+    return prevHah.find((e) => e.durationOption === "night_2") || prevHah.find((e) => e.durationOption === "night_1");
+  }, [events, prevDay]);
+
   const hours = Array.from({ length: 14 }, (_, i) => i + 7); // 07:00 to 20:00
 
   return (
@@ -1657,6 +1696,23 @@ function DayViewTimeline({
         </button>
       </div>
 
+      {prevNightEvent && (
+        <div className={`p-4 rounded-3xl border flex items-center gap-3 text-xs font-bold shadow-xs ${
+          prevNightEvent.durationOption === "night_2"
+            ? "bg-violet-50 dark:bg-violet-950/40 border-violet-200 dark:border-violet-800 text-violet-900 dark:text-violet-200"
+            : "bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200"
+        }`}>
+          <i className={`fa-solid ${prevNightEvent.durationOption === "night_2" ? "fa-moon text-violet-600" : "fa-clock text-blue-600"} text-base shrink-0`}></i>
+          <div>
+            <span>
+              {prevNightEvent.durationOption === "night_2"
+                ? "Accès salle ce jour : dès 03:30 (la veille : fête nocturne Option 2 jusqu'à 00:00 / sortie 03:30)."
+                : "Accès salle ce jour : standard (la veille : fête nocturne Option 1 arrêt 21:00 / sortie 22:30)."}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Day Events Overview Banner (for all active events on this date) */}
       {dayEvents.length > 0 && (
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-5 space-y-3">
@@ -1667,6 +1723,7 @@ function DayViewTimeline({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {dayEvents.map((event) => {
               const cfg = CATEGORY_CONFIG[event.category];
+              const duration = hahitantsoaDurationPresentation(event);
               return (
                 <div
                   key={event.id}
@@ -1704,6 +1761,18 @@ function DayViewTimeline({
                       {event.status}
                     </span>
                   </div>
+
+                  {duration && (
+                    <div className="mb-2 space-y-1">
+                      <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold ${duration.badgeClass}`}>
+                        {duration.label}
+                      </span>
+                      <span className="block text-[9px] text-slate-500 dark:text-slate-400 font-medium">
+                        <i className="fa-solid fa-arrow-right-to-bracket text-[8px] mr-1 text-slate-400"></i>
+                        {duration.nextDayAccess}
+                      </span>
+                    </div>
+                  )}
 
                   <button
                     type="button"
@@ -2410,6 +2479,22 @@ function EventDetailDrawer({
                       </div>
                     )}
                   </div>
+                  {event.category === "hahitantsoa" && event.durationOption && HAHITANTSOA_DURATION_PRESENTATIONS[event.durationOption] && (
+                    <div className="pt-2.5 border-t border-slate-200 dark:border-slate-700/60 space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 dark:text-slate-400 text-[11px] font-medium">Option horaire :</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${HAHITANTSOA_DURATION_PRESENTATIONS[event.durationOption].badgeClass}`}>
+                          {HAHITANTSOA_DURATION_PRESENTATIONS[event.durationOption].label}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500 dark:text-slate-400 font-medium">Accès lendemain (J+1) :</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                          {HAHITANTSOA_DURATION_PRESENTATIONS[event.durationOption].nextDayAccess}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Client / Interlocuteur */}
