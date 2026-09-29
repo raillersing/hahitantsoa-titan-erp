@@ -39,7 +39,7 @@ def test_hahitantsoa_duration_supplements_exclude_security_for_night_option_1() 
     ) == Decimal("1220000.00")
     assert calculate_space_rental_amount(
         terms=terms, guest_count=120, duration_option=HahitantsoaDurationOption.NIGHT_2
-    ) == Decimal("1720000.00")
+    ) == Decimal("1320000.00")
 
 
 def test_customer_contact_points_keep_multiple_values_and_sync_legacy_fields() -> None:

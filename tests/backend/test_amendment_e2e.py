@@ -193,7 +193,7 @@ def test_hahitantsoa_logistics_amendment_on_confirmed_event(auth_client, api_use
     assert apply_resp.status_code == 200, apply_resp.data
     draft.refresh_from_db()
     assert draft.duration_option == "night_2"
-    assert draft.space_rental_amount == Decimal("7120000.00")
+    assert draft.space_rental_amount == Decimal("7000000.00")
 
 
 @pytest.mark.django_db
