@@ -1788,4 +1788,59 @@ describe('ReservationNewPage', () => {
     });
     expect(screen.getAllByRole('button', { name: 'Réessayer' }).length).toBeGreaterThan(0);
   });
+
+  it("33. Lot 6: permet un saut direct vers l'étape Proforma depuis le mode modification de devis sans valider chaque étape intermédiaire", async () => {
+    vi.mocked(getReservationDraft).mockResolvedValue({
+      id: 'DRAFT-TITAN-100',
+      customer_id: 'CUST-001',
+      public_reference: 'T-100/2026',
+      status: 'draft',
+      start_at: '2026-08-10T08:00:00Z',
+      end_at: '2026-08-12T20:00:00Z',
+      delivery_fee: '50000.00',
+      discount_amount: '0.00',
+      lines: [
+        {
+          inventory_item_id: 'MAT-01',
+          inventory_item_name: 'Chaise Napoléon',
+          quantity: 20,
+          unit_rental_price: '5000.00',
+        },
+      ],
+    } as any);
+
+    vi.mocked(updateReservationDraft).mockResolvedValue({
+      id: 'DRAFT-TITAN-100',
+      status: 'draft',
+    } as any);
+
+    vi.mocked(createReservationDraftDocumentInstance).mockResolvedValue({
+      id: 'DOC-TITAN-REV3',
+      document_reference: 'T-100/2026-rev3',
+    } as any);
+
+    render(<ReservationNewPage onNavigate={mockNavigate} param="edit-titan/DRAFT-TITAN-100" />);
+
+    // Breadcrumb and header in edit mode
+    expect(await screen.findByText('Modification du devis / proforma')).toBeInTheDocument();
+    expect(screen.getByText('Mode modification du devis proforma')).toBeInTheDocument();
+
+    // From Step 3, jump directly to Step 7 (Proforma) without passing through steps 4, 5, 6
+    const jumpBtn = screen.getByTestId('jump-to-proforma-step-btn');
+    expect(jumpBtn).toBeInTheDocument();
+    fireEvent.click(jumpBtn);
+
+    // Step 7 Proforma should immediately be displayed
+    expect(await screen.findByText('Enregistrement & émission de la nouvelle révision')).toBeInTheDocument();
+    const emitRevBtn = screen.getByRole('button', { name: /Émettre la nouvelle révision/i });
+    expect(emitRevBtn).toBeInTheDocument();
+    fireEvent.click(emitRevBtn);
+
+    expect(await screen.findByText(/Nouvelle révision du proforma émise avec succès/i)).toBeInTheDocument();
+    const returnDossierBtn = screen.getByRole('button', { name: /Valider et retourner au dossier/i });
+    expect(returnDossierBtn).toBeInTheDocument();
+    fireEvent.click(returnDossierBtn);
+
+    expect(mockNavigate).toHaveBeenCalledWith('reservation-detail', 'DRAFT-TITAN-100');
+  });
 });
