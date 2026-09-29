@@ -189,6 +189,8 @@ export function getPaymentKindLabel(kind: string, domain?: "titan" | "hahitantso
       return "Règlement du Solde";
     case "caution":
       return "Caution / Dépôt de garantie";
+    case "night_security":
+      return "Frais de sécurité nocturne (Nuit 2)";
     default:
       return "Autre versement";
   }
@@ -236,6 +238,10 @@ export function generateThermalReceiptHtml(params: {
     params.paymentKind === "caution" ||
     params.receiptTitle.toLowerCase().includes("caution") ||
     params.paymentKindLabel.toLowerCase().includes("caution");
+  const isNightSecurity =
+    params.paymentKind === "night_security" ||
+    params.receiptTitle.toLowerCase().includes("sécurité") ||
+    params.paymentKindLabel.toLowerCase().includes("sécurité");
 
   const allHistory = [...params.historyPayments];
 
@@ -437,7 +443,7 @@ export function generateThermalReceiptHtml(params: {
     ${params.transactionReference && !params.checkNumber ? `<div class="field"><span class="label">${params.paymentMethodLabel === "Virement" ? "Référence" : "Réf. Paiement"}</span><span class="value font-mono">${params.transactionReference}</span></div>` : ""}
 
     <div class="amount-highlight-box">
-      <div class="amount-highlight-label">${isCaution ? "Montant Caution" : "Montant Réglé Ce Jour"}</div>
+      <div class="amount-highlight-label">${isCaution ? "Montant Caution" : isNightSecurity ? "Frais de Sécurité Réglés" : "Montant Réglé Ce Jour"}</div>
       <div class="amount-highlight-value">${formatMoney(params.amount)}</div>
       <div class="amount-in-words">${params.amountInWords ? params.amountInWords : "—"}</div>
     </div>
@@ -458,6 +464,23 @@ export function generateThermalReceiptHtml(params: {
       <div class="summary-row" style="margin-top: 1mm;">
         <span>Statut :</span>
         <span class="value-bold">Caution versée</span>
+      </div>
+    </div>`
+        : isNightSecurity
+        ? `
+    <div class="summary-box" style="border: 2px solid #000000; padding: 2mm; margin-top: 2.5mm;">
+      <div style="font-weight: 800; text-align: center; text-transform: uppercase; margin-bottom: 1.5mm;">Frais de Sécurité Nocturne (Nuit 2)</div>
+      <div class="summary-row">
+        <span>N° Dossier</span>
+        <span class="value-bold font-mono">${params.proformaReference || params.draftReference || "—"}</span>
+      </div>
+      <div class="summary-row total-paid">
+        <span>FRAIS DE SÉCURITÉ RÉGLÉS</span>
+        <span class="value-bold">${formatMoney(params.amount)}</span>
+      </div>
+      <div class="summary-row" style="margin-top: 1mm;">
+        <span>Nature :</span>
+        <span class="value-bold">Prestation nocturne (03h30) — Non remboursable</span>
       </div>
     </div>`
         : `
@@ -549,7 +572,11 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
 
   // Form State
   const [activeTab, setActiveTab] = useState<"form" | "history">("form");
-  const [amountInput, setAmountInput] = useState<string>(initialAmount);
+  const [amountInput, setAmountInput] = useState<string>(() => {
+    if (initialAmount) return initialAmount;
+    if (initialPaymentKind === "night_security") return "150000";
+    return "";
+  });
   const [paymentKind, setPaymentKind] = useState<string>(initialPaymentKind);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [externalReference, setExternalReference] = useState<string>("");
@@ -651,7 +678,9 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
             ? "Reçu de Règlement du Solde"
             : paymentKind === "caution"
               ? "Reçu de Dépôt de Caution"
-              : "Reçu de Versement",
+              : paymentKind === "night_security"
+                ? "Reçu de Versement Frais de Sécurité Nocturne"
+                : "Reçu de Versement",
       receiptNumber: receiptNum,
       paymentDate: todayLabel,
       customerName,
@@ -710,7 +739,9 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
       receiptTitle:
         selectedPastPayment.payment_kind === "caution"
           ? "Reçu de Dépôt de Caution"
-          : "Reçu de Paiement Confirmé",
+          : selectedPastPayment.payment_kind === "night_security"
+            ? "Reçu de Versement Frais de Sécurité Nocturne"
+            : "Reçu de Paiement Confirmé",
       receiptNumber: receiptNum,
       paymentDate: selectedPastPayment.date.slice(0, 10),
       customerName,
@@ -779,7 +810,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
       return;
     }
 
-    if (paymentKind !== "caution" && currentRemaining > 0 && numericAmount > currentRemaining) {
+    if (paymentKind !== "caution" && paymentKind !== "night_security" && currentRemaining > 0 && numericAmount > currentRemaining) {
       setErrorMessage(
         `Le montant saisi (${formatMoney(numericAmount)}) ne peut pas dépasser le solde restant dû de ${formatMoney(currentRemaining)}.`,
       );
@@ -1068,12 +1099,13 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                     Tranche / Type de versement
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className={`grid grid-cols-2 ${!isTitan ? "sm:grid-cols-5" : "sm:grid-cols-4"} gap-2`}>
                     {[
                       { id: "deposit", label: isTitan ? "Acompte (25%)" : "Acompte (50%)", icon: "fa-shield-halved" },
                       { id: "installment_1", label: "1ère Tranche", icon: "fa-layer-group" },
                       { id: "balance", label: "Solde final", icon: "fa-flag-checkered" },
                       { id: "caution", label: "Caution", icon: "fa-lock" },
+                      ...(!isTitan ? [{ id: "night_security", label: "Sécurité Nuit (150k)", icon: "fa-moon" }] : []),
                     ].map((item) => (
                       <button
                         key={item.id}
@@ -1092,6 +1124,8 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                             if (cautionShortfall > 0) {
                               setAmountInput(cautionShortfall.toString());
                             }
+                          } else if (item.id === "night_security") {
+                            setAmountInput("150000");
                           }
                         }}
                         className={`p-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${

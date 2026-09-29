@@ -226,7 +226,16 @@ export default function StockMovementsPage({ onNavigate }: { onNavigate: (scope:
                     </td>
                     <td className="p-4 font-bold text-slate-800 dark:text-slate-100 text-right">{m.quantity}</td>
                     <td className="p-4 text-slate-600 dark:text-slate-400">{m.notes || m.source_label}</td>
-                    <td className="p-4 text-tit-600 dark:text-tit-400 hover:underline cursor-pointer font-medium">{m.reservation_draft || "-"}</td>
+                    <td
+                      className="p-4 text-tit-600 dark:text-tit-400 hover:underline cursor-pointer font-medium font-mono"
+                      onClick={() => {
+                        if (m.reservation_draft) {
+                          onNavigate("reservation-detail", m.reservation_draft);
+                        }
+                      }}
+                    >
+                      {m.dossier_reference || m.reservation_draft || "-"}
+                    </td>
                     <td className="p-4 text-slate-500 dark:text-slate-400">{m.validated_by || "-"}</td>
                     <td className="p-4">
                       <button 

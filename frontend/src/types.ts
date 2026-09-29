@@ -416,6 +416,7 @@ export type HahitantsoaPaymentSchedule = {
   second_installment_amount: string;
   first_installment_due_on: string;
   second_installment_due_on: string;
+  night_security_amount?: string;
 };
 
 export type HahitantsoaEventDraftUpdatePayload = {
@@ -466,6 +467,7 @@ export type HahitantsoaEventDraft = {
   total_amount?: string | null;
   required_deposit_amount?: string;
   payment_schedule?: HahitantsoaPaymentSchedule;
+  night_security_amount?: string;
   venue_name: string;
   location_details: string;
   service_notes: string;
@@ -850,6 +852,7 @@ export type PaymentKind =
   | 'deposit'
   | 'balance'
   | 'caution'
+  | 'night_security'
   | 'refund'
   | 'owner_injection'
   | 'investor_injection'
@@ -1015,6 +1018,11 @@ export type LogisticsEvent = {
   id: string;
   reservation_draft: string | null;
   hahitantsoa_event_draft: string | null;
+  dossier_reference?: string;
+  customer_name?: string;
+  delivery_note_reference?: string | null;
+  delivery_note_status?: string | null;
+  domain?: 'hahitantsoa' | 'titan' | 'general' | string;
   event_type: LogisticsEventType;
   operation: LogisticsOperationKind;
   status: LogisticsEventStatus;
@@ -1119,6 +1127,11 @@ export type InventoryReturnOperation = {
   id: string;
   reservation_draft: string | null;
   hahitantsoa_event_draft: string | null;
+  dossier_reference?: string;
+  customer_name?: string;
+  delivery_note_reference?: string | null;
+  return_note_reference?: string | null;
+  domain?: 'hahitantsoa' | 'titan' | 'general' | string;
   logistics_event: string | null;
   document_instance: string | null;
   status: ReturnOperationStatus;
@@ -1323,6 +1336,8 @@ export type InventoryStockMovement = {
   inventory_item: string;
   storage_location?: string | null;
   reservation_draft: string | null;
+  dossier_reference?: string;
+  domain?: 'hahitantsoa' | 'titan' | 'general' | string;
   movement_type: InventoryStockMovementType;
   direction: InventoryStockMovementDirection;
   quantity: number;

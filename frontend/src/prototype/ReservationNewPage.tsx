@@ -4169,6 +4169,20 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           </div>
         </div>
 
+        {domain === 'hahitantsoa' && hDetails.durationOption === 'night_2' && (
+          <div className="bg-purple-50 p-4 rounded-xl border border-purple-200 mb-6 flex justify-between items-center">
+            <div>
+              <h4 className="font-bold text-purple-900 text-sm mb-1 flex items-center gap-1.5">
+                <i className="fa-solid fa-moon text-purple-600"></i> Frais de sécurité nocturne obligatoire (Option Nuit 2)
+              </h4>
+              <p className="text-xs text-purple-700">Obligatoire pour toute prestation jusqu'à 03h30 du matin. Non remboursable, exclu du montant HT/TTC du proforma. Donne lieu à un reçu officiel dédié.</p>
+            </div>
+            <div className="font-bold text-lg text-purple-900 ml-4 whitespace-nowrap">
+              150 000 Ar
+            </div>
+          </div>
+        )}
+
         {domain === 'titan' && (
           <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 mb-6">
              <h4 className="font-bold text-blue-800 text-sm mb-1">Règles Financières Titan</h4>
