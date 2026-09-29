@@ -750,6 +750,10 @@ export default function ReservationDetailPage({
 
   const handleGenerateInvoice = async () => {
     if (!draft) return;
+    if (remainingAmount > 0) {
+      showToast("La facture définitive ne peut être émise tant que le dossier n'est pas intégralement soldé.", "warning");
+      return;
+    }
     setActionLoading("generate-invoice");
     try {
       let instance = titanInvoiceInstance;
@@ -983,6 +987,11 @@ export default function ReservationDetailPage({
   const draftStatus = draft?.status || "draft";
 
   const [depositAmount, setDepositAmount] = useState("");
+
+  const isUnpaidInvoicePreview =
+    (Boolean(previewModal) || Boolean(previewDoc)) &&
+    (previewModal?.type === "facture" || previewDoc === "facture" || previewModal?.templateKey === "titan.invoice.v1" || previewModal?.templateKey === "hahitantsoa.invoice.v1") &&
+    remainingAmount > 0;
 
   /* ── loading / error states ───────────────────────────────────── */
   if (loading) {
@@ -2289,15 +2298,23 @@ export default function ReservationDetailPage({
                         <div className="flex items-center justify-between w-full">
                           <span className="text-xs text-slate-500">Non émise</span>
                           {canGenerateInvoice && (
-                            <button
-                              type="button"
-                              onClick={() => void handleGenerateInvoice()}
-                              disabled={actionLoading === "generate-invoice"}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-                            >
-                              <i className={`fa-solid ${actionLoading === "generate-invoice" ? "fa-spinner fa-spin" : "fa-file-invoice-dollar"}`}></i>
-                              <span>Émettre la facture</span>
-                            </button>
+                            <div className="flex items-center gap-2">
+                              {remainingAmount > 0 && (
+                                <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-medium">
+                                  Solde requis pour émission
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => void handleGenerateInvoice()}
+                                disabled={actionLoading === "generate-invoice" || remainingAmount > 0}
+                                title={remainingAmount > 0 ? "Facture bloquée : le dossier n'est pas intégralement soldé." : "Émettre la facture définitive"}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                              >
+                                <i className={`fa-solid ${actionLoading === "generate-invoice" ? "fa-spinner fa-spin" : "fa-file-invoice-dollar"}`}></i>
+                                <span>Émettre la facture</span>
+                              </button>
+                            </div>
                           )}
                         </div>
                       )}
@@ -3614,7 +3631,9 @@ export default function ReservationDetailPage({
                 )}
                 <button
                   type="button"
+                  data-testid="preview-modal-print-button"
                   onClick={() => {
+                    if (isUnpaidInvoicePreview) return;
                     const modal = document.querySelector(".fixed.inset-0.z-50");
                     const iframe = modal?.querySelector("iframe");
                     if (iframe?.srcdoc) {
@@ -3624,7 +3643,9 @@ export default function ReservationDetailPage({
                       iframe.contentWindow.print();
                     }
                   }}
-                  className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
+                  disabled={isUnpaidInvoicePreview}
+                  title={isUnpaidInvoicePreview ? "Impression verrouillée : le dossier n'est pas intégralement soldé." : "Imprimer"}
+                  className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-xs cursor-pointer"
                 >
                   <i className="fa-solid fa-print"></i> Imprimer
                 </button>
@@ -3642,6 +3663,12 @@ export default function ReservationDetailPage({
               </div>
             </div>
             <div className="flex-1 overflow-auto p-6 bg-slate-100/50">
+              {isUnpaidInvoicePreview && (
+                <div className="mb-4 rounded-xl bg-amber-50 border border-amber-300 p-3.5 text-xs text-amber-900 font-semibold flex items-center gap-2.5 shadow-2xs">
+                  <i className="fa-solid fa-lock text-amber-600 text-sm shrink-0"></i>
+                  <span>Aperçu verrouillé : ce dossier présente un solde restant de {formatMoney(remainingAmount)}. La facture définitive et son impression officielle ne seront débloquées qu'après règlement intégral.</span>
+                </div>
+              )}
               {previewModal?.documentInstanceId ? (
                 <DocumentArtifactPreviewPanel documentInstanceId={previewModal.documentInstanceId} />
               ) : previewArtifact ? (

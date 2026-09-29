@@ -720,6 +720,10 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
   const generateDocument = async (templateKey: string, label: string) => {
     if (!param) return;
+    if (templateKey === "hahitantsoa.invoice.v1" && remainingTotalAmount > 0) {
+      setError("La facture définitive ne peut être émise tant que le dossier n'est pas intégralement soldé.");
+      return;
+    }
     setBusy(`generate-${templateKey}`);
     setError(null);
     setActionNotice(null);
@@ -1573,6 +1577,11 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       </div>
     );
   }
+
+  const isUnpaidInvoicePreview =
+    Boolean(previewModal) &&
+    (previewModal?.type === "facture" || previewModal?.templateKey === "hahitantsoa.invoice.v1") &&
+    remainingTotalAmount > 0;
 
   return (
     <div className="page active mx-auto max-w-6xl space-y-6 pb-16">
@@ -2689,13 +2698,19 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     <button
                       type="button"
                       onClick={() => void generateDocument("hahitantsoa.invoice.v1", "Facture officielle")}
-                      disabled={busy !== null}
-                      title="Régénérer / actualiser la facture avec les dernières modifications"
-                      className="rounded-lg bg-slate-100 border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                      disabled={busy !== null || remainingTotalAmount > 0}
+                      title={remainingTotalAmount > 0 ? "La facture définitive ne peut être émise tant que le dossier n'est pas intégralement soldé." : "Régénérer / actualiser la facture avec les dernières modifications"}
+                      className="rounded-lg bg-slate-100 border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <i className="fa-solid fa-arrows-rotate text-blue-600"></i>
                     </button>
                   </div>
+                  {remainingTotalAmount > 0 && (
+                    <p className="mt-2 text-[10px] text-amber-700 font-medium flex items-center gap-1">
+                      <i className="fa-solid fa-circle-exclamation text-[9px]"></i>
+                      <span>Émission verrouillée (solde dû : {formatMoney(remainingTotalAmount)})</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Bon de préparation interne */}
@@ -3898,7 +3913,9 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 )}
                 <button
                   type="button"
+                  data-testid="preview-modal-print-button"
                   onClick={() => {
+                    if (isUnpaidInvoicePreview) return;
                     const modal = document.querySelector(".fixed.inset-0.z-50");
                     const iframe = modal?.querySelector("iframe");
                     if (iframe?.srcdoc) {
@@ -3908,7 +3925,9 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                       iframe.contentWindow.print();
                     }
                   }}
-                  className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors shadow-xs"
+                  disabled={isUnpaidInvoicePreview}
+                  title={isUnpaidInvoicePreview ? "Impression verrouillée : le dossier n'est pas intégralement soldé." : "Imprimer"}
+                  className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-xs"
                 >
                   <i className="fa-solid fa-print"></i> Imprimer
                 </button>
@@ -3923,6 +3942,12 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
               </div>
             </div>
             <div className="flex-1 overflow-auto p-6 bg-slate-100/50">
+              {isUnpaidInvoicePreview && (
+                <div className="mb-4 rounded-xl bg-amber-50 border border-amber-300 p-3.5 text-xs text-amber-900 font-semibold flex items-center gap-2.5 shadow-2xs">
+                  <i className="fa-solid fa-lock text-amber-600 text-sm shrink-0"></i>
+                  <span>Aperçu verrouillé : ce dossier présente un solde restant de {formatMoney(remainingTotalAmount)}. La facture définitive et son impression officielle ne seront débloquées qu'après règlement intégral.</span>
+                </div>
+              )}
               {previewModal.documentInstanceId ? (
                 <DocumentArtifactPreviewPanel documentInstanceId={previewModal.documentInstanceId} />
               ) : (
