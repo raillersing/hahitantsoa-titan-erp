@@ -336,9 +336,15 @@ def _build_hahitantsoa_contract_runtime_context(
             "party_type": document_instance.customer_party_type,
             "event_name": linked_event_draft.event_name,
             "event_type": (
-                linked_event_draft.get_event_type_display()
-                if hasattr(linked_event_draft, "get_event_type_display")
-                else (linked_event_draft.event_type or "Autre")
+                linked_event_draft.event_name
+                if linked_event_draft.event_type == "other"
+                and linked_event_draft.event_name
+                and linked_event_draft.event_name != "Événement Hahitantsoa"
+                else (
+                    linked_event_draft.get_event_type_display()
+                    if hasattr(linked_event_draft, "get_event_type_display")
+                    else (linked_event_draft.event_type or "Autre")
+                )
             ),
             "event_type_raw": linked_event_draft.event_type,
             "venue_name": linked_event_draft.venue_name,
@@ -435,14 +441,39 @@ def preview_hahitantsoa_event_draft_document_html(*, event_draft, template_key: 
         invoice_ref = existing_invoice.document_reference
 
     if template_key == "hahitantsoa.invoice.v1":
+        from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES
+
+        confirmed_payments = event_draft.payments.filter(
+            payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES
+        )
+        total_paid = sum((p.amount for p in confirmed_payments), Decimal("0.00"))
+        is_fully_paid = (
+            event_draft.total_amount > 0 and total_paid >= event_draft.total_amount
+        )
+        latest_payment = confirmed_payments.order_by("-paid_at", "-created_at").first()
+        latest_payment_date = (
+            (
+                latest_payment.paid_at.date()
+                if latest_payment.paid_at
+                else latest_payment.created_at.date()
+            )
+            if latest_payment
+            else None
+        )
         if existing_invoice:
             doc_ref = existing_invoice.document_reference
-            doc_date = existing_invoice.document_date or timezone.localdate()
+            doc_date = existing_invoice.document_date or (
+                latest_payment_date or timezone.localdate() if is_fully_paid else None
+            )
         else:
             doc_ref = peek_next_public_reference(
                 brand="hahitantsoa", sequence_type=NumberingSequenceType.INVOICE
             )
-            doc_date = timezone.localdate()
+            doc_date = (
+                (latest_payment_date or timezone.localdate())
+                if is_fully_paid
+                else None
+            )
     elif template_key == "hahitantsoa.delivery_note.v1":
         existing_bl = (
             event_draft.document_instances.filter(document_type="delivery_note")
@@ -549,14 +580,40 @@ def preview_reservation_draft_document_html(*, reservation_draft, template_key: 
         invoice_ref = existing_invoice.document_reference
 
     if template_key == "titan.invoice.v1":
+        from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES
+
+        confirmed_payments = reservation_draft.payments.filter(
+            payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES
+        )
+        total_paid = sum((p.amount for p in confirmed_payments), Decimal("0.00"))
+        is_fully_paid = (
+            reservation_draft.total_amount > 0
+            and total_paid >= reservation_draft.total_amount
+        )
+        latest_payment = confirmed_payments.order_by("-paid_at", "-created_at").first()
+        latest_payment_date = (
+            (
+                latest_payment.paid_at.date()
+                if latest_payment.paid_at
+                else latest_payment.created_at.date()
+            )
+            if latest_payment
+            else None
+        )
         if existing_invoice:
             doc_ref = existing_invoice.document_reference
-            doc_date = existing_invoice.document_date or timezone.localdate()
+            doc_date = existing_invoice.document_date or (
+                latest_payment_date or timezone.localdate() if is_fully_paid else None
+            )
         else:
             doc_ref = peek_next_public_reference(
                 brand="titan", sequence_type=NumberingSequenceType.INVOICE
             )
-            doc_date = timezone.localdate()
+            doc_date = (
+                (latest_payment_date or timezone.localdate())
+                if is_fully_paid
+                else None
+            )
     elif template_key == "titan.delivery_note.v1":
         existing_bl = (
             reservation_draft.document_instances.filter(document_type="delivery_note")

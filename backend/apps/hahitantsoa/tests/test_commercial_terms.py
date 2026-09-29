@@ -21,7 +21,7 @@ def test_night_option_one_excludes_night_security_supplement() -> None:
     terms = HahitantsoaCommercialTerms(
         night_option_1_amount=Decimal("300000.00"),
         night_option_2_amount=Decimal("500000.00"),
-        night_security_amount=Decimal("120000.00"),
+        night_security_amount=Decimal("150000.00"),
     )
 
     assert calculate_duration_supplement(
@@ -31,7 +31,7 @@ def test_night_option_one_excludes_night_security_supplement() -> None:
     assert calculate_duration_supplement(
         terms=terms,
         duration_option=HahitantsoaDurationOption.NIGHT_2,
-    ) == Decimal("620000.00")
+    ) == Decimal("650000.00")
 
 
 @pytest.mark.django_db

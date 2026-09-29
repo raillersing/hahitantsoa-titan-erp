@@ -6,8 +6,17 @@ import pytest
 from django.utils import timezone
 
 from apps.customers.models import Customer, CustomerLifecycleStatus
-from apps.documents.models import DocumentTemplate, DocumentTemplateStatus, DocumentTemplateVersion
-from apps.documents.runtime import generate_document_instance_html
+from apps.documents.models import (
+    DocumentInstance,
+    DocumentInstanceStatus,
+    DocumentTemplate,
+    DocumentTemplateStatus,
+    DocumentTemplateVersion,
+)
+from apps.documents.runtime import (
+    generate_document_instance_html,
+    preview_hahitantsoa_event_draft_document_html,
+)
 from apps.documents.services import (
     create_document_instance_from_hahitantsoa_event_draft,
     create_document_instance_from_reservation_draft,
@@ -756,3 +765,162 @@ def test_hahitantsoa_bare_space_includes_detailed_contents_in_proforma_and_invoi
     )
     assert "Location de l'espace" in logistics_proforma
     assert "10 Chaises pliables" not in logistics_proforma
+
+
+@pytest.mark.django_db
+def test_hahitantsoa_contract_duration_rendering_strict_and_model() -> None:
+    customer = Customer.objects.create(
+        display_name="Client Test Contrat",
+    )
+    start_at = timezone.now().replace(microsecond=0) + timedelta(days=10)
+    event_draft = HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Fête de jour Hery",
+        start_at=start_at,
+        end_at=start_at + timedelta(hours=10),
+        rental_type="bare",
+        duration_option="day",
+    )
+
+    # 1. Day option: strict single line
+    contract_day_html = unescape(
+        preview_hahitantsoa_event_draft_document_html(
+            event_draft=event_draft,
+            template_key="hahitantsoa.contract.v1",
+        )
+    )
+    assert "Durée : Fête de jour : Sortie J-J à 20 :00" in contract_day_html
+    assert "Utilisation de nuit Option 1" not in contract_day_html
+    assert "Utilisation de nuit Option 2" not in contract_day_html
+
+    # 2. Night 1 option
+    event_draft.duration_option = "night_1"
+    event_draft.save(update_fields=["duration_option"])
+    contract_night1_html = unescape(
+        preview_hahitantsoa_event_draft_document_html(
+            event_draft=event_draft,
+            template_key="hahitantsoa.contract.v1",
+        )
+    )
+    expected_night1 = (
+        "Durée : Utilisation de nuit Option 1 : Arrêt de fête 21 :00 / Sortie J-J à 22:30"
+    )
+    assert expected_night1 in contract_night1_html
+    assert "Fête de jour : Sortie J-J à 20 :00" not in contract_night1_html
+
+    # 3. Night 2 option
+    event_draft.duration_option = "night_2"
+    event_draft.save(update_fields=["duration_option"])
+    contract_night2_html = unescape(
+        preview_hahitantsoa_event_draft_document_html(
+            event_draft=event_draft,
+            template_key="hahitantsoa.contract.v1",
+        )
+    )
+    expected_night2 = (
+        "Durée : Utilisation de nuit Option 2 : Arrêt de fête 00 :00 / Sortie J+1 à 03:30"
+    )
+    assert expected_night2 in contract_night2_html
+    assert "Fête de jour : Sortie J-J à 20 :00" not in contract_night2_html
+
+    # 4. Model contract (empty duration): all options listed
+    event_draft.duration_option = ""
+    event_draft.save(update_fields=["duration_option"])
+    contract_model_html = unescape(
+        preview_hahitantsoa_event_draft_document_html(
+            event_draft=event_draft,
+            template_key="hahitantsoa.contract.v1",
+        )
+    )
+    assert "Fête de jour : Sortie J-J à 20 :00" in contract_model_html
+    assert "Utilisation de nuit Option 1 : Arrêt de fête 21 :00" in contract_model_html
+    assert "Utilisation de nuit Option 2 : Arrêt de fête 00 :00" in contract_model_html
+
+
+@pytest.mark.django_db
+def test_hahitantsoa_contract_custom_event_type_preamble() -> None:
+    customer = Customer.objects.create(
+        display_name="Entreprise Alpha SARL",
+    )
+    start_at = timezone.now().replace(microsecond=0) + timedelta(days=10)
+    event_draft = HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Inauguration de l'Entreprise",
+        event_type="other",
+        start_at=start_at,
+        end_at=start_at + timedelta(hours=10),
+        rental_type="bare",
+    )
+
+    contract_html = unescape(
+        preview_hahitantsoa_event_draft_document_html(
+            event_draft=event_draft,
+            template_key="hahitantsoa.contract.v1",
+        )
+    )
+    assert "Pour le Inauguration de l'Entreprise de : Entreprise Alpha SARL" in contract_html
+
+
+@pytest.mark.django_db
+def test_invoice_preview_date_hidden_when_unpaid_and_frozen_when_paid() -> None:
+    from apps.payments.models import Payment, PaymentKind, PaymentMethod, PaymentStatus
+
+    customer = Customer.objects.create(
+        display_name="Client Facture Date",
+    )
+    start_at = timezone.now().replace(microsecond=0) + timedelta(days=5)
+    event_draft = HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Fête test facture",
+        start_at=start_at,
+        end_at=start_at + timedelta(hours=8),
+        total_amount=Decimal("3000000.00"),
+    )
+
+    # 1. Unpaid -> date is hidden with dots placeholder
+    unpaid_invoice_html = unescape(
+        preview_hahitantsoa_event_draft_document_html(
+            event_draft=event_draft,
+            template_key="hahitantsoa.invoice.v1",
+        )
+    )
+    assert "...................." in unpaid_invoice_html
+
+    # 2. Fully paid -> date matches payment date
+    payment_time = timezone.now() - timedelta(days=1)
+    receipt = DocumentInstance.objects.create(
+        hahitantsoa_event_draft=event_draft,
+        customer=customer,
+        template_key="hahitantsoa.payment_receipt.v1",
+        template_version="v1",
+        template_label="Reçu",
+        business_scope="hahitantsoa",
+        document_type="payment_receipt",
+        template_status="source_backed_template",
+        template_source_kind="source_image",
+        template_source_reference="test",
+        template_path="test.html",
+        template_preview_path="test.pdf",
+        reservation_public_reference=event_draft.public_reference,
+        reservation_status=event_draft.status,
+        customer_display_name=customer.display_name,
+        status=DocumentInstanceStatus.GENERATED,
+    )
+    Payment.objects.create(
+        hahitantsoa_event_draft=event_draft,
+        amount=Decimal("3000000.00"),
+        payment_kind=PaymentKind.DEPOSIT,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.CONFIRMED,
+        paid_at=payment_time,
+        receipt_document=receipt,
+    )
+
+    paid_invoice_html = unescape(
+        preview_hahitantsoa_event_draft_document_html(
+            event_draft=event_draft,
+            template_key="hahitantsoa.invoice.v1",
+        )
+    )
+    expected_date_str = payment_time.strftime("%d/%m/%Y")
+    assert expected_date_str in paid_invoice_html
