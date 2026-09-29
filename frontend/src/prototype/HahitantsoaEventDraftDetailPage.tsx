@@ -309,7 +309,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [depositAmount, setDepositAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [paymentNotes, setPaymentNotes] = useState("");
-  const [paymentKindSelection, setPaymentKindSelection] = useState<"deposit" | "installment_1" | "installment_2" | "caution">("deposit");
+  const [paymentKindSelection, setPaymentKindSelection] = useState<"deposit" | "installment_1" | "installment_2" | "caution" | "night_security">("deposit");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 

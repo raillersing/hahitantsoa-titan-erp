@@ -64,8 +64,8 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
     Promise.all([
       getLogisticsEvents(controller.signal),
       getReturnOperations(controller.signal).catch(() => []),
-      getReservationDrafts(controller.signal).catch(() => []),
-      getHahitantsoaEventDrafts(controller.signal).catch(() => []),
+      getReservationDrafts(undefined, controller.signal).catch(() => []),
+      getHahitantsoaEventDrafts(undefined, controller.signal).catch(() => []),
     ])
       .then(([eventsData, returnsData, resDrafts, hDrafts]) => {
         setEvents(Array.isArray(eventsData) ? eventsData : []);
