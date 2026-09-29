@@ -447,9 +447,7 @@ def preview_hahitantsoa_event_draft_document_html(*, event_draft, template_key: 
             payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES
         )
         total_paid = sum((p.amount for p in confirmed_payments), Decimal("0.00"))
-        is_fully_paid = (
-            event_draft.total_amount > 0 and total_paid >= event_draft.total_amount
-        )
+        is_fully_paid = event_draft.total_amount > 0 and total_paid >= event_draft.total_amount
         latest_payment = confirmed_payments.order_by("-paid_at", "-created_at").first()
         latest_payment_date = (
             (
@@ -469,11 +467,7 @@ def preview_hahitantsoa_event_draft_document_html(*, event_draft, template_key: 
             doc_ref = peek_next_public_reference(
                 brand="hahitantsoa", sequence_type=NumberingSequenceType.INVOICE
             )
-            doc_date = (
-                (latest_payment_date or timezone.localdate())
-                if is_fully_paid
-                else None
-            )
+            doc_date = (latest_payment_date or timezone.localdate()) if is_fully_paid else None
     elif template_key == "hahitantsoa.delivery_note.v1":
         existing_bl = (
             event_draft.document_instances.filter(document_type="delivery_note")
@@ -587,8 +581,7 @@ def preview_reservation_draft_document_html(*, reservation_draft, template_key: 
         )
         total_paid = sum((p.amount for p in confirmed_payments), Decimal("0.00"))
         is_fully_paid = (
-            reservation_draft.total_amount > 0
-            and total_paid >= reservation_draft.total_amount
+            reservation_draft.total_amount > 0 and total_paid >= reservation_draft.total_amount
         )
         latest_payment = confirmed_payments.order_by("-paid_at", "-created_at").first()
         latest_payment_date = (
@@ -609,11 +602,7 @@ def preview_reservation_draft_document_html(*, reservation_draft, template_key: 
             doc_ref = peek_next_public_reference(
                 brand="titan", sequence_type=NumberingSequenceType.INVOICE
             )
-            doc_date = (
-                (latest_payment_date or timezone.localdate())
-                if is_fully_paid
-                else None
-            )
+            doc_date = (latest_payment_date or timezone.localdate()) if is_fully_paid else None
     elif template_key == "titan.delivery_note.v1":
         existing_bl = (
             reservation_draft.document_instances.filter(document_type="delivery_note")
