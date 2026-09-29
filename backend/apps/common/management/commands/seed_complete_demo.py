@@ -229,8 +229,10 @@ class Command(BaseCommand):
             venues[name] = v
 
         # Services
+        HahitantsoaService.objects.filter(name__icontains="traiteur").delete()
+        HahitantsoaService.objects.filter(name__icontains="restauration").delete()
         services_data = [
-            ("Traiteur", "Service de restauration sur place"),
+            ("Scénographie & Lumière", "Mise en lumière architecturale et ambiance tamisée"),
             ("Décoration", "Décoration florale et événementielle"),
         ]
         services = {}

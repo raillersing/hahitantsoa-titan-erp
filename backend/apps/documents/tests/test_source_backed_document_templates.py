@@ -665,7 +665,7 @@ def test_hahitantsoa_contract_smart_rental_type_and_deposit() -> None:
     assert "1 500 000,00 Ariary" not in html_bare
     assert "Les intervenants du client accèderont aux locaux le jour-J à 07 heures." in html_bare
     assert "veuillez rayer" not in html_bare
-    assert "Formule horaire : Fête de jour (Sortie J-J à 20:00)" in html_bare
+    assert "Durée : Fête de jour : Sortie J-J à 20:00" in html_bare
 
     # 2. Logistics rental test: exclusively 1 500 000 Ar deposit, no 1 000 000 Ar mention
     context_logistics = _build_mock_preview_context(definition)
@@ -901,6 +901,18 @@ def test_payment_receipt_handles_solde_balance_kind() -> None:
     )
     assert "Reçu de paiement d'acompte" in html_deposit
     assert "TOTAL ACOMPTE" in html_deposit
+
+    # Night security payment
+    context["payment"]["payment_kind"] = "night_security"
+    context["payment"]["amount_label"] = "150 000"
+    html_night_sec = render_to_string(
+        template_path,
+        {"context": context, "bank": _build_preview_bank(definition), "show_variables": False},
+    )
+    assert "Reçu de versement de frais de sécurité nocturne" in html_night_sec
+    assert "Frais de sécurité nocturne (Nuit 2)" in html_night_sec
+    assert "Non remboursable" in html_night_sec
+    assert "Frais de sécurité réglés" in html_night_sec
 
 
 def test_payment_receipt_source_fidelity_with_official_mamitiana_scenario() -> None:

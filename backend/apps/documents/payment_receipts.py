@@ -165,10 +165,19 @@ def build_payment_receipt_context(
     all_payments_list.sort(key=lambda p: (p.paid_at or p.created_at, p.created_at, str(p.id)))
 
     is_caution = payment.payment_kind == PaymentKind.CAUTION
+    is_night_security = payment.payment_kind == PaymentKind.NIGHT_SECURITY
+    is_standalone_fee = is_caution or is_night_security
     if is_caution:
         relevant_payments = [p for p in all_payments_list if p.payment_kind == PaymentKind.CAUTION]
+    elif is_night_security:
+        relevant_payments = [
+            p for p in all_payments_list if p.payment_kind == PaymentKind.NIGHT_SECURITY
+        ]
     else:
-        relevant_payments = [p for p in all_payments_list if p.payment_kind != PaymentKind.CAUTION]
+        relevant_payments = [
+            p for p in all_payments_list
+            if p.payment_kind not in {PaymentKind.CAUTION, PaymentKind.NIGHT_SECURITY}
+        ]
 
     history = tuple(
         {
@@ -239,7 +248,7 @@ def build_payment_receipt_context(
 
     remaining_balance = (
         max(Decimal("0.00"), proforma_total - total_confirmed_payments)
-        if proforma_total > Decimal("0.00") and not is_caution
+        if proforma_total > Decimal("0.00") and not is_standalone_fee
         else Decimal("0.00")
     )
 
@@ -276,9 +285,9 @@ def build_payment_receipt_context(
     # Thermal PDF engines need a concrete page height; ``auto`` falls back to
     # A4 in WeasyPrint. Keep the source receipt height for four history rows and
     # grow only for data that genuinely needs additional lines.
-    history_extra_rows = max(0, len(history) - 4) if not is_caution else 0
+    history_extra_rows = max(0, len(history) - 4) if not is_standalone_fee else 0
     customer_extra_lines = max(0, ceil(len(customer_display_name) / 26) - 1)
-    base_height = 100 if is_caution else 120
+    base_height = 100 if is_standalone_fee else 120
     receipt_page_height_mm = base_height + (history_extra_rows * 5) + (customer_extra_lines * 4)
 
     bank_name = getattr(payment, "bank_name", "") or ""
@@ -314,18 +323,18 @@ def build_payment_receipt_context(
                     if total_confirmed_payments > Decimal("0")
                     else deposit_total
                 )
-                if not is_caution
+                if not is_standalone_fee
                 else ""
             ),
             proforma_reference=proforma_reference,
             proforma_amount_label=(
                 _format_amount(proforma_total)
-                if proforma_total > Decimal("0") and not is_caution
+                if proforma_total > Decimal("0") and not is_standalone_fee
                 else ""
             ),
             remaining_balance_label=(
                 _format_amount(remaining_balance)
-                if proforma_total > Decimal("0") and not is_caution
+                if proforma_total > Decimal("0") and not is_standalone_fee
                 else ""
             ),
             receipt_page_height_mm=receipt_page_height_mm,

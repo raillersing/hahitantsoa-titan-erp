@@ -18,6 +18,7 @@ class PaymentKind(models.TextChoices):
     DEPOSIT = "deposit", "deposit"
     BALANCE = "balance", "balance"
     CAUTION = "caution", "caution"
+    NIGHT_SECURITY = "night_security", "night_security"
     OWNER_INJECTION = "owner_injection", "owner_injection"
     INVESTOR_INJECTION = "investor_injection", "investor_injection"
     DATE_RESERVATION = "date_reservation", "date_reservation"

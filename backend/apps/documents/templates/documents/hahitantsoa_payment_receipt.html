@@ -131,7 +131,7 @@
 <body>
   <main class="receipt">
     <img class="brand" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
-    <h1>{% if context.payment.payment_kind == "balance" %}Reçu de paiement du solde{% elif context.payment.payment_kind == "caution" %}Reçu de dépôt de garantie{% else %}Reçu de paiement d'acompte{% endif %}</h1>
+    <h1>{% if context.payment.payment_kind == "balance" %}Reçu de paiement du solde{% elif context.payment.payment_kind == "caution" %}Reçu de dépôt de garantie{% elif context.payment.payment_kind == "night_security" %}Reçu de versement de frais de sécurité nocturne{% else %}Reçu de paiement d'acompte{% endif %}</h1>
 
     <div class="field"><span class="label">Date</span><span class="value">{{ context.payment.payment_date_label|default:"—" }}</span></div>
     {% if context.payment.receipt_reference %}
@@ -142,7 +142,7 @@
 
     <div class="block-gap"></div>
 
-    <div class="field"><span class="label">{% if context.payment.payment_kind == "caution" %}Montant caution{% else %}Montant payé{% endif %}</span><span class="value value-bold">{{ context.payment.amount_label|default:"—" }} Ar</span></div>
+    <div class="field"><span class="label">{% if context.payment.payment_kind == "caution" %}Montant caution{% elif context.payment.payment_kind == "night_security" %}Montant frais de sécurité{% else %}Montant payé{% endif %}</span><span class="value value-bold">{{ context.payment.amount_label|default:"—" }} Ar</span></div>
     {% if context.payment.amount_in_words %}
     <div class="field words-field"><span class="label">En lettres</span><span class="value words-value">{{ context.payment.amount_in_words }}</span></div>
     {% endif %}
@@ -173,6 +173,12 @@
     <div class="field"><span class="label">N° Dossier</span><span class="value value-bold">{{ context.payment.proforma_reference|default:context.payment.reservation_public_reference|default:"—" }}</span></div>
     <div class="field"><span class="label">Nature</span><span class="value">Dépôt de garantie (Caution)</span></div>
     <div class="field"><span class="label">Statut</span><span class="value value-bold">Caution versée</span></div>
+    {% elif context.payment.payment_kind == "night_security" %}
+    <div class="block-gap"></div>
+    <div class="field"><span class="label">N° Dossier</span><span class="value value-bold">{{ context.payment.proforma_reference|default:context.payment.reservation_public_reference|default:"—" }}</span></div>
+    <div class="field"><span class="label">Nature</span><span class="value">Frais de sécurité nocturne (Nuit 2)</span></div>
+    <div class="field"><span class="label">Remboursement</span><span class="value value-bold">Non remboursable</span></div>
+    <div class="field"><span class="label">Statut</span><span class="value value-bold">Frais de sécurité réglés</span></div>
     {% else %}
     <div class="section-title"><u>Historique des paiements</u></div>
     <table class="history">

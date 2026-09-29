@@ -161,6 +161,9 @@ class InventoryStorageLocationCreateSerializer(serializers.Serializer):
 
 
 class InventoryStockMovementSerializer(serializers.ModelSerializer):
+    dossier_reference = serializers.SerializerMethodField()
+    domain = serializers.SerializerMethodField()
+
     class Meta:
         model = InventoryStockMovement
         fields = (
@@ -169,6 +172,8 @@ class InventoryStockMovementSerializer(serializers.ModelSerializer):
             "storage_location",
             "reservation_draft",
             "hahitantsoa_event_draft",
+            "dossier_reference",
+            "domain",
             "movement_type",
             "direction",
             "quantity",
@@ -183,6 +188,20 @@ class InventoryStockMovementSerializer(serializers.ModelSerializer):
             "updated_by",
         )
         read_only_fields = fields
+
+    def get_dossier_reference(self, obj: InventoryStockMovement) -> str:
+        if obj.reservation_draft:
+            return obj.reservation_draft.public_reference
+        if obj.hahitantsoa_event_draft:
+            return obj.hahitantsoa_event_draft.public_reference
+        return ""
+
+    def get_domain(self, obj: InventoryStockMovement) -> str:
+        if obj.hahitantsoa_event_draft:
+            return "hahitantsoa"
+        if obj.reservation_draft:
+            return "titan"
+        return ""
 
 
 class InventoryStockMovementCreateSerializer(serializers.Serializer):
@@ -248,6 +267,11 @@ class InventoryReturnOperationLineSerializer(serializers.ModelSerializer):
 
 class InventoryReturnOperationSerializer(serializers.ModelSerializer):
     lines = InventoryReturnOperationLineSerializer(many=True, read_only=True)
+    dossier_reference = serializers.SerializerMethodField()
+    customer_name = serializers.SerializerMethodField()
+    delivery_note_reference = serializers.SerializerMethodField()
+    return_note_reference = serializers.SerializerMethodField()
+    domain = serializers.SerializerMethodField()
 
     class Meta:
         model = InventoryReturnOperation
@@ -255,6 +279,11 @@ class InventoryReturnOperationSerializer(serializers.ModelSerializer):
             "id",
             "reservation_draft",
             "hahitantsoa_event_draft",
+            "dossier_reference",
+            "customer_name",
+            "delivery_note_reference",
+            "return_note_reference",
+            "domain",
             "logistics_event",
             "document_instance",
             "status",
@@ -269,6 +298,53 @@ class InventoryReturnOperationSerializer(serializers.ModelSerializer):
             "lines",
         )
         read_only_fields = fields
+
+    def get_dossier_reference(self, obj: InventoryReturnOperation) -> str:
+        if obj.reservation_draft:
+            return obj.reservation_draft.public_reference
+        if obj.hahitantsoa_event_draft:
+            return obj.hahitantsoa_event_draft.public_reference
+        return ""
+
+    def get_customer_name(self, obj: InventoryReturnOperation) -> str:
+        if obj.reservation_draft and obj.reservation_draft.customer:
+            return obj.reservation_draft.customer.display_name
+        if obj.hahitantsoa_event_draft and obj.hahitantsoa_event_draft.customer:
+            return obj.hahitantsoa_event_draft.customer.display_name
+        return ""
+
+    def get_delivery_note_reference(self, obj: InventoryReturnOperation) -> str | None:
+        if obj.document_instance and obj.document_instance.document_reference:
+            return obj.document_instance.document_reference
+        draft = obj.reservation_draft or obj.hahitantsoa_event_draft
+        if draft:
+            doc = (
+                draft.document_instances.filter(document_type="delivery_note")
+                .order_by("-created_at")
+                .first()
+            )
+            if doc:
+                return doc.document_reference
+        return None
+
+    def get_return_note_reference(self, obj: InventoryReturnOperation) -> str | None:
+        draft = obj.reservation_draft or obj.hahitantsoa_event_draft
+        if draft:
+            doc = (
+                draft.document_instances.filter(
+                    template_key__in=["shared.return_note.v1", "shared_return_note"]
+                )
+                .order_by("-created_at")
+                .first()
+            )
+            if doc:
+                return doc.document_reference
+        return None
+
+    def get_domain(self, obj: InventoryReturnOperation) -> str:
+        if obj.hahitantsoa_event_draft:
+            return "hahitantsoa"
+        return "titan"
 
 
 class InventoryReturnOperationLineCreateSerializer(serializers.Serializer):
