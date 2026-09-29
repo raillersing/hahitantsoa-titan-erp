@@ -470,7 +470,7 @@ export default function PackageBuilderPage() {
           className="border-b-2 border-tit-600 px-4 py-3 text-sm font-bold text-tit-700 flex items-center gap-2"
         >
           <i className="fas fa-box-open"></i>
-          <span>Packs & Formules Commerciales</span>
+          <span>Sets & Formules Commerciales</span>
         </a>
         <a
           href="#services"
@@ -490,11 +490,11 @@ export default function PackageBuilderPage() {
             </span>
             <span className="text-xs text-slate-400">•</span>
             <span className="text-xs text-slate-500 font-medium">
-              {packages.length} pack(s) configuré(s)
+              {packages.length} set(s) configuré(s)
             </span>
           </div>
           <h1 className="text-2xl font-black text-slate-900">
-            Gestion des Packs
+            Gestion des Sets
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Assemblez des lots de mobilier, vaisselle et matériels avec photos, valorisation au détail et tarification forfaitaire remisée.
@@ -506,7 +506,7 @@ export default function PackageBuilderPage() {
           className="px-4 py-2.5 bg-tit-600 hover:bg-tit-700 text-white rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2 self-start md:self-auto hover:shadow"
         >
           <i className="fa-solid fa-plus"></i>
-          <span>Nouveau Pack</span>
+          <span>Nouveau Set</span>
         </button>
       </div>
 
@@ -737,7 +737,7 @@ export default function PackageBuilderPage() {
           <div className="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden flex flex-col h-[800px]">
             <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
               <span className="font-bold text-xs uppercase tracking-wider text-slate-700">
-                Packs disponibles ({filteredPackages.length})
+                Sets disponibles ({filteredPackages.length})
               </span>
               <button
                 onClick={handleOpenCreateModal}

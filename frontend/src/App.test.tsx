@@ -216,7 +216,7 @@ describe("App Prototype", () => {
     );
     window.history.replaceState(null, "", "/#packages");
     render(<App />);
-    expect(await screen.findByRole("heading", { name: "Gestion des Packs" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /Gestion des (Sets|Packs)/i })).toBeInTheDocument();
     fetchSpy.mockRestore();
   });
 
