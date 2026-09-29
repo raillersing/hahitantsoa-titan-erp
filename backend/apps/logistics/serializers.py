@@ -57,6 +57,11 @@ class LogisticsEventItemLineCreateSerializer(serializers.Serializer):
 
 class LogisticsEventSerializer(serializers.ModelSerializer):
     item_lines = LogisticsEventItemLineSerializer(many=True, read_only=True)
+    dossier_reference = serializers.SerializerMethodField()
+    customer_name = serializers.SerializerMethodField()
+    delivery_note_reference = serializers.SerializerMethodField()
+    delivery_note_status = serializers.SerializerMethodField()
+    domain = serializers.SerializerMethodField()
 
     class Meta:
         model = LogisticsEvent
@@ -64,6 +69,11 @@ class LogisticsEventSerializer(serializers.ModelSerializer):
             "id",
             "reservation_draft",
             "hahitantsoa_event_draft",
+            "dossier_reference",
+            "customer_name",
+            "delivery_note_reference",
+            "delivery_note_status",
+            "domain",
             "event_type",
             "operation",
             "status",
@@ -104,7 +114,59 @@ class LogisticsEventSerializer(serializers.ModelSerializer):
             "signed_by_client_name",
             "signed_by",
             "signed_at",
+            "dossier_reference",
+            "customer_name",
+            "delivery_note_reference",
+            "delivery_note_status",
+            "domain",
         )
+
+    def get_dossier_reference(self, obj: LogisticsEvent) -> str:
+        if obj.reservation_draft:
+            return obj.reservation_draft.public_reference
+        if obj.hahitantsoa_event_draft:
+            return obj.hahitantsoa_event_draft.public_reference
+        return ""
+
+    def get_customer_name(self, obj: LogisticsEvent) -> str:
+        if obj.contact_name:
+            return obj.contact_name
+        if obj.reservation_draft and obj.reservation_draft.customer:
+            return obj.reservation_draft.customer.display_name
+        if obj.hahitantsoa_event_draft and obj.hahitantsoa_event_draft.customer:
+            return obj.hahitantsoa_event_draft.customer.display_name
+        return ""
+
+    def get_delivery_note_reference(self, obj: LogisticsEvent) -> str | None:
+        draft = obj.reservation_draft or obj.hahitantsoa_event_draft
+        if draft:
+            doc = (
+                draft.document_instances.filter(document_type="delivery_note")
+                .order_by("-created_at")
+                .first()
+            )
+            if doc and doc.document_reference:
+                return doc.document_reference
+        return None
+
+    def get_delivery_note_status(self, obj: LogisticsEvent) -> str | None:
+        draft = obj.reservation_draft or obj.hahitantsoa_event_draft
+        if draft:
+            doc = (
+                draft.document_instances.filter(document_type="delivery_note")
+                .order_by("-created_at")
+                .first()
+            )
+            if doc:
+                return doc.status
+        return None
+
+    def get_domain(self, obj: LogisticsEvent) -> str:
+        if obj.hahitantsoa_event_draft:
+            return "hahitantsoa"
+        if obj.reservation_draft:
+            return "titan"
+        return "general"
 
 
 class LogisticsEventCreateSerializer(serializers.Serializer):

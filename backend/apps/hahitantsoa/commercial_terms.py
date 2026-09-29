@@ -28,7 +28,20 @@ def calculate_duration_supplement(
     if duration_option == HahitantsoaDurationOption.NIGHT_1:
         return terms.night_option_1_amount.quantize(MONEY_QUANTUM)
     if duration_option == HahitantsoaDurationOption.NIGHT_2:
-        return (terms.night_option_2_amount + terms.night_security_amount).quantize(MONEY_QUANTUM)
+        return terms.night_option_2_amount.quantize(MONEY_QUANTUM)
+    return Decimal("0.00")
+
+
+def get_required_night_security_amount(
+    *, terms: HahitantsoaCommercialTerms, duration_option: str
+) -> Decimal:
+    """Security fee applies strictly to Night Option 2.
+
+    Excluded from proforma/invoice total amount and recorded separately
+    with its own receipt, non-refundable like caution.
+    """
+    if duration_option == HahitantsoaDurationOption.NIGHT_2:
+        return terms.night_security_amount.quantize(MONEY_QUANTUM)
     return Decimal("0.00")
 
 
@@ -97,11 +110,13 @@ class HahitantsoaPaymentSchedule:
     second_installment_amount: Decimal
     first_installment_due_on: date
     second_installment_due_on: date
+    night_security_amount: Decimal = Decimal("0.00")
 
 
 def get_hahitantsoa_payment_schedule(
     *, event_draft: HahitantsoaEventDraft
 ) -> HahitantsoaPaymentSchedule:
+    terms = get_hahitantsoa_commercial_terms()
     logistics_amount = Decimal(str(event_draft.logistics_amount)).quantize(MONEY_QUANTUM)
     total_amount = Decimal(str(event_draft.total_amount)).quantize(MONEY_QUANTUM)
     deposit_amount = min(event_draft.required_deposit_amount, total_amount).quantize(MONEY_QUANTUM)
@@ -113,6 +128,9 @@ def get_hahitantsoa_payment_schedule(
         MONEY_QUANTUM
     )
     event_date = event_draft.start_at.date()
+    night_sec = get_required_night_security_amount(
+        terms=terms, duration_option=event_draft.duration_option
+    )
     return HahitantsoaPaymentSchedule(
         space_rental_amount=event_draft.space_rental_amount.quantize(MONEY_QUANTUM),
         logistics_amount=logistics_amount,
@@ -123,6 +141,7 @@ def get_hahitantsoa_payment_schedule(
         second_installment_amount=second_installment_amount,
         first_installment_due_on=subtract_one_calendar_month(event_date),
         second_installment_due_on=event_date.fromordinal(event_date.toordinal() - 10),
+        night_security_amount=night_sec,
     )
 
 

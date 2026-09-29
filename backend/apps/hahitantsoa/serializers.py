@@ -782,6 +782,9 @@ class HahitantsoaPaymentScheduleSerializer(serializers.Serializer):
     second_installment_amount = serializers.DecimalField(max_digits=14, decimal_places=2)
     first_installment_due_on = serializers.DateField()
     second_installment_due_on = serializers.DateField()
+    night_security_amount = serializers.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal("0.00")
+    )
 
 
 class HahitantsoaEventDraftUpdateReferenceSerializer(serializers.Serializer):
@@ -813,6 +816,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
     lines = HahitantsoaEventDraftLineSerializer(many=True)
     prerequisite_status = serializers.SerializerMethodField()
     payment_schedule = serializers.SerializerMethodField()
+    night_security_amount = serializers.SerializerMethodField()
     event_type = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -839,6 +843,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             "logistics_amount",
             "total_amount",
             "required_deposit_amount",
+            "night_security_amount",
             "venue_name",
             "location_details",
             "service_notes",
@@ -858,6 +863,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             "cancelled_at",
             "cancelled_by",
             "customer_display_name",
+            "night_security_amount",
             "created_at",
             "updated_at",
             "payment_schedule",
@@ -924,6 +930,12 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
         return HahitantsoaPaymentScheduleSerializer(
             get_hahitantsoa_payment_schedule(event_draft=instance)
         ).data
+
+    def get_night_security_amount(self, instance) -> str:
+        if instance.duration_option == HahitantsoaDurationOption.NIGHT_2:
+            terms = get_hahitantsoa_commercial_terms()
+            return str(terms.night_security_amount)
+        return "0.00"
 
     @transaction.atomic
     def create(self, validated_data):

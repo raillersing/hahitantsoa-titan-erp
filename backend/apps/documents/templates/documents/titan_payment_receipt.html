@@ -131,7 +131,7 @@
 <body>
   <main class="receipt">
     <img class="brand" src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="Titan Rental">
-    <h1>{% if context.payment.payment_kind == "balance" %}Reçu de paiement du solde{% elif context.payment.payment_kind == "caution" %}Reçu de dépôt de garantie{% else %}Reçu de paiement d'acompte{% endif %}</h1>
+    <h1>{% if context.payment.payment_kind == "balance" %}Reçu de paiement du solde{% elif context.payment.payment_kind == "caution" %}Reçu de dépôt de garantie{% elif context.payment.payment_kind == "night_security" %}Reçu de versement de frais de sécurité nocturne{% else %}Reçu de paiement d'acompte{% endif %}</h1>
 
     <div class="field"><span class="label">Date</span><span class="value">{{ context.payment.payment_date_label|default:"—" }}</span></div>
     {% if context.payment.receipt_reference %}
@@ -142,7 +142,7 @@
 
     <div class="block-gap"></div>
 
-    <div class="field"><span class="label">{% if context.payment.payment_kind == "caution" %}Montant caution{% else %}Montant payé{% endif %}</span><span class="value value-bold">{{ context.payment.amount_label|default:"—" }} Ar</span></div>
+    <div class="field"><span class="label">{% if context.payment.payment_kind == "caution" %}Montant caution{% elif context.payment.payment_kind == "night_security" %}Montant frais de sécurité{% else %}Montant payé{% endif %}</span><span class="value value-bold">{{ context.payment.amount_label|default:"—" }} Ar</span></div>
     {% if context.payment.amount_in_words %}
     <div class="field words-field"><span class="label">En lettres</span><span class="value words-value">{{ context.payment.amount_in_words }}</span></div>
     {% endif %}

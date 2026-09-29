@@ -17,7 +17,9 @@ from apps.hahitantsoa.models import (
 )
 
 
-def test_night_option_one_excludes_night_security_supplement() -> None:
+def test_night_option_duration_supplement_excludes_security_fee() -> None:
+    from apps.hahitantsoa.commercial_terms import get_required_night_security_amount
+
     terms = HahitantsoaCommercialTerms(
         night_option_1_amount=Decimal("300000.00"),
         night_option_2_amount=Decimal("500000.00"),
@@ -31,7 +33,17 @@ def test_night_option_one_excludes_night_security_supplement() -> None:
     assert calculate_duration_supplement(
         terms=terms,
         duration_option=HahitantsoaDurationOption.NIGHT_2,
-    ) == Decimal("650000.00")
+    ) == Decimal("500000.00")
+
+    # Security fee applies strictly to Night Option 2 as separate required payment
+    assert get_required_night_security_amount(
+        terms=terms,
+        duration_option=HahitantsoaDurationOption.NIGHT_1,
+    ) == Decimal("0.00")
+    assert get_required_night_security_amount(
+        terms=terms,
+        duration_option=HahitantsoaDurationOption.NIGHT_2,
+    ) == Decimal("150000.00")
 
 
 @pytest.mark.django_db
