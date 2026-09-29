@@ -46,6 +46,7 @@ const mockCreateDamageLossSettlement = vi.fn();
 const mockValidateDamageLossSettlement = vi.fn();
 const mockCancelDraft = vi.fn();
 const mockResumeDraft = vi.fn();
+const mockGetDocumentPreview = vi.fn();
 
 vi.mock("../api", () => ({
   getHahitantsoaEventDraft: (...args: unknown[]) => mockGetDraft(...args),
@@ -84,6 +85,7 @@ vi.mock("../api", () => ({
   validateDamageLossSettlement: (...args: unknown[]) => mockValidateDamageLossSettlement(...args) ?? Promise.resolve({}),
   cancelHahitantsoaEventDraft: (...args: unknown[]) => mockCancelDraft(...args) ?? Promise.resolve({}),
   resumeHahitantsoaEventDraft: (...args: unknown[]) => mockResumeDraft(...args) ?? Promise.resolve({}),
+  getHahitantsoaEventDraftDocumentPreview: (...args: unknown[]) => mockGetDocumentPreview(...args) ?? Promise.resolve("<html><body>Aperçu officiel</body></html>"),
 }));
 
 vi.mock("../PaymentWhatsAppReminderButton", () => ({ default: () => null }));
@@ -285,6 +287,7 @@ describe("HahitantsoaEventDraftDetailPage", () => {
       owner_id: null,
       steps: [{ key: "contract", label: "Contrat signé", status: "pending", occurred_at: null }],
     });
+    mockGetDocumentPreview.mockResolvedValue("<html><body>Aperçu officiel</body></html>");
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -1537,5 +1540,23 @@ describe("HahitantsoaEventDraftDetailPage", () => {
       await waitFor(() => {
         expect(mockResumeDraft).toHaveBeenCalledWith(DRAFT.id);
       });
+    });
+
+    it("verrouille l'émission et l'impression de la facture tant que le dossier n'est pas intégralement soldé", async () => {
+      currentPayments = [];
+      render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+      const docsTab = await screen.findByRole("button", { name: /Documents/i });
+      fireEvent.click(docsTab);
+
+      expect(await screen.findByText(/Émission verrouillée/i)).toBeInTheDocument();
+
+      const invoiceCard = screen.getByText("Facture Officielle").closest("div.rounded-xl")!;
+      const previewBtn = invoiceCard.querySelector("button")!;
+      fireEvent.click(previewBtn);
+
+      expect(await screen.findByText(/Aperçu verrouillé : ce dossier présente un solde restant/i)).toBeInTheDocument();
+      const printBtn = screen.getByTestId("preview-modal-print-button");
+      expect(printBtn).toBeDisabled();
     });
   });

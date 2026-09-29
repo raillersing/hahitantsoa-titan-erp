@@ -689,7 +689,15 @@ describe('ReservationDetailPage', () => {
     });
     mockGetCustomer.mockResolvedValue(MOCK_CUSTOMER);
     mockGetReservationDraftDocumentInstances.mockResolvedValue([]);
-    mockGetPayments.mockResolvedValue([]);
+    mockGetPayments.mockResolvedValue([
+      {
+        id: "pay-full",
+        amount: 580000,
+        payment_kind: "balance",
+        payment_status: "confirmed",
+        paid_at: "2026-06-01T12:00:00Z",
+      },
+    ]);
     mockGetLifecycle.mockResolvedValue(null);
 
     mockCreateReservationDraftDocumentInstance.mockResolvedValue({
@@ -709,6 +717,7 @@ describe('ReservationDetailPage', () => {
 
     const emitInvoiceBtn = screen.getByRole("button", { name: /Émettre la facture/i });
     expect(emitInvoiceBtn).toBeInTheDocument();
+    expect(emitInvoiceBtn).not.toBeDisabled();
     fireEvent.click(emitInvoiceBtn);
 
     await waitFor(() => {
@@ -730,6 +739,26 @@ describe('ReservationDetailPage', () => {
         notes: "Bon de livraison / sortie émis depuis le dossier de réservation",
       });
     });
+  });
+
+  it("verrouille l'émission et l'impression de la facture tant que le dossier n'est pas soldé", async () => {
+    mockGetReservationDraft.mockReset();
+    mockGetReservationDraft.mockResolvedValue({
+      ...MOCK_DRAFT,
+      status: "confirmed",
+      contract_signed_at: "2026-06-01T12:00:00Z",
+    });
+    mockGetCustomer.mockResolvedValue(MOCK_CUSTOMER);
+    mockGetReservationDraftDocumentInstances.mockResolvedValue([]);
+    mockGetPayments.mockResolvedValue([]);
+    mockGetLifecycle.mockResolvedValue(null);
+
+    render(<ReservationDetailPage param="draft-loc-089" onNavigate={vi.fn()} />);
+    await waitForDraftLoad();
+
+    expect(screen.getByText("Solde requis pour émission")).toBeInTheDocument();
+    const emitInvoiceBtn = screen.getByRole("button", { name: /Émettre la facture/i });
+    expect(emitInvoiceBtn).toBeDisabled();
   });
 
   it("régénère le proforma Titan avec le template valide titan.proforma.v1 lors de l'application d'un avenant (F21)", async () => {
