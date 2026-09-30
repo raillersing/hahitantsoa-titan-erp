@@ -117,6 +117,7 @@ class Command(BaseCommand):
             {
                 "display_name": "Rakotomalala Fidy",
                 "lifecycle_status": "prospect",
+                "prospect_status": "proforma_sent",
                 "party_type": "individual",
                 "email": "fidy.rakotomalala@email.mg",
                 "phone": "+261 34 77 889 90",
@@ -150,23 +151,84 @@ class Command(BaseCommand):
                 "Chaise Napoléon transparente",
                 "material",
                 "Chaise pliable transparente pour événements",
+                Decimal("5000"),
+                Decimal("35000"),
             ),
-            ("Table rectangulaire 8 places", "material", "Table rectangulaire blanche 180cm"),
-            ("Tente 5x5m", "material", "Tente structurée blanche 25m²"),
-            ("Sono complète + Micro", "material", "Système sonore 2000W avec 2 micros"),
-            ("Chaise chiavari dorée", "material", "Chaise élégante dorée pour mariages"),
-            ("Lumières d'ambiance LED", "material", "Pack 10 spots LED RGB"),
-            ("Nappe blanche 3m", "article", "Nappe blanche satinée 300x300cm"),
-            ("Couvert argenté", "article", "Couvert en métal argenté"),
-            ("Serviette blanche", "article", "Serviette blanche en tissu 50x50cm"),
-            ("Badge intervenant", "article", "Badge plastifié avec lanyard"),
+            (
+                "Table rectangulaire 8 places",
+                "material",
+                "Table rectangulaire blanche 180cm",
+                Decimal("25000"),
+                Decimal("85000"),
+            ),
+            (
+                "Tente 5x5m",
+                "material",
+                "Tente structurée blanche 25m²",
+                Decimal("150000"),
+                Decimal("600000"),
+            ),
+            (
+                "Sono complète + Micro",
+                "material",
+                "Système sonore 2000W avec 2 micros",
+                Decimal("200000"),
+                Decimal("1200000"),
+            ),
+            (
+                "Chaise chiavari dorée",
+                "material",
+                "Chaise élégante dorée pour mariages",
+                Decimal("6000"),
+                Decimal("40000"),
+            ),
+            (
+                "Lumières d'ambiance LED",
+                "material",
+                "Pack 10 spots LED RGB",
+                Decimal("50000"),
+                Decimal("250000"),
+            ),
+            (
+                "Nappe blanche 3m",
+                "article",
+                "Nappe blanche satinée 300x300cm",
+                Decimal("10000"),
+                Decimal("45000"),
+            ),
+            (
+                "Couvert argenté",
+                "article",
+                "Couvert en métal argenté",
+                Decimal("1500"),
+                Decimal("8000"),
+            ),
+            (
+                "Serviette blanche",
+                "article",
+                "Serviette blanche en tissu 50x50cm",
+                Decimal("800"),
+                Decimal("5000"),
+            ),
+            (
+                "Badge intervenant",
+                "article",
+                "Badge plastifié avec lanyard",
+                Decimal("2000"),
+                Decimal("5000"),
+            ),
         ]
 
         items = {}
-        for name, kind, desc in items_data:
+        for name, kind, desc, rental_p, breakage_p in items_data:
             item, _ = InventoryItem.objects.update_or_create(
                 name=name,
-                defaults={"kind": kind, "description": desc},
+                defaults={
+                    "kind": kind,
+                    "description": desc,
+                    "rental_price": rental_p,
+                    "breakage_price": breakage_p,
+                },
             )
             items[name] = item
 
@@ -289,6 +351,11 @@ class Command(BaseCommand):
             inventory_item=items["Chaise chiavari dorée"],
             defaults={"quantity": 80, "notes": "Chaises pour le séminaire"},
         )
+        HahitantsoaEventDraftLine.objects.get_or_create(
+            event_draft=event2,
+            inventory_item=items["Table rectangulaire 8 places"],
+            defaults={"quantity": 10, "notes": "Tables rectangulaires de conférence"},
+        )
 
         self.stdout.write(self.style.SUCCESS("✓ 2 événements Hahitantsoa créés"))
 
@@ -397,18 +464,38 @@ class Command(BaseCommand):
         # ── 7. Documents (proforma, contrat, facture) ─────────────────────
         from apps.documents.models import DocumentInstance
 
-        # Proforma pour RD-001 (prospect)
+        # Proforma pour RD-001 (prospect - v1 initiale)
         DocumentInstance.objects.update_or_create(
             template_key="PROFORMA-TITAN",
             reservation_draft=rd1,
+            template_version="1.0",
             defaults={
                 "customer": customers["Rakotomalala Fidy"],
-                "template_version": "1.0",
-                "template_label": "Proforma Titan",
+                "template_label": "Proforma Titan (v1)",
                 "business_scope": "titan",
+                "document_type": "proforma",
+                "document_reference": "LOC-2026-0001-PF",
+                "status": "issued",
+                "prepared_at": now - timedelta(days=6),
+                "valid_until": now + timedelta(days=24),
+                "template_notes": "Devis initial prospect chaises Napoléon",
+            },
+        )
+        # Proforma pour RD-001 (prospect - v2 révisée pour test Lot 6)
+        DocumentInstance.objects.update_or_create(
+            template_key="PROFORMA-TITAN",
+            reservation_draft=rd1,
+            template_version="2.0",
+            defaults={
+                "customer": customers["Rakotomalala Fidy"],
+                "template_label": "Proforma Titan (v2 - Révisé)",
+                "business_scope": "titan",
+                "document_type": "proforma",
+                "document_reference": "LOC-2026-0001-PF",
                 "status": "issued",
                 "prepared_at": now - timedelta(days=1),
-                "valid_until": now + timedelta(days=30),
+                "valid_until": now + timedelta(days=29),
+                "template_notes": "Révision quantité chaises et tables",
             },
         )
 
@@ -455,6 +542,40 @@ class Command(BaseCommand):
             },
         )
 
+        # Proformas successifs pour event2 (Séminaire TechMada - pour test Lot 6)
+        DocumentInstance.objects.update_or_create(
+            template_key="PROFORMA-HAH",
+            hahitantsoa_event_draft=event2,
+            template_version="1.0",
+            defaults={
+                "customer": customers["Rasoa Nomena"],
+                "template_label": "Proforma Hahitantsoa (v1)",
+                "business_scope": "hahitantsoa",
+                "document_type": "proforma",
+                "document_reference": "HAH-2026-0002-PF",
+                "status": "issued",
+                "prepared_at": now - timedelta(days=5),
+                "valid_until": now + timedelta(days=25),
+                "template_notes": "Version initiale du devis séminaire",
+            },
+        )
+        DocumentInstance.objects.update_or_create(
+            template_key="PROFORMA-HAH",
+            hahitantsoa_event_draft=event2,
+            template_version="2.0",
+            defaults={
+                "customer": customers["Rasoa Nomena"],
+                "template_label": "Proforma Hahitantsoa (v2 - Révisé)",
+                "business_scope": "hahitantsoa",
+                "document_type": "proforma",
+                "document_reference": "HAH-2026-0002-PF",
+                "status": "issued",
+                "prepared_at": now - timedelta(days=2),
+                "valid_until": now + timedelta(days=28),
+                "template_notes": "Ajustement du nombre de tables et chaises",
+            },
+        )
+
         # Reçu pour RD-003
         rec_rd3, _ = DocumentInstance.objects.update_or_create(
             template_key="RECU-PAIEMENT",
@@ -469,22 +590,85 @@ class Command(BaseCommand):
             },
         )
 
-        # Reçu pour event1
+        # Reçu acompte pour event1
         rec_event1, _ = DocumentInstance.objects.update_or_create(
             template_key="RECU-PAIEMENT",
             hahitantsoa_event_draft=event1,
+            document_reference="REC-DEP-HAH-0001",
             defaults={
                 "customer": customers["Rakoto Ando"],
                 "template_version": "1.0",
-                "template_label": "Reçu de paiement",
+                "template_label": "Reçu d'acompte Hahitantsoa",
                 "business_scope": "hahitantsoa",
                 "status": "generated",
                 "prepared_at": now - timedelta(days=3),
             },
         )
 
+        # Reçu caution et Bon de livraison pour event1 (pour test Lot 5)
+        rec_caut_event1, _ = DocumentInstance.objects.update_or_create(
+            template_key="RECU-PAIEMENT",
+            hahitantsoa_event_draft=event1,
+            document_reference="REC-CAUT-HAH-0001",
+            defaults={
+                "customer": customers["Rakoto Ando"],
+                "template_version": "1.0",
+                "template_label": "Reçu de versement de caution",
+                "business_scope": "hahitantsoa",
+                "document_type": "recu",
+                "status": "generated",
+                "prepared_at": now - timedelta(days=2),
+            },
+        )
+        DocumentInstance.objects.update_or_create(
+            template_key="hahitantsoa.delivery_note.v1",
+            hahitantsoa_event_draft=event1,
+            defaults={
+                "customer": customers["Rakoto Ando"],
+                "template_version": "1.0",
+                "template_label": "Bon de Livraison Hahitantsoa",
+                "business_scope": "hahitantsoa",
+                "document_type": "bon_livraison",
+                "document_reference": "BL-HAH-2026-0001",
+                "status": "issued",
+                "prepared_at": now - timedelta(days=1),
+            },
+        )
+
+        # Reçu caution et Bon de sortie pour RD-004 (Titan - pour test Lot 5)
+        rec_caut_rd4, _ = DocumentInstance.objects.update_or_create(
+            template_key="RECU-PAIEMENT",
+            reservation_draft=rd4,
+            document_reference="REC-CAUT-LOC-0004",
+            defaults={
+                "customer": customers["Mme Rasoanirina"],
+                "template_version": "1.0",
+                "template_label": "Reçu de versement de caution Titan",
+                "business_scope": "titan",
+                "document_type": "recu",
+                "status": "generated",
+                "prepared_at": now - timedelta(days=5),
+            },
+        )
+        DocumentInstance.objects.update_or_create(
+            template_key="titan.delivery_note.v1",
+            reservation_draft=rd4,
+            defaults={
+                "customer": customers["Mme Rasoanirina"],
+                "template_version": "1.0",
+                "template_label": "Bon de Sortie / Livraison Titan",
+                "business_scope": "titan",
+                "document_type": "bon_livraison",
+                "document_reference": "BL-TIT-2026-0004",
+                "status": "issued",
+                "prepared_at": now - timedelta(days=3),
+            },
+        )
+
         self.stdout.write(
-            self.style.SUCCESS("✓ 6 documents créés (2 proformas, 1 contrat, 1 facture, 2 reçus)")
+            self.style.SUCCESS(
+                "✓ 11 documents créés (proformas révisés, contrats, factures, reçus, BL)"
+            )
         )
 
         # ── 8. Facturation ────────────────────────────────────────────────
@@ -551,10 +735,65 @@ class Command(BaseCommand):
             },
         )
 
-        self.stdout.write(self.style.SUCCESS("✓ 2 paiements créés"))
+        # Caution contractuelle event1 (500 000 Ar - Lot 5)
+        Payment.objects.update_or_create(
+            hahitantsoa_event_draft=event1,
+            payment_kind="caution",
+            defaults={
+                "payment_method": "cash",
+                "payment_status": "confirmed",
+                "amount": Decimal("500000"),
+                "paid_at": now - timedelta(days=2),
+                "confirmed_at": now - timedelta(days=2),
+                "confirmed_by": gérant,
+                "external_reference": "CAUTION-HAH-0001",
+                "source_label": "Caution contractuelle Hahitantsoa",
+                "receipt_document": rec_caut_event1,
+            },
+        )
+
+        # Caution contractuelle rd4 (300 000 Ar - Lot 5)
+        Payment.objects.update_or_create(
+            reservation_draft=rd4,
+            payment_kind="caution",
+            defaults={
+                "payment_method": "cash",
+                "payment_status": "confirmed",
+                "amount": Decimal("300000"),
+                "paid_at": now - timedelta(days=5),
+                "confirmed_at": now - timedelta(days=5),
+                "confirmed_by": gérant,
+                "external_reference": "CAUTION-LOC-0004",
+                "source_label": "Caution contractuelle Titan",
+                "receipt_document": rec_caut_rd4,
+            },
+        )
+
+        self.stdout.write(self.style.SUCCESS("✓ 4 paiements créés (acomptes et cautions)"))
 
         # ── 10. Logistique ────────────────────────────────────────────────
         from apps.logistics.models import LogisticsEvent, LogisticsEventItemLine
+
+        # Sortie pour event1 (Mariage Rakoto - terminée pour test retour Lot 5)
+        evt_h1, _ = LogisticsEvent.objects.update_or_create(
+            hahitantsoa_event_draft=event1,
+            event_type="outbound_delivery",
+            defaults={
+                "status": "completed",
+                "scheduled_at": now - timedelta(days=1),
+                "notes": "Livraison matériel effectuée sur site Domaine Ambohimanga.",
+            },
+        )
+        LogisticsEventItemLine.objects.get_or_create(
+            logistics_event=evt_h1,
+            inventory_item=items["Chaise Napoléon transparente"],
+            defaults={"quantity": 150},
+        )
+        LogisticsEventItemLine.objects.get_or_create(
+            logistics_event=evt_h1,
+            inventory_item=items["Table rectangulaire 8 places"],
+            defaults={"quantity": 15},
+        )
 
         # Sortie pour RD-003
         evt1, _ = LogisticsEvent.objects.update_or_create(
