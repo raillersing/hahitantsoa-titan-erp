@@ -278,6 +278,11 @@ class Command(BaseCommand):
             HahitantsoaVenue,
         )
 
+        # Cleanup non-canonical legacy demo drafts if any
+        HahitantsoaEventDraft.objects.filter(
+            public_reference__in=["HAH-2026-0001", "HAH-2026-0002"]
+        ).delete()
+
         # Venues
         venues_data = [
             ("Domaine Ambohimanga", "Espace principal avec jardin et salle de réception"),
@@ -306,7 +311,7 @@ class Command(BaseCommand):
 
         # Événements
         event1, _ = HahitantsoaEventDraft.objects.update_or_create(
-            public_reference="HAH-2026-0001",
+            public_reference="H-001/2026",
             defaults={
                 "customer": customers["Rakoto Ando"],
                 "status": "confirmed",
@@ -335,7 +340,7 @@ class Command(BaseCommand):
         )
 
         event2, _ = HahitantsoaEventDraft.objects.update_or_create(
-            public_reference="HAH-2026-0002",
+            public_reference="H-002/2026",
             defaults={
                 "customer": customers["Rasoa Nomena"],
                 "status": "draft",
@@ -362,9 +367,19 @@ class Command(BaseCommand):
         # ── 6. Locations Titan ────────────────────────────────────────────
         from apps.reservations.models import ReservationDraft, ReservationDraftLine
 
+        # Cleanup non-canonical legacy demo drafts if any
+        ReservationDraft.objects.filter(
+            public_reference__in=[
+                "LOC-2026-0001",
+                "LOC-2026-0002",
+                "LOC-2026-0003",
+                "LOC-2026-0004",
+            ]
+        ).delete()
+
         # RD-001 : Prospect → proforma envoyé
         rd1, _ = ReservationDraft.objects.update_or_create(
-            public_reference="LOC-2026-0001",
+            public_reference="T-001/2026",
             defaults={
                 "customer": customers["Rakotomalala Fidy"],
                 "status": "draft",
@@ -386,7 +401,7 @@ class Command(BaseCommand):
 
         # RD-002 : Contrat signé, en attente acompte
         rd2, _ = ReservationDraft.objects.update_or_create(
-            public_reference="LOC-2026-0002",
+            public_reference="T-002/2026",
             defaults={
                 "customer": customers["SARL Moraingy Events"],
                 "status": "draft",
@@ -410,7 +425,7 @@ class Command(BaseCommand):
 
         # RD-003 : Confirmé (contrat + acompte)
         rd3, _ = ReservationDraft.objects.update_or_create(
-            public_reference="LOC-2026-0003",
+            public_reference="T-003/2026",
             defaults={
                 "customer": customers["Société TechMada"],
                 "status": "confirmed",
@@ -438,7 +453,7 @@ class Command(BaseCommand):
 
         # RD-004 : Passé (événement terminé)
         rd4, _ = ReservationDraft.objects.update_or_create(
-            public_reference="LOC-2026-0004",
+            public_reference="T-004/2026",
             defaults={
                 "customer": customers["Mme Rasoanirina"],
                 "status": "confirmed",
@@ -464,9 +479,22 @@ class Command(BaseCommand):
         # ── 7. Documents (proforma, contrat, facture) ─────────────────────
         from apps.documents.models import DocumentInstance
 
+        # Cleanup non-canonical legacy demo documents if any
+        DocumentInstance.objects.filter(
+            document_reference__in=[
+                "HAH-2026-0002-PF",
+                "BL-HAH-2026-0001",
+                "REC-DEP-HAH-0001",
+                "REC-CAUT-HAH-0001",
+                "LOC-2026-0001-PF",
+                "BL-TIT-2026-0004",
+                "REC-CAUT-LOC-0004",
+            ]
+        ).delete()
+
         # Proforma pour RD-001 (prospect - v1 initiale)
         DocumentInstance.objects.update_or_create(
-            template_key="PROFORMA-TITAN",
+            template_key="titan.proforma.v1",
             reservation_draft=rd1,
             template_version="1.0",
             defaults={
@@ -474,7 +502,7 @@ class Command(BaseCommand):
                 "template_label": "Proforma Titan (v1)",
                 "business_scope": "titan",
                 "document_type": "proforma",
-                "document_reference": "LOC-2026-0001-PF",
+                "document_reference": "T-001/2026-PF",
                 "status": "issued",
                 "prepared_at": now - timedelta(days=6),
                 "valid_until": now + timedelta(days=24),
@@ -483,7 +511,7 @@ class Command(BaseCommand):
         )
         # Proforma pour RD-001 (prospect - v2 révisée pour test Lot 6)
         DocumentInstance.objects.update_or_create(
-            template_key="PROFORMA-TITAN",
+            template_key="titan.proforma.v1",
             reservation_draft=rd1,
             template_version="2.0",
             defaults={
@@ -491,7 +519,7 @@ class Command(BaseCommand):
                 "template_label": "Proforma Titan (v2 - Révisé)",
                 "business_scope": "titan",
                 "document_type": "proforma",
-                "document_reference": "LOC-2026-0001-PF",
+                "document_reference": "T-001/2026-PF",
                 "status": "issued",
                 "prepared_at": now - timedelta(days=1),
                 "valid_until": now + timedelta(days=29),
@@ -501,78 +529,65 @@ class Command(BaseCommand):
 
         # Contrat pour RD-002
         DocumentInstance.objects.update_or_create(
-            template_key="CONTRAT-TITAN",
+            template_key="titan.material_contract.v1",
             reservation_draft=rd2,
             defaults={
                 "customer": customers["SARL Moraingy Events"],
                 "template_version": "1.0",
                 "template_label": "Contrat Titan",
                 "business_scope": "titan",
+                "document_type": "contract",
+                "document_reference": "T-002/2026-CT",
                 "status": "issued",
                 "prepared_at": now - timedelta(days=2),
             },
         )
 
+        # Contrat pour RD-003
+        DocumentInstance.objects.update_or_create(
+            template_key="titan.material_contract.v1",
+            reservation_draft=rd3,
+            defaults={
+                "customer": customers["Société TechMada"],
+                "template_version": "1.0",
+                "template_label": "Contrat Titan",
+                "business_scope": "titan",
+                "document_type": "contract",
+                "document_reference": "T-003/2026-CT",
+                "status": "issued",
+                "prepared_at": now - timedelta(days=7),
+            },
+        )
+
         # Facture pour RD-003
         doc_facture, _ = DocumentInstance.objects.update_or_create(
-            template_key="FACTURE-TITAN",
+            template_key="titan.invoice.v1",
             reservation_draft=rd3,
             defaults={
                 "customer": customers["Société TechMada"],
                 "template_version": "1.0",
                 "template_label": "Facture Titan",
                 "business_scope": "titan",
+                "document_type": "invoice",
+                "document_reference": "T-003/2026-FA",
                 "status": "issued",
                 "prepared_at": now - timedelta(days=5),
             },
         )
 
-        # Proforma Hahitantsoa pour event1
+        # Bon de livraison pour RD-003
         DocumentInstance.objects.update_or_create(
-            template_key="PROFORMA-HAH",
-            hahitantsoa_event_draft=event1,
+            template_key="titan.delivery_note.v1",
+            reservation_draft=rd3,
             defaults={
-                "customer": customers["Rakoto Ando"],
+                "customer": customers["Société TechMada"],
                 "template_version": "1.0",
-                "template_label": "Proforma Hahitantsoa",
-                "business_scope": "hahitantsoa",
+                "template_label": "Bon de Sortie / Livraison Titan",
+                "business_scope": "titan",
+                "document_type": "delivery_note",
+                "document_reference": "T-003/2026-BL",
                 "status": "issued",
-                "prepared_at": now - timedelta(days=10),
-                "valid_until": now + timedelta(days=30),
-            },
-        )
-
-        # Proformas successifs pour event2 (Séminaire TechMada - pour test Lot 6)
-        DocumentInstance.objects.update_or_create(
-            template_key="PROFORMA-HAH",
-            hahitantsoa_event_draft=event2,
-            template_version="1.0",
-            defaults={
-                "customer": customers["Rasoa Nomena"],
-                "template_label": "Proforma Hahitantsoa (v1)",
-                "business_scope": "hahitantsoa",
-                "document_type": "proforma",
-                "document_reference": "HAH-2026-0002-PF",
-                "status": "issued",
-                "prepared_at": now - timedelta(days=5),
-                "valid_until": now + timedelta(days=25),
-                "template_notes": "Version initiale du devis séminaire",
-            },
-        )
-        DocumentInstance.objects.update_or_create(
-            template_key="PROFORMA-HAH",
-            hahitantsoa_event_draft=event2,
-            template_version="2.0",
-            defaults={
-                "customer": customers["Rasoa Nomena"],
-                "template_label": "Proforma Hahitantsoa (v2 - Révisé)",
-                "business_scope": "hahitantsoa",
-                "document_type": "proforma",
-                "document_reference": "HAH-2026-0002-PF",
-                "status": "issued",
-                "prepared_at": now - timedelta(days=2),
-                "valid_until": now + timedelta(days=28),
-                "template_notes": "Ajustement du nombre de tables et chaises",
+                "prepared_at": now - timedelta(days=4),
             },
         )
 
@@ -580,13 +595,82 @@ class Command(BaseCommand):
         rec_rd3, _ = DocumentInstance.objects.update_or_create(
             template_key="RECU-PAIEMENT",
             reservation_draft=rd3,
+            document_reference="T-003/2026-REC-01",
             defaults={
                 "customer": customers["Société TechMada"],
                 "template_version": "1.0",
                 "template_label": "Reçu de paiement",
                 "business_scope": "titan",
+                "document_type": "recu",
                 "status": "generated",
                 "prepared_at": now - timedelta(days=5),
+            },
+        )
+
+        # Proforma Hahitantsoa pour event1
+        DocumentInstance.objects.update_or_create(
+            template_key="hahitantsoa.proforma.v1",
+            hahitantsoa_event_draft=event1,
+            defaults={
+                "customer": customers["Rakoto Ando"],
+                "template_version": "1.0",
+                "template_label": "Proforma Hahitantsoa",
+                "business_scope": "hahitantsoa",
+                "document_type": "proforma",
+                "document_reference": "H-001/2026-PF",
+                "status": "issued",
+                "prepared_at": now - timedelta(days=10),
+                "valid_until": now + timedelta(days=30),
+            },
+        )
+
+        # Contrat Hahitantsoa pour event1
+        DocumentInstance.objects.update_or_create(
+            template_key="hahitantsoa.contract.v1",
+            hahitantsoa_event_draft=event1,
+            defaults={
+                "customer": customers["Rakoto Ando"],
+                "template_version": "1.0",
+                "template_label": "Contrat Hahitantsoa",
+                "business_scope": "hahitantsoa",
+                "document_type": "contract",
+                "document_reference": "H-001/2026-CT",
+                "status": "issued",
+                "prepared_at": now - timedelta(days=5),
+            },
+        )
+
+        # Proformas successifs pour event2 (Séminaire TechMada - pour test Lot 6)
+        DocumentInstance.objects.update_or_create(
+            template_key="hahitantsoa.proforma.v1",
+            hahitantsoa_event_draft=event2,
+            template_version="1.0",
+            defaults={
+                "customer": customers["Rasoa Nomena"],
+                "template_label": "Proforma Hahitantsoa (v1)",
+                "business_scope": "hahitantsoa",
+                "document_type": "proforma",
+                "document_reference": "H-002/2026-PF",
+                "status": "issued",
+                "prepared_at": now - timedelta(days=5),
+                "valid_until": now + timedelta(days=25),
+                "template_notes": "Version initiale du devis séminaire",
+            },
+        )
+        DocumentInstance.objects.update_or_create(
+            template_key="hahitantsoa.proforma.v1",
+            hahitantsoa_event_draft=event2,
+            template_version="2.0",
+            defaults={
+                "customer": customers["Rasoa Nomena"],
+                "template_label": "Proforma Hahitantsoa (v2 - Révisé)",
+                "business_scope": "hahitantsoa",
+                "document_type": "proforma",
+                "document_reference": "H-002/2026-PF",
+                "status": "issued",
+                "prepared_at": now - timedelta(days=2),
+                "valid_until": now + timedelta(days=28),
+                "template_notes": "Ajustement du nombre de tables et chaises",
             },
         )
 
@@ -594,12 +678,13 @@ class Command(BaseCommand):
         rec_event1, _ = DocumentInstance.objects.update_or_create(
             template_key="RECU-PAIEMENT",
             hahitantsoa_event_draft=event1,
-            document_reference="REC-DEP-HAH-0001",
+            document_reference="H-001/2026-REC-01",
             defaults={
                 "customer": customers["Rakoto Ando"],
                 "template_version": "1.0",
                 "template_label": "Reçu d'acompte Hahitantsoa",
                 "business_scope": "hahitantsoa",
+                "document_type": "recu",
                 "status": "generated",
                 "prepared_at": now - timedelta(days=3),
             },
@@ -609,7 +694,7 @@ class Command(BaseCommand):
         rec_caut_event1, _ = DocumentInstance.objects.update_or_create(
             template_key="RECU-PAIEMENT",
             hahitantsoa_event_draft=event1,
-            document_reference="REC-CAUT-HAH-0001",
+            document_reference="H-001/2026-REC-02",
             defaults={
                 "customer": customers["Rakoto Ando"],
                 "template_version": "1.0",
@@ -629,9 +714,25 @@ class Command(BaseCommand):
                 "template_label": "Bon de Livraison Hahitantsoa",
                 "business_scope": "hahitantsoa",
                 "document_type": "bon_livraison",
-                "document_reference": "BL-HAH-2026-0001",
+                "document_reference": "H-001/2026-BL",
                 "status": "issued",
                 "prepared_at": now - timedelta(days=1),
+            },
+        )
+
+        # Contrat pour RD-004
+        DocumentInstance.objects.update_or_create(
+            template_key="titan.material_contract.v1",
+            reservation_draft=rd4,
+            defaults={
+                "customer": customers["Mme Rasoanirina"],
+                "template_version": "1.0",
+                "template_label": "Contrat Titan",
+                "business_scope": "titan",
+                "document_type": "contract",
+                "document_reference": "T-004/2026-CT",
+                "status": "issued",
+                "prepared_at": now - timedelta(days=10),
             },
         )
 
@@ -639,7 +740,7 @@ class Command(BaseCommand):
         rec_caut_rd4, _ = DocumentInstance.objects.update_or_create(
             template_key="RECU-PAIEMENT",
             reservation_draft=rd4,
-            document_reference="REC-CAUT-LOC-0004",
+            document_reference="T-004/2026-REC-01",
             defaults={
                 "customer": customers["Mme Rasoanirina"],
                 "template_version": "1.0",
@@ -659,7 +760,7 @@ class Command(BaseCommand):
                 "template_label": "Bon de Sortie / Livraison Titan",
                 "business_scope": "titan",
                 "document_type": "bon_livraison",
-                "document_reference": "BL-TIT-2026-0004",
+                "document_reference": "T-004/2026-BL",
                 "status": "issued",
                 "prepared_at": now - timedelta(days=3),
             },
@@ -674,8 +775,11 @@ class Command(BaseCommand):
         # ── 8. Facturation ────────────────────────────────────────────────
         from apps.billing.models import BillingInvoice
 
+        # Cleanup non-canonical legacy invoices
+        BillingInvoice.objects.filter(number__in=["FAC-2026-0001", "FAC-2026-0002"]).delete()
+
         inv1, _ = BillingInvoice.objects.update_or_create(
-            number="FAC-2026-0001",
+            number="T-003/2026-FA",
             defaults={
                 "reservation_draft": rd3,
                 "source_kind": "reservation",
@@ -687,14 +791,14 @@ class Command(BaseCommand):
         )
 
         inv2, _ = BillingInvoice.objects.update_or_create(
-            number="FAC-2026-0002",
+            number="T-004/2026-FA",
             defaults={
                 "reservation_draft": rd4,
                 "source_kind": "reservation",
                 "invoice_status": "open",
                 "amount": Decimal("3500000"),
                 "issued_at": now - timedelta(days=8),
-                "notes": "Facture événement - Mariage Rakoto",
+                "notes": "Facture location Titan - Mme Rasoanirina",
             },
         )
 
@@ -713,7 +817,7 @@ class Command(BaseCommand):
                 "paid_at": now - timedelta(days=5),
                 "confirmed_at": now - timedelta(days=5),
                 "confirmed_by": gérant,
-                "external_reference": "MVOLA-2026-0042",
+                "external_reference": "MVOLA-T003-2026",
                 "source_label": "Acompte location TechMada",
                 "receipt_document": rec_rd3,
             },
@@ -729,7 +833,7 @@ class Command(BaseCommand):
                 "paid_at": now - timedelta(days=3),
                 "confirmed_at": now - timedelta(days=3),
                 "confirmed_by": gérant,
-                "external_reference": "VIR-2026-0018",
+                "external_reference": "VIR-H001-2026",
                 "source_label": "Acompte mariage Rakoto",
                 "receipt_document": rec_event1,
             },
@@ -746,7 +850,7 @@ class Command(BaseCommand):
                 "paid_at": now - timedelta(days=2),
                 "confirmed_at": now - timedelta(days=2),
                 "confirmed_by": gérant,
-                "external_reference": "CAUTION-HAH-0001",
+                "external_reference": "CAUTION-H001-2026",
                 "source_label": "Caution contractuelle Hahitantsoa",
                 "receipt_document": rec_caut_event1,
             },
@@ -763,7 +867,7 @@ class Command(BaseCommand):
                 "paid_at": now - timedelta(days=5),
                 "confirmed_at": now - timedelta(days=5),
                 "confirmed_by": gérant,
-                "external_reference": "CAUTION-LOC-0004",
+                "external_reference": "CAUTION-T004-2026",
                 "source_label": "Caution contractuelle Titan",
                 "receipt_document": rec_caut_rd4,
             },
@@ -816,6 +920,22 @@ class Command(BaseCommand):
             defaults={"quantity": 4},
         )
 
+        # Sortie pour RD-004 (Livraison terminée pour test retour Lot 5)
+        evt_rd4, _ = LogisticsEvent.objects.update_or_create(
+            reservation_draft=rd4,
+            event_type="outbound_delivery",
+            defaults={
+                "status": "completed",
+                "scheduled_at": now - timedelta(days=3),
+                "notes": "Livraison matériel effectuée pour Mme Rasoanirina.",
+            },
+        )
+        LogisticsEventItemLine.objects.get_or_create(
+            logistics_event=evt_rd4,
+            inventory_item=items["Chaise Napoléon transparente"],
+            defaults={"quantity": 200},
+        )
+
         # Retour pour RD-004
         evt2, _ = LogisticsEvent.objects.update_or_create(
             reservation_draft=rd4,
@@ -832,7 +952,7 @@ class Command(BaseCommand):
             defaults={"quantity": 200},
         )
 
-        self.stdout.write(self.style.SUCCESS("✓ 2 événements logistique créés"))
+        self.stdout.write(self.style.SUCCESS("✓ 3 événements logistique créés"))
 
         # ── 10b. Stock inventaire ──────────────────────────────────────────
         from apps.inventory.models import InventoryStockMovement
@@ -889,6 +1009,36 @@ class Command(BaseCommand):
         )
 
         self.stdout.write(self.style.SUCCESS("✓ 1 session caisse + 2 mouvements créés"))
+
+        # ── 12. Séquences de numérotation ─────────────────────────────────
+        from apps.documents.models import (
+            NumberingSequence,
+            NumberingSequenceBrand,
+            NumberingSequenceType,
+        )
+
+        NumberingSequence.objects.update_or_create(
+            brand=NumberingSequenceBrand.TITAN,
+            sequence_type=NumberingSequenceType.PROFORMA,
+            year=now.year,
+            defaults={
+                "prefix": "T-",
+                "next_number": 5,
+                "padding": 3,
+                "suffix_template": "/{year}",
+            },
+        )
+        NumberingSequence.objects.update_or_create(
+            brand=NumberingSequenceBrand.HAHITANTSOA,
+            sequence_type=NumberingSequenceType.PROFORMA,
+            year=now.year,
+            defaults={
+                "prefix": "H-",
+                "next_number": 3,
+                "padding": 3,
+                "suffix_template": "/{year}",
+            },
+        )
 
         # ── Résumé ────────────────────────────────────────────────────────
         self.stdout.write("")

@@ -16,20 +16,20 @@ class SeedCompleteDemoTests(TestCase):
         call_command("seed_complete_demo", stdout=out)
 
         # 1. Hahitantsoa event1 is confirmed with explicit confirmed_at and confirmed_by
-        event1 = HahitantsoaEventDraft.objects.get(public_reference="HAH-2026-0001")
+        event1 = HahitantsoaEventDraft.objects.get(public_reference="H-001/2026")
         self.assertEqual(event1.status, "confirmed")
         self.assertIsNotNone(event1.confirmed_at)
         self.assertIsNotNone(event1.confirmed_by)
         self.assertEqual(event1.confirmed_by.username, "gerant")
 
         # 2. Titan rd3 and rd4 are confirmed with explicit confirmed_at and confirmed_by
-        rd3 = ReservationDraft.objects.get(public_reference="LOC-2026-0003")
+        rd3 = ReservationDraft.objects.get(public_reference="T-003/2026")
         self.assertEqual(rd3.status, "confirmed")
         self.assertIsNotNone(rd3.confirmed_at)
         self.assertIsNotNone(rd3.confirmed_by)
         self.assertEqual(rd3.confirmed_by.username, "gerant")
 
-        rd4 = ReservationDraft.objects.get(public_reference="LOC-2026-0004")
+        rd4 = ReservationDraft.objects.get(public_reference="T-004/2026")
         self.assertEqual(rd4.status, "confirmed")
         self.assertIsNotNone(rd4.confirmed_at)
         self.assertIsNotNone(rd4.confirmed_by)
@@ -63,6 +63,7 @@ class SeedCompleteDemoTests(TestCase):
         rec_event1 = DocumentInstance.objects.get(
             template_key="RECU-PAIEMENT",
             hahitantsoa_event_draft=event1,
+            document_reference="H-001/2026-REC-01",
         )
         self.assertEqual(rec_event1.status, DocumentInstanceStatus.GENERATED)
         self.assertEqual(rec_event1.business_scope, "hahitantsoa")

@@ -16,7 +16,9 @@ Voir aussi `docs/audits/F92_HAHITANTSOA_LIFECYCLE_SOURCE_TRACE.md`.
 - INV-011 : les materiels confirmes dans un scope deviennent indisponibles dans l'autre scope.
 - INV-013 : des confirmation de l'evenement Hahitantsoa (100 % d'acompte encaisse), la date et le lieu sont verrouilles de maniere exclusive. Les options/brouillons concurrents sur la meme date sont automatiquement archives.
 - INV-014 : un evenement Hahitantsoa confirme ne peut etre annule qu'en cas de force majeure, avec motif obligatoire, et sans aucun remboursement des sommes deja encaissees.
+- INV-015 : les dossiers portent obligatoirement une référence canonique séquentielle sans trou (`T-{seq:03d}/{year}` pour Titan, `H-{seq:03d}/{year}` pour Hahitantsoa). Les documents dérivés héritent de cette référence avec leur suffixe normalisé (`-PF`, `-CT`, `-FP`, `-BL`, `-BR`, `-FA`, `-FC`, `-DR`, `-REC-xx`). Voir [`DEC-008`](../decisions/DEC-008-dossier-and-document-numbering-standards.md).
 
 Une reservation confirmee dans Hahitantsoa rend le materiel indisponible dans Titan, et inversement.
 
 Pour les montants officiels d'acompte, de caution, les pénalités et les règles détaillées, voir [`official-amounts.md`](official-amounts.md).
+
