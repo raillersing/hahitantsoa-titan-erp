@@ -1336,6 +1336,7 @@ export type InventoryStockMovement = {
   inventory_item: string;
   storage_location?: string | null;
   reservation_draft: string | null;
+  hahitantsoa_event_draft?: string | null;
   dossier_reference?: string;
   domain?: 'hahitantsoa' | 'titan' | 'general' | string;
   movement_type: InventoryStockMovementType;

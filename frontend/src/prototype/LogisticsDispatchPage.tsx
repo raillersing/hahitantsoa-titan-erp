@@ -249,6 +249,21 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
     }
   };
 
+  const resolveDossierRef = (evt: LogisticsEvent): string => {
+    if (evt.dossier_reference && evt.dossier_reference.trim().length > 0) {
+      return evt.dossier_reference;
+    }
+    if (evt.reservation_draft) {
+      const match = reservationDrafts.find((d) => d.id === evt.reservation_draft);
+      if (match?.public_reference) return match.public_reference;
+    }
+    if (evt.hahitantsoa_event_draft) {
+      const match = hahiDrafts.find((d) => d.id === evt.hahitantsoa_event_draft);
+      if (match?.public_reference) return match.public_reference;
+    }
+    return "Dossier en cours";
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -329,7 +344,7 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
                 <div key={d.id} className="py-2.5 flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <span className="font-bold text-slate-800 dark:text-slate-100 font-mono">
-                      {d.reference}
+                      Dossier : {d.reference}
                     </span>
                     <span className={`ml-2 px-2 py-0.5 text-xs font-bold rounded-full ${
                       d.domain === "hahitantsoa"
@@ -365,18 +380,51 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <div className="flex flex-wrap items-center gap-2.5">
-                      <span
-                        className="text-tit-600 dark:text-tit-400 hover:underline cursor-pointer font-black text-lg font-mono"
-                        onClick={() => {
-                          if (evt.domain === "hahitantsoa" || evt.hahitantsoa_event_draft) {
-                            onNavigate("h-event-draft-detail", evt.hahitantsoa_event_draft || undefined);
-                          } else if (evt.reservation_draft) {
-                            onNavigate("reservation-detail", evt.reservation_draft);
-                          }
-                        }}
-                      >
-                        {evt.dossier_reference || evt.reservation_draft || evt.hahitantsoa_event_draft || "Dossier"}
-                      </span>
+                      {evt.delivery_note_reference ? (
+                        <>
+                          <span className="font-mono font-black text-lg text-amber-900 dark:text-amber-200 bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 px-3 py-0.5 rounded-lg flex items-center gap-1.5 shadow-xs">
+                            <i className="fas fa-file-invoice text-amber-600 dark:text-amber-400 text-sm"></i>
+                            <span>BL : {evt.delivery_note_reference}</span>
+                          </span>
+                          <span className="text-sm font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                            <span>Dossier :</span>
+                            <span
+                              className="text-tit-600 dark:text-tit-400 hover:underline cursor-pointer font-bold font-mono"
+                              onClick={() => {
+                                if (evt.domain === "hahitantsoa" || evt.hahitantsoa_event_draft) {
+                                  onNavigate("h-event-draft-detail", evt.hahitantsoa_event_draft || undefined);
+                                } else if (evt.reservation_draft) {
+                                  onNavigate("reservation-detail", evt.reservation_draft);
+                                }
+                              }}
+                            >
+                              {resolveDossierRef(evt)}
+                            </span>
+                          </span>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-base text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                            <i className="fas fa-truck-ramp-box text-slate-500"></i>
+                            <span>Ordre de sortie</span>
+                          </span>
+                          <span className="text-sm font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                            <span>• Dossier :</span>
+                            <span
+                              className="text-tit-600 dark:text-tit-400 hover:underline cursor-pointer font-bold font-mono text-base"
+                              onClick={() => {
+                                if (evt.domain === "hahitantsoa" || evt.hahitantsoa_event_draft) {
+                                  onNavigate("h-event-draft-detail", evt.hahitantsoa_event_draft || undefined);
+                                } else if (evt.reservation_draft) {
+                                  onNavigate("reservation-detail", evt.reservation_draft);
+                                }
+                              }}
+                            >
+                              {resolveDossierRef(evt)}
+                            </span>
+                          </span>
+                        </div>
+                      )}
                       {evt.domain && (
                         <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
                           evt.domain === "hahitantsoa"
@@ -384,12 +432,6 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
                             : "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300"
                         }`}>
                           {evt.domain === "hahitantsoa" ? "Hahitantsoa" : "Titan"}
-                        </span>
-                      )}
-                      {evt.delivery_note_reference && (
-                        <span className="px-2.5 py-0.5 text-xs font-mono font-bold rounded-full bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-900/50 dark:text-amber-200">
-                          <i className="fas fa-file-invoice mr-1 text-amber-700"></i>
-                          BL : {evt.delivery_note_reference}
                         </span>
                       )}
                     </div>
