@@ -231,14 +231,14 @@ export default function LogisticsReturnsPage({ onNavigate, param }: { onNavigate
               {eligibleOutboundEvents.map((evt) => (
                 <div key={evt.id} className="py-2.5 flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <span className="font-bold text-slate-800 dark:text-slate-100 font-mono">
-                      {evt.dossier_reference || (evt.reservation_draft ? `Titan : ${evt.reservation_draft}` : `Hahitantsoa : ${evt.hahitantsoa_event_draft}`)}
-                    </span>
                     {evt.delivery_note_reference && (
-                      <span className="ml-2 px-2 py-0.5 text-xs font-mono font-bold rounded bg-amber-100 text-amber-900 border border-amber-300">
+                      <span className="mr-2 px-2.5 py-0.5 text-xs font-mono font-bold rounded bg-amber-100 text-amber-900 border border-amber-300">
                         BL : {evt.delivery_note_reference}
                       </span>
                     )}
+                    <span className="font-bold text-slate-800 dark:text-slate-100 font-mono">
+                      Dossier : {evt.dossier_reference || (evt.domain === "hahitantsoa" ? "Hahitantsoa" : "Titan")}
+                    </span>
                     <span className="ml-2 text-xs text-slate-600 dark:text-slate-300 font-medium">
                       • {evt.customer_name || evt.contact_name ? `Client : ${evt.customer_name || evt.contact_name}` : "Sans contact"} • {evt.item_lines?.length || 0} article(s)
                     </span>
@@ -264,11 +264,31 @@ export default function LogisticsReturnsPage({ onNavigate, param }: { onNavigate
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="text-tit-600 dark:text-tit-400 hover:underline cursor-pointer font-black text-lg font-mono" onClick={() => onNavigate(
-                      retour.domain === "hahitantsoa" || retour.hahitantsoa_event_draft ? "h-event-draft-detail" : "reservation-detail",
-                      retour.hahitantsoa_event_draft || retour.reservation_draft || undefined,
-                    )}>
-                      {retour.dossier_reference || retour.reservation_draft || retour.hahitantsoa_event_draft || retour.id}
+                    {retour.return_note_reference ? (
+                      <span className="px-2.5 py-0.5 text-base font-mono font-black rounded-lg bg-purple-100 text-purple-900 border border-purple-300">
+                        BR : {retour.return_note_reference}
+                      </span>
+                    ) : (
+                      <span className="font-extrabold text-base text-slate-800 dark:text-slate-100">
+                        Opération de retour
+                      </span>
+                    )}
+                    {retour.delivery_note_reference && (
+                      <span className="px-2.5 py-0.5 text-xs font-mono font-bold rounded-lg bg-amber-100 text-amber-900 border border-amber-300">
+                        BL : {retour.delivery_note_reference}
+                      </span>
+                    )}
+                    <span className="text-sm font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <span>• Dossier :</span>
+                      <span
+                        className="text-tit-600 dark:text-tit-400 hover:underline cursor-pointer font-bold font-mono"
+                        onClick={() => onNavigate(
+                          retour.domain === "hahitantsoa" || retour.hahitantsoa_event_draft ? "h-event-draft-detail" : "reservation-detail",
+                          retour.hahitantsoa_event_draft || retour.reservation_draft || undefined,
+                        )}
+                      >
+                        {retour.dossier_reference || (retour.domain === "hahitantsoa" ? "Hahitantsoa" : "Titan")}
+                      </span>
                     </span>
                     {retour.domain && (
                       <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
@@ -277,16 +297,6 @@ export default function LogisticsReturnsPage({ onNavigate, param }: { onNavigate
                           : "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300"
                       }`}>
                         {retour.domain === "hahitantsoa" ? "Hahitantsoa" : "Titan"}
-                      </span>
-                    )}
-                    {retour.return_note_reference && (
-                      <span className="px-2.5 py-0.5 text-xs font-mono font-bold rounded-full bg-purple-100 text-purple-900 border border-purple-300">
-                        BR : {retour.return_note_reference}
-                      </span>
-                    )}
-                    {retour.delivery_note_reference && (
-                      <span className="px-2.5 py-0.5 text-xs font-mono font-bold rounded-full bg-amber-100 text-amber-900 border border-amber-300">
-                        BL : {retour.delivery_note_reference}
                       </span>
                     )}
                   </div>

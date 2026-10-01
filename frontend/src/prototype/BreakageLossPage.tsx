@@ -341,7 +341,28 @@ const getLineCasseQuantity = (line: InventoryReturnOperationLine): number =>
                 return (
                   <div key={operation.id} className="p-4 bg-white rounded-lg border border-amber-200">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <strong>Retour {operation.id.slice(0, 8)}</strong>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {operation.return_note_reference ? (
+                          <span className="px-2.5 py-0.5 text-xs font-mono font-bold rounded bg-purple-100 text-purple-900 border border-purple-300">
+                            BR : {operation.return_note_reference}
+                          </span>
+                        ) : (
+                          <strong>Retour validé</strong>
+                        )}
+                        {operation.delivery_note_reference && (
+                          <span className="px-2.5 py-0.5 text-xs font-mono font-bold rounded bg-amber-100 text-amber-900 border border-amber-300">
+                            BL : {operation.delivery_note_reference}
+                          </span>
+                        )}
+                        <span className="font-bold text-slate-800 font-mono text-sm">
+                          Dossier : {operation.dossier_reference || (operation.domain === "hahitantsoa" ? "Hahitantsoa" : "Titan")}
+                        </span>
+                        {operation.customer_name && (
+                          <span className="text-xs text-slate-600 font-medium">
+                            • Client : {operation.customer_name}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-sm text-slate-500">Retour validé, règlement absent</span>
                     </div>
                     {affectedLines.length === 0 ? (
@@ -408,30 +429,46 @@ const getLineCasseQuantity = (line: InventoryReturnOperationLine): number =>
           {filteredData.map((s) => {
             const label = statusLabel(s.settlement_status);
             const execution = executions.find((item) => item.settlement === s.id);
+            const source = returnOperations.find((operation) => operation.id === s.return_operation);
             return (
               <div key={s.id} className="p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="font-extrabold text-lg text-slate-800 flex items-center gap-3">
-                      <span className="text-red-600">{String(s.id).slice(0, 8)}</span>
-                      <span className="text-slate-400 text-sm font-normal">•</span>
-                      <span
-                        className="text-tit-600 hover:underline cursor-pointer"
-                        onClick={() => {
-                          const source = returnOperations.find((operation) => operation.id === s.return_operation);
-                          onNavigate(
-                            "reservation-detail",
-                            source?.reservation_draft
-                              ? `titan:${source.reservation_draft}`
-                              : source?.hahitantsoa_event_draft
-                                ? `hahitantsoa:${source.hahitantsoa_event_draft}`
-                                : undefined,
-                          );
-                        }}
-                      >
-                        {s.return_operation ? String(s.return_operation).slice(0, 8) : "—"}
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span className="font-extrabold text-base text-red-600">
+                        Règlement Casse/Perte
                       </span>
-                    </h3>
+                      {source?.return_note_reference && (
+                        <span className="px-2.5 py-0.5 text-xs font-mono font-bold rounded bg-purple-100 text-purple-900 border border-purple-300">
+                          BR : {source.return_note_reference}
+                        </span>
+                      )}
+                      {source?.delivery_note_reference && (
+                        <span className="px-2.5 py-0.5 text-xs font-mono font-bold rounded bg-amber-100 text-amber-900 border border-amber-300">
+                          BL : {source.delivery_note_reference}
+                        </span>
+                      )}
+                      <span className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                        <span>• Dossier :</span>
+                        <span
+                          className="text-tit-600 hover:underline cursor-pointer font-bold font-mono"
+                          onClick={() => {
+                            if (source?.domain === "hahitantsoa" || source?.hahitantsoa_event_draft) {
+                              onNavigate("h-event-draft-detail", source.hahitantsoa_event_draft || undefined);
+                            } else if (source?.reservation_draft) {
+                              onNavigate("reservation-detail", source.reservation_draft);
+                            }
+                          }}
+                        >
+                          {source?.dossier_reference || (source?.domain === "hahitantsoa" ? "Hahitantsoa" : "Titan")}
+                        </span>
+                      </span>
+                      {source?.customer_name && (
+                        <span className="text-sm text-slate-600 font-medium">
+                          • {source.customer_name}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <span className={`px-3 py-1 text-sm font-bold rounded-full ${statusBadgeClass(label)}`}>
