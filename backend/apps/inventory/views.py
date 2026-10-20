@@ -53,6 +53,12 @@ class InventoryItemListAPIView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         qs = active_inventory_items().prefetch_related("stock_movements")
+        if self.request.query_params.get("include_inactive") == "true":
+            qs = (
+                InventoryItem.objects.filter(is_deleted=False)
+                .order_by("name")
+                .prefetch_related("stock_movements")
+            )
         name_param = self.request.query_params.get("name")
         if name_param:
             qs = qs.filter(name__icontains=name_param)
@@ -68,7 +74,10 @@ class InventoryItemListAPIView(generics.ListCreateAPIView):
         return InventoryItemSerializer
 
     def get_permissions(self):
-        if self.request.method.lower() == "post":
+        if (
+            self.request.method.lower() == "post"
+            or self.request.query_params.get("include_inactive") == "true"
+        ):
             return [HasInventoryManagementAccess()]
         return super().get_permissions()
 
@@ -87,7 +96,9 @@ class InventoryItemRetrieveAPIView(generics.RetrieveUpdateDestroyAPIView):
         queryset = InventoryItem.objects.filter(is_deleted=False).prefetch_related(
             "stock_movements"
         )
-        if self.request.method.lower() in {"get", "head", "options"}:
+        if self.request.method.lower() in {"get", "head", "options"} and not (
+            HasInventoryManagementAccess().has_permission(self.request, self)
+        ):
             return queryset.filter(is_active=True)
         return queryset
 
