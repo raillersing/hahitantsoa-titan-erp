@@ -447,3 +447,17 @@ describe("AdminPage", () => {
     expect(screen.getByText("H-008/2026-BL")).toBeInTheDocument();
   });
 });
+
+it("closes creation, announces success and inserts the returned user without waiting for another list request", async () => {
+  mockGetUsers.mockResolvedValue(mockUsers);
+  mockGetRoles.mockResolvedValue(mockRoles);
+  mockCreateUser.mockResolvedValue({ ...mockUsers[0], id: "created-user", username: "alice", display_name: "Alice", first_name: "Alice" });
+  render(<AdminPage onNavigate={vi.fn()} />);
+  await screen.findByText("Admin User");
+  fireEvent.click(screen.getByRole("button", { name: /Nouveau Collaborateur/i }));
+  fireEvent.change(screen.getByPlaceholderText("ex: jean.dupont"), { target: { value: "alice" } });
+  fireEvent.click(screen.getByRole("button", { name: "Créer le collaborateur" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("créé avec succès");
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(await screen.findByText("Alice")).toBeInTheDocument();
+});

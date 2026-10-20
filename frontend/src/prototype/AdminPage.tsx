@@ -304,7 +304,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
     setNewUserSubmitting(true);
     setNewUserError(null);
     try {
-      await createUser({
+      const created = await createUser({
         username: newUserUsername.trim(),
         email: newUserEmail.trim(),
         first_name: newUserFirstName.trim(),
@@ -312,10 +312,12 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
         password: newUserPassword,
         role_slugs: newUserRoleSlugs,
       });
-      showToast("Nouveau collaborateur créé avec succès !");
+      setUsers(current => [created, ...current.filter(user => user.id !== created.id)]);
+      setUserSearch("");
+      setUserStatusFilter("all");
       setIsNewUserModalOpen(false);
       resetNewUserForm();
-      await fetchUsers();
+      showToast("Nouveau collaborateur créé avec succès !");
     } catch (err: any) {
       setNewUserError(err?.message || "Erreur lors de la création du collaborateur.");
     } finally {
@@ -1474,7 +1476,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
 
       {/* MODAL 1: Nouveau Collaborateur */}
       {isNewUserModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+        <div role="dialog" aria-modal="true" aria-labelledby="new-user-title" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-2xl w-full overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
             {/* En-tête */}
             <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-gradient-to-r from-indigo-50/50 to-transparent">
@@ -1483,7 +1485,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   <i className="fas fa-user-plus"></i>
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  <h3 id="new-user-title" className="text-lg font-bold text-slate-900 dark:text-white">
                     Nouveau Collaborateur
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -1992,7 +1994,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
       )}
 
       {toast && (
-        <div className="fixed bottom-6 right-6 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-lg font-medium text-sm z-50 flex items-center gap-3 animate-fade-in">
+        <div role="status" aria-live="polite" className="fixed bottom-6 right-6 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-lg font-medium text-sm z-50 flex items-center gap-3 animate-fade-in">
           <i className="fas fa-check-circle text-emerald-400"></i>
           {toast}
         </div>

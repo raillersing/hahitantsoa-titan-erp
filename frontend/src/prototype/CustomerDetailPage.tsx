@@ -321,13 +321,13 @@ export default function CustomerDetailPage({
     if (!canSensitiveWrite || uploadingAttachment || pendingAttachments.length === 0) return;
     setUploadingAttachment(true);
     setAttachmentActionError(null);
-    const uploaded: UploadedAttachment[] = [];
     try {
       for (const pending of pendingAttachments) {
-        uploaded.push(await uploadAttachment(pending.file, pending.category, { customerId: clientId }));
+        const saved = await uploadAttachment(pending.file, pending.category, { customerId: clientId });
+        setAttachments(current => [saved, ...current]);
+        setPendingAttachments(current => current.filter(page => page.id !== pending.id));
       }
-      setAttachments((current) => [...uploaded.reverse(), ...current]);
-      setPendingAttachments([]);
+
     } catch (error: unknown) {
       setAttachmentActionError(error instanceof ApiError ? error.message : "Une ou plusieurs pièces jointes n’ont pas pu être enregistrées. Vérifiez la liste et réessayez.");
     } finally {

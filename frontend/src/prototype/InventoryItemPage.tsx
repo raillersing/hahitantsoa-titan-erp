@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getInventoryItem, getStockMovements } from "../api";
+import { getInventoryItem, getStockMovements, updateInventoryItem, deleteInventoryItem, createStockMovement } from "../api";
 import type { InventoryItem, InventoryStockMovement } from "../types";
 import { validateStockChange } from "./inventoryStockUtils";
 
@@ -36,7 +36,9 @@ function normalizeNonNegativeIntegerDraft(value: string): string {
 interface DisplayItem {
   id: string;
   name: string;
-  kind: string;
+  kind: InventoryItem["kind"];
+  code: string;
+  isActive: boolean;
   description: string;
   type: "Location" | "Consommable" | "Uniforme";
   category: string;
@@ -62,6 +64,9 @@ function toDisplayItem(raw: InventoryItem): DisplayItem {
     id: raw.id,
     name: raw.name,
     kind: raw.kind,
+    code: raw.code || "",
+    isActive: raw.is_active !== false,
+    imageUrl: raw.image_url || "",
     description: raw.description || "",
     type: kindLabel as "Location" | "Consommable" | "Uniforme",
     category: raw.section || kindLabel,
@@ -75,7 +80,7 @@ function toDisplayItem(raw: InventoryItem): DisplayItem {
     brokenLostStock: stock?.damaged_lost_stock ?? raw.reported_damaged_quantity ?? 0,
     unitPrice: Number(raw.rental_price ?? 0),
     breakagePrice: Number(raw.breakage_price ?? 0),
-    status: "OK",
+    status: raw.is_active === false ? "Rupture" : "OK",
   };
 }
 
@@ -121,6 +126,9 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
   const [stockError, setStockError] = useState("");
   const [isAdjustingStock, setIsAdjustingStock] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [stockRefreshRequired, setStockRefreshRequired] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Fetch item + movements from real API
   useEffect(() => {
@@ -173,19 +181,47 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
 
   const backLabel = returnContext?.from === 'inventory' ? "Retour au catalogue" : "Retour à l'inventaire";
 
-  const handleToggleStatus = () => {
-    if (!item) return;
-    const newStatus = (item.status === "OK" ? "Rupture" : "OK") as "OK" | "Bas" | "Rupture";
-    const newItem = { ...item, status: newStatus };
-    setItem(newItem);
-    setToast(`L'article ${item.name} est maintenant en ${newStatus === "OK" ? "Disponibilité (OK)" : "Rupture/Inactif"}`);
+  const refreshItem = async () => {
+    if (!param) return;
+    const [raw, history] = await Promise.allSettled([getInventoryItem(param), getStockMovements()]);
+    if (raw.status === "fulfilled") {
+      const display = toDisplayItem(raw.value);
+      setItem(display);
+      setOriginalTotalStock(display.totalStock);
+      setEditTotalDraft(String(display.totalStock));
+      setStockRefreshRequired(false);
+    } else {
+      setStockRefreshRequired(true);
+      setActionError("L’écriture est enregistrée, mais le stock n’a pas pu être rechargé. Actualisez les données avant une nouvelle modification.");
+    }
+    if (history.status === "fulfilled") {
+      setMovements(history.value.filter(m => m.inventory_item === param)
+        .sort((a, b) => (b.effective_at || b.created_at).localeCompare(a.effective_at || a.created_at))
+        .map(toDisplayMovement));
+    } else if (raw.status === "fulfilled") {
+      setActionError("L’écriture est enregistrée. L’historique des mouvements n’a pas pu être actualisé.");
+    }
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleToggleStatus = async () => {
+    if (!item || isSaving) return;
+    setIsSaving(true);
+    setActionError(null);
+    try {
+      const saved = await updateInventoryItem(item.id, { is_active: !item.isActive });
+      setItem(toDisplayItem(saved));
+      setToast(saved.is_active === false ? "Article désactivé." : "Article réactivé.");
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Le changement de statut a échoué.");
+    } finally { setIsSaving(false); }
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!item || !editForm) return;
+    if (!item || !editForm || isSaving || stockRefreshRequired) return;
 
     const normalizedDraft = normalizeNonNegativeIntegerDraft(editTotalDraft);
+    if (!/^\d+$/.test(normalizedDraft) && normalizedDraft !== "") { setStockError("Stock invalide."); return; }
     const finalTotal = normalizedDraft === "" ? originalTotalStock : parseInt(normalizedDraft, 10);
     setEditTotalDraft(String(finalTotal));
 
@@ -204,14 +240,38 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
       updatedForm.availableStock = validation.newAvailable;
     }
 
-    setItem(updatedForm);
-    setIsEditing(false);
-    setToast("Article modifié avec succès");
+    setIsSaving(true);
+    setActionError(null);
+    try {
+      const kind = updatedForm.type === item.type ? item.kind
+        : updatedForm.type === "Location" ? "material" : updatedForm.type === "Uniforme" ? "material_pack" : "article";
+      const localImage = updatedForm.imageUrl?.startsWith("blob:");
+      const saved = await updateInventoryItem(item.id, {
+        name: updatedForm.name, code: updatedForm.code, kind,
+        section: updatedForm.category, description: updatedForm.description,
+        purchase_price: String(updatedForm.purchasePrice),
+        rental_price: String(updatedForm.unitPrice), breakage_price: String(updatedForm.breakagePrice),
+        image_url: localImage ? item.imageUrl : updatedForm.imageUrl || "",
+      });
+      setItem(toDisplayItem(saved));
+      if (finalTotal !== originalTotalStock) {
+        const delta = finalTotal - originalTotalStock;
+        await createStockMovement({ inventory_item: item.id,
+          movement_type: delta > 0 ? "adjustment_in" : "adjustment_out",
+          direction: delta > 0 ? "inbound" : "outbound", quantity: Math.abs(delta),
+          source_label: stockChangeReason, notes: stockChangeReason });
+      }
+      setIsEditing(false);
+      setToast(localImage ? "Article modifié. Renseignez une URL pour conserver la photo locale." : "Article modifié avec succès");
+      await refreshItem();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "La modification a échoué.");
+    } finally { setIsSaving(false); }
   };
 
-  const handleSaveStock = (e: React.FormEvent) => {
+  const handleSaveStock = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!item) return;
+    if (!item || isSaving || stockRefreshRequired) return;
     if (!stockChangeReason) {
       setStockError("Veuillez sélectionner un motif pour la modification du stock total.");
       return;
@@ -240,22 +300,35 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
       return;
     }
 
-    const newItem = { ...item, totalStock: newTotal, availableStock: validation.newAvailable };
-    setItem(newItem);
-    setIsAdjustingStock(false);
-    setAdjustmentDraft("0");
-    setNewTotalDraft(String(newTotal));
-    setStockChangeReason("");
-    setToast(`Stock ajusté : ${actualDelta > 0 ? '+' : ''}${actualDelta}`);
+    if (actualDelta === 0) { setStockError("Indiquez un ajustement différent de zéro."); return; }
+    setIsSaving(true);
+    setActionError(null);
+    try {
+      await createStockMovement({ inventory_item: item.id,
+        movement_type: actualDelta > 0 ? "adjustment_in" : "adjustment_out",
+        direction: actualDelta > 0 ? "inbound" : "outbound", quantity: Math.abs(actualDelta),
+        source_label: stockChangeReason, notes: stockChangeReason });
+      setIsAdjustingStock(false);
+      setAdjustmentDraft("0");
+      setStockChangeReason("");
+      setToast("Stock ajusté avec succès.");
+      await refreshItem();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "L'ajustement a échoué.");
+    } finally { setIsSaving(false); }
   };
 
-  const handleConfirmDelete = () => {
-    if (!item) return;
-    setToast(`L'article ${item.name} a été supprimé.`);
-    setIsDeleteOpen(false);
-    setTimeout(() => {
+  const handleConfirmDelete = async () => {
+    if (!item || isSaving) return;
+    setIsSaving(true);
+    setActionError(null);
+    try {
+      await deleteInventoryItem(item.id);
+      setIsDeleteOpen(false);
       handleBack();
-    }, 1000);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "La suppression a échoué.");
+    } finally { setIsSaving(false); }
   };
 
   // --- Loading / Error states ---
@@ -300,13 +373,13 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
           <button className={`px-4 py-2 ${item.status === 'OK' ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'} font-bold rounded-lg`} onClick={handleToggleStatus}>
             {item.status === 'OK' ? 'Désactiver' : 'Réactiver'}
           </button>
-          <button className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-lg hover:bg-slate-50" onClick={() => { setEditForm(item); setOriginalTotalStock(item.totalStock); setEditTotalDraft(String(item.totalStock)); setStockChangeReason(""); setStockError(""); setIsEditing(true); }}>
+          <button disabled={isSaving || stockRefreshRequired} className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-lg hover:bg-slate-50 disabled:opacity-50" onClick={() => { setEditForm(item); setOriginalTotalStock(item.totalStock); setEditTotalDraft(String(item.totalStock)); setStockChangeReason(""); setStockError(""); setIsEditing(true); }}>
             Modifier l'article
           </button>
           <button className="px-4 py-2 border border-rose-200 text-rose-600 font-bold rounded-lg hover:bg-rose-50" onClick={() => setIsDeleteOpen(true)}>
             Supprimer
           </button>
-          <button className="px-4 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700" onClick={() => { setAdjustmentDraft("0"); setNewTotalDraft(String(item.totalStock)); setStockChangeReason(""); setStockError(""); setIsAdjustingStock(true); }}>
+          <button disabled={isSaving || stockRefreshRequired} className="px-4 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700 disabled:opacity-50" onClick={() => { setAdjustmentDraft("0"); setNewTotalDraft(String(item.totalStock)); setStockChangeReason(""); setStockError(""); setIsAdjustingStock(true); }}>
             Ajuster stock
           </button>
         </div>
@@ -446,7 +519,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Code / ID</label>
-                  <input type="text" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.id} onChange={e => setEditForm({...editForm, id: e.target.value})} />
+                  <input type="text" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.code} onChange={e => setEditForm({...editForm, code: e.target.value})} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Nom de l'article</label>
@@ -549,7 +622,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
               </div>
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200">
                 <button type="button" className="px-4 py-2 border border-slate-300 text-slate-700 rounded font-medium" onClick={() => setIsEditing(false)}>Annuler</button>
-                <button type="submit" className="px-4 py-2 bg-tit-600 text-white rounded font-bold">Enregistrer</button>
+                <button disabled={isSaving} type="submit" className="px-4 py-2 bg-tit-600 text-white rounded font-bold">Enregistrer</button>
               </div>
             </form>
           </div>
@@ -617,7 +690,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
               {stockError && <div className="text-sm text-rose-600 font-medium"><i className="fas fa-exclamation-circle mr-1"></i>{stockError}</div>}
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200">
                 <button type="button" className="px-4 py-2 border border-slate-300 text-slate-700 rounded font-medium" onClick={() => { setIsAdjustingStock(false); setAdjustmentDraft("0"); setNewTotalDraft(String(item.totalStock)); }}>Annuler</button>
-                <button type="submit" className="px-4 py-2 bg-tit-600 text-white rounded font-bold">Appliquer</button>
+                <button disabled={isSaving} type="submit" className="px-4 py-2 bg-tit-600 text-white rounded font-bold">Appliquer</button>
               </div>
             </form>
           </div>
@@ -635,15 +708,16 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
             </div>
             <div className="p-6 pt-0 flex justify-end gap-3">
               <button className="px-4 py-2 border border-slate-300 text-slate-700 rounded font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" onClick={() => setIsDeleteOpen(false)} autoFocus>Annuler</button>
-              <button className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded font-bold transition-colors" onClick={handleConfirmDelete}>Supprimer l'article</button>
+              <button className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded font-bold transition-colors" disabled={isSaving} onClick={handleConfirmDelete}>Supprimer l'article</button>
             </div>
           </div>
         </div>
       )}
 
+      {actionError && <div role="alert" className="fixed bottom-16 right-4 z-[60] max-w-md bg-rose-50 border border-rose-300 text-rose-700 p-4 rounded-lg">{actionError}<button type="button" className="block underline mt-2" onClick={() => { setActionError(null); void refreshItem(); }}>Actualiser les données</button></div>}
       {toast && (
         <div className="fixed bottom-4 right-4 bg-slate-800 text-white px-4 py-2 rounded shadow-lg z-50 flex items-center gap-3">
-          <span>{toast}</span>
+          <span role="status">{toast}</span>
           <button className="text-slate-400 hover:text-white" onClick={() => setToast(null)}><i className="fas fa-times"></i></button>
         </div>
       )}

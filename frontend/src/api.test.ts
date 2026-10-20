@@ -427,6 +427,11 @@ describe("payment lifecycle actions", () => {
 });
 
 describe("inventory API", () => {
+  it("requests inactive inventory only when management explicitly opts in", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() => mockFetchResponse([]));
+    await getInventoryItems(undefined, true);
+    expect(fetchSpy).toHaveBeenCalledWith("/api/v1/inventory/items/?include_inactive=true", expect.objectContaining({ credentials: "include" }));
+  });
   it("fetches inventory items from /api/v1/inventory/items/", async () => {
     const items = [{ id: "item-1", name: "Chair", kind: "article" }];
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(

@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -373,4 +374,37 @@ describe("AvailabilityDatePicker Component", () => {
       expect(screen.getAllByText(/2 locs/).length).toBeGreaterThanOrEqual(1);
     });
   });
+});
+
+it("keeps the twentieth intact during character-by-character typing and clears stale invalid dates", async () => {
+  const changed = vi.fn();
+  const year = new Date().getFullYear() + 1;
+  function Controlled() {
+    const [date, setDate] = useState(year + "-10-15");
+    return <><AvailabilityDatePicker label="Date à corriger" value={date} onChange={next => { setDate(next); changed(next); }} /><output data-testid="selected-date">{date}</output></>;
+  }
+  render(<Controlled />);
+  const input = screen.getByRole('textbox', { name: 'Date à corriger' });
+  const user = userEvent.setup();
+  await user.clear(input);
+  await user.type(input, year + '-11-20');
+  expect(input).toHaveValue(year + '-11-20');
+  expect(screen.getByTestId('selected-date')).toHaveTextContent(year + '-11-20');
+  await user.clear(input);
+  await user.type(input, '31/02/' + year);
+  fireEvent.blur(input);
+  expect(screen.getByTestId('selected-date')).toBeEmptyDOMElement();
+  expect(input).toHaveAttribute('aria-invalid', 'true');
+});
+
+it('lets a focused date input hand focus to a calendar day without closing the popup prematurely', async () => {
+  const year = new Date().getFullYear() + 1;
+  const changed = vi.fn();
+  render(<AvailabilityDatePicker label="Date calendrier" value={year + '-11-20'} onChange={changed} />);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Ouvrir le calendrier interactif' }));
+  await user.click(screen.getByRole('textbox', { name: 'Date calendrier' }));
+  await user.click(screen.getByRole('button', { name: '21 novembre ' + year }));
+  expect(changed).toHaveBeenCalledWith(year + '-11-21');
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });

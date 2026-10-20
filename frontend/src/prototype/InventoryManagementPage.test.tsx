@@ -202,4 +202,18 @@ describe("InventoryManagementPage", () => {
       );
     });
   });
+  it("includes inactive items in management and exposes their reactivation", async () => {
+    vi.mocked(api.getInventoryItems).mockResolvedValue([{ ...mockItems[0], is_active: false }]);
+    render(<InventoryManagementPage onNavigate={vi.fn()} />);
+    expect(await screen.findByRole('button', { name: 'Réactiver ' + mockItems[0].name })).toBeInTheDocument();
+    expect(api.getInventoryItems).toHaveBeenCalledWith(expect.any(AbortSignal), true);
+  });
+  it("preserves active inventory reads when inactive access is denied", async () => {
+    vi.mocked(api.getInventoryItems).mockRejectedValueOnce(new api.ApiError('Denied', 403)).mockResolvedValue(mockItems);
+    render(<InventoryManagementPage onNavigate={vi.fn()} />);
+    expect(await screen.findByText(mockItems[0].name)).toBeInTheDocument();
+    expect(api.getInventoryItems).toHaveBeenCalledTimes(2);
+    expect(api.getInventoryItems).toHaveBeenLastCalledWith(expect.any(AbortSignal));
+  });
+
 });
