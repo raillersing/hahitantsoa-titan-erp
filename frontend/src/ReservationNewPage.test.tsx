@@ -1879,6 +1879,19 @@ describe('ReservationNewPage', () => {
     expect(screen.getAllByRole('button', { name: 'Réessayer' }).length).toBeGreaterThan(0);
   });
 
+  it("bloque une composition invalide dès les détails et conserve la composition du brouillon repris", async () => {
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify({ step: 3, maxReachedStep: 3, domain: 'hahitantsoa', path: 'client_first', selectedClientId: 'CUST-001', hDetails: { rentalType: 'Location nue', startDate: '2027-11-20', endDate: '2027-11-20', startTime: '08:00', endTime: '20:00', bareRentalComposition: [{ label: 'Salle personnalisée', quantity: 0 }] } }));
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    expect(await screen.findByDisplayValue('Salle personnalisée')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Suivant \(Services\)/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Composition de la location nue');
+    expect(createHahitantsoaEventDraft).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Quantité 1'), { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: /Suivant \(Services\)/i }));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
   it("33. Lot 6: permet un saut direct vers l'étape Proforma depuis le mode modification de devis sans valider chaque étape intermédiaire", async () => {
     vi.mocked(getReservationDraft).mockResolvedValue({
       id: 'DRAFT-TITAN-100',

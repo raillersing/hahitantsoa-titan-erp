@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
 import DocumentCanvasViewer from "./DocumentCanvasViewer";
+import OfficialPaymentReceipt from "./OfficialPaymentReceipt";
 import {
   getDocumentTemplatePreview,
   getHahitantsoaEventDraftDocumentPreview,
@@ -100,6 +101,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = (props) => {
   const [state, setState] = useState<PreviewState>({ status: "loading" });
 
   useEffect(() => {
+    if (props.type === "recu_paiement" || props.type === "payment_receipt" || templateKey?.endsWith(".payment_receipt.v1")) return;
     if (props.documentInstanceId) return;
     if (!templateKey) {
       setState({ status: "error", message: "Aucun modèle officiel n’est associé à ce document." });
@@ -155,6 +157,9 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = (props) => {
     templateKey,
   ]);
 
+  if (props.type === "recu_paiement" || props.type === "payment_receipt" || templateKey?.endsWith(".payment_receipt.v1")) {
+    return <OfficialPaymentReceipt documentId={props.documentInstanceId} draftId={props.hahitantsoaEventDraftId || props.reservationDraftId} domain={props.domain} />;
+  }
   if (props.documentInstanceId) {
     return <DocumentArtifactPreviewPanel documentInstanceId={props.documentInstanceId} />;
   }

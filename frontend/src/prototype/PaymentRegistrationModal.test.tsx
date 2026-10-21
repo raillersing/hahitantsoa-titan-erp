@@ -9,14 +9,17 @@ import {
 } from "./PaymentRegistrationModal";
 import * as api from "../api";
 import * as docViewer from "./DocumentCanvasViewer";
+import type { DocumentInstance } from "../types";
 
 vi.mock("../api", () => ({
   recordConfirmedDeposit: vi.fn(),
   getCashboxSessions: vi.fn().mockResolvedValue([]),
   createCashboxMovement: vi.fn().mockResolvedValue({ id: "mov-auto-1" }),
+  getDocumentArtifactHtml: vi.fn(),
 }));
 
-vi.mock("./DocumentCanvasViewer", () => ({
+vi.mock("./DocumentCanvasViewer", async () => ({
+  ...await vi.importActual<typeof import("./DocumentCanvasViewer")>("./DocumentCanvasViewer"),
   printDocumentHtml: vi.fn(),
 }));
 
@@ -284,13 +287,24 @@ describe("PaymentRegistrationModal", () => {
     expect(screen.queryByText(/Aperçu du reçu de versement du/)).not.toBeInTheDocument();
   });
 
-  it("calls printDocumentHtml when clicking the print button", () => {
+  it("prevents printing an unconfirmed payment preview", () => {
     render(<PaymentRegistrationModal {...defaultProps} />);
 
-    const printBtn = screen.getByText("Imprimer");
+    const printBtn = screen.getByRole("button", { name: "Confirmez pour imprimer" });
+    expect(printBtn).toBeDisabled();
     fireEvent.click(printBtn);
 
-    expect(docViewer.printDocumentHtml).toHaveBeenCalled();
+    expect(docViewer.printDocumentHtml).not.toHaveBeenCalled();
+  });
+
+  it("opens the server receipt from payment history instead of reconstructing its reference", async () => {
+    vi.mocked(api.getDocumentArtifactHtml).mockResolvedValue("<html><body>T-001/2026-REC-02</body></html>");
+    render(<PaymentRegistrationModal {...defaultProps} existingPayments={[{ ...defaultProps.existingPayments[0], receipt_document: { id: "receipt-official" } as DocumentInstance }]} />);
+    fireEvent.click(screen.getByText(/Historique des reçus/));
+    fireEvent.click(screen.getByText("Voir le reçu"));
+    expect(await screen.findByTitle("Reçu officiel de paiement")).toHaveAttribute("srcdoc", "<html><body>T-001/2026-REC-02</body></html>");
+    expect(api.getDocumentArtifactHtml).toHaveBeenCalledWith("receipt-official", expect.any(AbortSignal));
+    expect(api.recordConfirmedDeposit).not.toHaveBeenCalled();
   });
 
   it("submits payment successfully with recordConfirmedDeposit and calls onPaymentRecorded", async () => {

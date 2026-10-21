@@ -1,7 +1,7 @@
 import React, { useId, useMemo, useRef, useState } from "react";
 import { recordConfirmedDeposit, getCashboxSessions, createCashboxMovement } from "../api";
 import { DepositRecordingResult, DocumentInstance, PaymentMethod, CashboxSession } from "../types";
-import { printDocumentHtml } from "./DocumentCanvasViewer";
+import OfficialPaymentReceipt from "./OfficialPaymentReceipt";
 
 export interface ExistingPaymentItem {
   id?: string;
@@ -667,7 +667,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
       minute: "2-digit",
     });
 
-    const receiptNum = `REC-${(proformaReference || draftReference).replace(/[^a-zA-Z0-9-]/g, "")}-${(existingPayments.length + 1).toString().padStart(2, "0")}`;
+    const receiptNum = "Aperçu — non émis";
 
     return generateThermalReceiptHtml({
       domain,
@@ -731,60 +731,6 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
     projectedRemaining,
   ]);
 
-  const pastReceiptHtml = useMemo(() => {
-    if (!selectedPastPayment) return "";
-    const receiptNum = `REC-${(proformaReference || draftReference).replace(/[^a-zA-Z0-9-]/g, "")}-${selectedPastPayment.id?.slice(0, 4) || "HIST"}`;
-    return generateThermalReceiptHtml({
-      domain,
-      receiptTitle:
-        selectedPastPayment.payment_kind === "caution"
-          ? "Reçu de Dépôt de Caution"
-          : selectedPastPayment.payment_kind === "night_security"
-            ? "Reçu de Versement Frais de Sécurité Nocturne"
-            : "Reçu de Paiement Confirmé",
-      receiptNumber: receiptNum,
-      paymentDate: selectedPastPayment.date.slice(0, 10),
-      customerName,
-      customerPhone,
-      eventDateLabel,
-      amount: selectedPastPayment.amount,
-      amountInWords: numberToFrenchWords(selectedPastPayment.amount),
-      paymentMethodLabel: getPaymentMethodLabel(selectedPastPayment.method),
-      bankName: selectedPastPayment.bank_name,
-      checkNumber: selectedPastPayment.check_number,
-      transactionReference: selectedPastPayment.reference,
-      paymentKind: selectedPastPayment.payment_kind,
-      paymentKindLabel: getPaymentKindLabel(selectedPastPayment.payment_kind || "deposit", domain),
-      historyPayments: existingPayments.filter((p) => p.id !== selectedPastPayment.id),
-      currentPaymentItem: {
-        date: selectedPastPayment.date,
-        amount: selectedPastPayment.amount,
-        methodLabel: getPaymentMethodLabel(selectedPastPayment.method),
-        isDraft: false,
-      },
-      totalDepositAmount: existingPayments.reduce((acc, p) => acc + (p.amount || 0), 0),
-      draftReference: draftReference || proformaReference,
-      proformaReference: proformaReference || draftReference,
-      proformaAmount: totalAmount,
-      remainingBalance: Math.max(
-        0,
-        totalAmount - existingPayments.reduce((acc, p) => acc + (p.amount || 0), 0),
-      ),
-    });
-  }, [
-    selectedPastPayment,
-    domain,
-    proformaReference,
-    draftReference,
-    customerName,
-    customerPhone,
-    eventDateLabel,
-    existingPayments,
-    totalAmount,
-  ]);
-
-  const displayedReceiptHtml = previewViewMode === "past" && pastReceiptHtml ? pastReceiptHtml : liveReceiptHtml;
-
   // ── Actions ────────────────────────────────────────────────────────────────
   const handleSelectPastPayment = (item: ExistingPaymentItem) => {
     setSelectedPastPayment(item);
@@ -796,12 +742,9 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
     setPreviewViewMode("live");
   };
 
-  const handlePrintCurrentReceipt = () => {
-    printDocumentHtml(displayedReceiptHtml);
-  };
-
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting || successMessage) return;
     setErrorMessage(null);
     setSuccessMessage(null);
 
@@ -818,6 +761,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
     }
 
     setIsSubmitting(true);
+    let paymentConfirmed = false;
     try {
       const idempotencyKey = depositRecordingKeyRef.current ?? crypto.randomUUID();
       depositRecordingKeyRef.current = idempotencyKey;
@@ -842,7 +786,11 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
       };
 
       const result = await recordConfirmedDeposit(payload);
+      paymentConfirmed = true;
       depositRecordingKeyRef.current = null;
+      setSelectedPastPayment({ id: result.payment.id, date: result.payment.paid_at || new Date().toISOString(), method: result.payment.payment_method, amount: Number(result.payment.amount), receipt_document: result.payment.receipt_document, payment_kind: result.payment.payment_kind });
+      setPreviewViewMode("past");
+      setSuccessMessage(result.replayed ? "Ce versement a été repris sans doublon (déjà enregistré)." : "Versement enregistré et confirmé avec succès !");
 
       // Auto-link to open cashbox session if paid in cash
       if (paymentMethod === "cash" && activeCashboxSession && typeof createCashboxMovement === "function") {
@@ -868,12 +816,10 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
 
       await onPaymentRecorded(result);
 
-      setTimeout(() => {
-        onClose();
-      }, 1200);
+
     } catch (err: any) {
       setErrorMessage(
-        err?.message || "Une erreur est survenue lors de l'enregistrement du versement.",
+        paymentConfirmed ? "Le paiement est enregistré. L’actualisation du dossier a échoué ; fermez puis rouvrez le dossier sans saisir un nouveau versement." : err?.message || "Une erreur est survenue lors de l'enregistrement du versement.",
       );
     } finally {
       setIsSubmitting(false);
@@ -1450,7 +1396,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmitting || numericAmount <= 0}
+                    disabled={isSubmitting || Boolean(successMessage) || numericAmount <= 0}
                     className="rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center gap-2"
                   >
                     {isSubmitting ? (
@@ -1551,10 +1497,10 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-xs font-black text-slate-700 uppercase flex items-center gap-1.5">
-                  <i className="fa-solid fa-receipt text-indigo-600"></i> Aperçu Reçu en Direct
+                  <i className="fa-solid fa-receipt text-indigo-600"></i> Reçu de paiement
                 </span>
                 <span className="text-[10px] text-slate-500 block">
-                  Format thermique officiel 80 mm
+                  Aperçu avant confirmation · reçu officiel après paiement
                 </span>
               </div>
 
@@ -1570,11 +1516,12 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                 )}
                 <button
                   type="button"
-                  onClick={handlePrintCurrentReceipt}
+                  disabled
+                  title="Le reçu officiel sera disponible après confirmation du versement"
                   className="px-3 py-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
                 >
                   <i className="fa-solid fa-print"></i>
-                  <span>Imprimer</span>
+                  <span>Confirmez pour imprimer</span>
                 </button>
               </div>
             </div>
@@ -1601,13 +1548,13 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                 className="w-full max-w-[320px] bg-white rounded-lg shadow-xl p-1 overflow-hidden border border-slate-300/80"
                 style={{ width: "320px" }}
               >
-                <iframe
-                  title="Aperçu Reçu de Paiement"
-                  srcDoc={displayedReceiptHtml}
+                {previewViewMode === "past" ? <OfficialPaymentReceipt documentId={selectedPastPayment?.receipt_document?.id} draftId={draftId} domain={domain} /> : <iframe
+                  title="Aperçu Reçu de Paiement non émis"
+                  srcDoc={liveReceiptHtml}
                   className="w-full border-0"
                   style={{ height: "600px" }}
-                  sandbox="allow-same-origin"
-                />
+                  sandbox=""
+                />}
               </div>
             </div>
 

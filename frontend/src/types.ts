@@ -369,7 +369,10 @@ export type HahitantsoaEventDraftLineInput = {
   notes?: string;
 };
 
+export type BareRentalCompositionItem = { label: string; quantity: number };
+
 export type HahitantsoaEventDraftCreatePayload = {
+  bare_rental_composition?: BareRentalCompositionItem[];
   customer_id: string;
   public_reference?: string;
   event_name: string;
@@ -389,6 +392,7 @@ export type HahitantsoaEventDraftCreatePayload = {
 };
 
 export type HahitantsoaCommercialTerms = {
+  bare_rental_composition?: BareRentalCompositionItem[];
   base_space_rental_amount: string;
   included_guest_count: number;
   excess_guest_amount: string;
@@ -420,6 +424,7 @@ export type HahitantsoaPaymentSchedule = {
 };
 
 export type HahitantsoaEventDraftUpdatePayload = {
+  bare_rental_composition?: BareRentalCompositionItem[];
   customer_id?: string;
   public_reference?: string;
   event_name?: string;
@@ -450,6 +455,7 @@ export type HahitantsoaEventDraftLine = {
 };
 
 export type HahitantsoaEventDraft = {
+  bare_rental_composition?: BareRentalCompositionItem[];
   id: string;
   public_reference: string;
   status: "draft" | "confirmed" | "cancelled" | "archived";
