@@ -1,4 +1,4 @@
-"""Tests signal auto proforma_sent sur création DocumentInstance."""
+"""Document preparation/issuance is not evidence of sending a proforma."""
 
 from datetime import timedelta
 
@@ -53,14 +53,20 @@ def _proforma_instance(draft: ReservationDraft) -> DocumentInstance:
     )
 
 
-class TestProformaAutoPipelineSignal:
-    def test_creating_proforma_sets_prospect_status_to_proforma_sent(self):
+class TestProformaPipelineIsolation:
+    @pytest.mark.parametrize("status", ProspectStatus.values)
+    def test_creating_proforma_preserves_prospect_pipeline_status(self, status):
         customer = _customer()
         draft = _draft(customer)
-        assert customer.prospect_status == ProspectStatus.QUALIFIED
-        _proforma_instance(draft)
+        customer.prospect_status = status
+        customer.save(update_fields=["prospect_status"])
+        document = _proforma_instance(draft)
+        for document_status in ("generated", "issued"):
+            document.status = document_status
+            document.save(update_fields=["status"])
         customer.refresh_from_db()
-        assert customer.prospect_status == ProspectStatus.PROFORMA_SENT
+        assert customer.prospect_status == status
+        assert customer.prospect_status_changed_at is None
 
     def test_non_proforma_document_does_not_change_status(self):
         customer = _customer()
@@ -104,8 +110,8 @@ class TestProformaAutoPipelineSignal:
         draft = _draft(customer)
         _proforma_instance(draft)
         customer.refresh_from_db()
-        assert customer.prospect_status == ProspectStatus.PROFORMA_SENT
+        assert customer.prospect_status == ProspectStatus.QUALIFIED
         # Second proforma
         _proforma_instance(draft)
         customer.refresh_from_db()
-        assert customer.prospect_status == ProspectStatus.PROFORMA_SENT
+        assert customer.prospect_status == ProspectStatus.QUALIFIED
