@@ -222,3 +222,62 @@ for incomplete_cleanup_option in \
 done
 
 echo "ERP CI policy tests: PASS"
+
+# Execute the actual pre-merge decision block with GH's tab-separated check output.
+# Nothing past this block (merge, main synchronization or cleanup) is executed.
+cat > "$tmp_root/gate" <<'STUB'
+set -Eeuo pipefail
+pr_number=123
+gh() {
+  if [ "$1 $2" = "pr checks" ]; then
+    return "$TEST_REQUIRED_EXIT"
+  fi
+  if [ "$1 $2" = "pr view" ]; then
+    if [ "$TEST_FETCH_EXIT" -ne 0 ]; then
+      return "$TEST_FETCH_EXIT"
+    fi
+    printf '%s\n' "$TEST_CHECKS"
+    return 0
+  fi
+  echo "Unexpected GH call" >&2
+  return 99
+}
+STUB
+sed -n '/^  required_ok=0$/,/^  before_main_head=/{ /^  before_main_head=/d; p; }' \
+  "$root_finalizer" >> "$tmp_root/gate"
+printf '\necho AUTHORIZED\n' >> "$tmp_root/gate"
+
+passed=0
+assert_gate() {
+  local name="$1" expected="$2" required_exit="$3" fetch_exit="$4" checks="$5" result=0
+  TEST_REQUIRED_EXIT="$required_exit" TEST_FETCH_EXIT="$fetch_exit" TEST_CHECKS="$checks" \
+    bash "$tmp_root/gate" > "$tmp_root/output" 2>&1 || result=$?
+  if { [ "$expected" = allow ] && { [ "$result" -ne 0 ] || ! grep -qx AUTHORIZED "$tmp_root/output"; }; } ||
+     { [ "$expected" = deny ] && { [ "$result" -eq 0 ] || grep -qx AUTHORIZED "$tmp_root/output"; }; }; then
+    echo "FAIL: $name ($expected expected, exit $result)"
+    cat "$tmp_root/output"
+    exit 1
+  fi
+  passed=$((passed + 1))
+}
+
+success=$'CI policy gate\tCOMPLETED\tSUCCESS'
+failure=$'CI policy gate\tCOMPLETED\tFAILURE'
+pending=$'CI policy gate\tIN_PROGRESS\t'
+assert_gate single-success allow 0 0 "$success"
+assert_gate duplicate-success allow 0 0 "$success"$'\n'"$success"
+assert_gate failed-plus-success deny 0 0 "$failure"$'\n'"$success"
+assert_gate pending-plus-success deny 0 0 "$pending"$'\n'"$success"
+assert_gate missing deny 0 0 $'Frontend quality\tCOMPLETED\tSUCCESS'
+assert_gate unavailable deny 0 1 "$success"
+assert_gate empty deny 0 0 ''
+assert_gate success-conclusion-without-completion deny 0 0 $'CI policy gate\tIN_PROGRESS\tSUCCESS'
+assert_gate fallback-single-success allow 1 0 "$success"
+assert_gate fallback-duplicate-success allow 1 0 "$success"$'\n'"$success"
+assert_gate fallback-other-pending deny 1 0 "$success"$'\nFrontend quality\tQUEUED\t'
+assert_gate fallback-other-failed deny 1 0 "$success"$'\nFrontend quality\tCOMPLETED\tFAILURE'
+assert_gate fallback-status-context-pending deny 1 0 "$success"$'\nExternal status\tPENDING\tPENDING'
+assert_gate fallback-skipped-and-neutral allow 1 0 "$success"$'\nBackend quality\tCOMPLETED\tSKIPPED\nOptional check\tCOMPLETED\tNEUTRAL'
+assert_gate fallback-completed-status-context allow 1 0 "$success"$'\nExternal status\tSUCCESS\tSUCCESS'
+assert_gate fallback-unavailable deny 1 1 "$success"
+printf '%s finalizer gate scenarios passed.\n' "$passed"
