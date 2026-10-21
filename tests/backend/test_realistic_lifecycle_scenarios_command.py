@@ -79,6 +79,9 @@ def test_realistic_scenarios_cover_prospect_confirmation_closeout_and_damage(
 
     assert titan_prospect.customer.lifecycle_status == "prospect"
     assert titan_prospect.customer.prospect_status == "proforma_sent"
+    assert titan_prospect.customer.updated_by_id == titan_prospect.created_by_id
+    assert titan_prospect.customer.prospect_status_changed_at is not None
+    assert "simulé" in titan_prospect.customer.prospect_status_reason
     assert titan_confirmed.status == ReservationDraftStatus.CONFIRMED
     assert titan_confirmed.contract_signed_at is not None
     assert titan_confirmed.required_deposit_received_at is not None
