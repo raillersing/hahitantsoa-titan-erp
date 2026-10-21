@@ -25,6 +25,7 @@ from apps.documents.formatting import (
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.documents.payment_receipts import build_payment_receipt_context
 from apps.documents.rendering import resolve_document_template_path
+from apps.hahitantsoa.composition import BARE_RENTAL_LABEL
 
 
 class DocumentRuntimeGenerationError(ValueError):
@@ -59,15 +60,6 @@ TITAN_RESERVATION_DRAFT_PREVIEW_TEMPLATE_KEYS = frozenset(
         "shared.preparation_sheet.v1",
         "shared.return_note.v1",
     }
-)
-HAHITANTSOA_BARE_SPACE_INCLUDED_ITEMS: tuple[str, ...] = (
-    "Salle",
-    "Espace vert",
-    "Estrade mariés",
-    "Estrade animation",
-    "Table mariés",
-    "Table DJ",
-    "10 Chaises pliables",
 )
 
 
@@ -277,8 +269,21 @@ def _build_hahitantsoa_contract_runtime_context(
 
     venue_name = linked_event_draft.venue_name or "Salle de réception Hahitantsoa"
     is_bare_rental = linked_event_draft.rental_type in {"bare", "Location nue"}
-    venue_line_name = "Location nue de l'espace" if is_bare_rental else "Location de l'espace"
-    venue_sub_items = HAHITANTSOA_BARE_SPACE_INCLUDED_ITEMS if is_bare_rental else ()
+    snapshot = document_instance.bare_rental_composition_snapshot
+    venue_line_name = BARE_RENTAL_LABEL if is_bare_rental else "Location de l'espace"
+    venue_sub_items = ()
+    if is_bare_rental:
+        if snapshot and snapshot.get("legacy"):
+            venue_line_name = snapshot["label"]
+            venue_sub_items = tuple(snapshot["items"])
+        else:
+            composition = (
+                snapshot["items"] if snapshot else linked_event_draft.bare_rental_composition
+            )
+            venue_sub_items = tuple(
+                row["label"] if row["quantity"] == 1 else f"{row['quantity']:03d} {row['label']}"
+                for row in composition
+            )
     venue_line = {
         "inventory_item_name": venue_line_name,
         "inventory_item_kind": "venue",
@@ -688,6 +693,24 @@ def generate_document_instance_html(
         raise DocumentRuntimeGenerationError(
             f"Cannot generate document from status: {document_instance.status}",
             code="invalid_document_status_for_generation",
+        )
+
+    if document_instance.hahitantsoa_event_draft_id:
+        from apps.hahitantsoa.models import HahitantsoaEventDraft
+
+        event_draft = HahitantsoaEventDraft.objects.select_for_update().get(
+            pk=document_instance.hahitantsoa_event_draft_id
+        )
+        document_instance.hahitantsoa_event_draft = event_draft
+        locked_instance = DocumentInstance.objects.select_for_update().get(pk=document_instance.pk)
+        if locked_instance.bare_rental_composition_snapshot is None:
+            locked_instance.bare_rental_composition_snapshot = {
+                "label": BARE_RENTAL_LABEL,
+                "items": event_draft.bare_rental_composition,
+            }
+            locked_instance.save(update_fields=["bare_rental_composition_snapshot", "updated_at"])
+        document_instance.bare_rental_composition_snapshot = (
+            locked_instance.bare_rental_composition_snapshot
         )
 
     if document_instance.document_type == "invoice" or document_instance.template_key in {

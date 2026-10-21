@@ -126,6 +126,7 @@ class UploadedAttachment(UUIDModel, TimestampedModel, AuditableModel, SoftDelete
 
 
 class DocumentInstance(UUIDModel, TimestampedModel):
+    bare_rental_composition_snapshot = models.JSONField(null=True, default=None, editable=False)
     reservation_draft = models.ForeignKey(
         ReservationDraft,
         null=True,

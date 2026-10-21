@@ -18,7 +18,9 @@ MONEY_QUANTUM = Decimal("0.01")
 
 
 def get_hahitantsoa_commercial_terms() -> HahitantsoaCommercialTerms:
-    terms, _ = HahitantsoaCommercialTerms.objects.get_or_create(key="default")
+    terms, created = HahitantsoaCommercialTerms.objects.get_or_create(key="default")
+    if created:
+        terms.refresh_from_db()
     return terms
 
 

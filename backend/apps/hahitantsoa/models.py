@@ -8,6 +8,10 @@ from django.utils import timezone
 
 from apps.common.models import AuditableModel, SoftDeleteModel, TimestampedModel, UUIDModel
 from apps.customers.models import Customer
+from apps.hahitantsoa.composition import (
+    default_bare_rental_composition,
+    validate_bare_rental_composition,
+)
 from apps.hahitantsoa.scope import assert_hahitantsoa_shared_inventory_item_kind
 from apps.inventory.models import InventoryItem
 from apps.reservations.periods import validate_reservation_period
@@ -76,6 +80,9 @@ def generate_hahitantsoa_event_draft_public_reference() -> str:
 
 
 class HahitantsoaEventDraft(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel):
+    bare_rental_composition = models.JSONField(
+        default=default_bare_rental_composition, validators=[validate_bare_rental_composition]
+    )
     customer = models.ForeignKey(
         Customer,
         on_delete=models.PROTECT,
@@ -361,6 +368,9 @@ class HahitantsoaCommercialTerms(UUIDModel, TimestampedModel, AuditableModel):
     """The single editable source of the Hahitantsoa default commercial terms."""
 
     key = models.CharField(max_length=32, unique=True, default="default", editable=False)
+    bare_rental_composition = models.JSONField(
+        default=default_bare_rental_composition, validators=[validate_bare_rental_composition]
+    )
     base_space_rental_amount = models.DecimalField(max_digits=14, decimal_places=2, default=6500000)
     included_guest_count = models.PositiveIntegerField(default=250)
     excess_guest_amount = models.DecimalField(max_digits=14, decimal_places=2, default=5000)
