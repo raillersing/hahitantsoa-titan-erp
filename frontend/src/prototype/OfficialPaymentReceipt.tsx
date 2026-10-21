@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  ApiError,
   generateHahitantsoaEventDraftDocumentInstancePdf,
   generateReservationDraftDocumentInstancePdf,
   getDocumentArtifactHtml,
@@ -34,9 +35,15 @@ export default function OfficialPaymentReceipt({ documentId, draftId, domain }: 
     if (!draftId || downloading) return;
     setDownloading(true); setError(null);
     try {
-      if (domain === "hahitantsoa") await generateHahitantsoaEventDraftDocumentInstancePdf(draftId, documentId);
-      else await generateReservationDraftDocumentInstancePdf(draftId, documentId);
-      const blob = await getDocumentInstancePdfBlob(documentId);
+      let blob: Blob;
+      try {
+        blob = await getDocumentInstancePdfBlob(documentId);
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 404) throw error;
+        if (domain === "hahitantsoa") await generateHahitantsoaEventDraftDocumentInstancePdf(draftId, documentId);
+        else await generateReservationDraftDocumentInstancePdf(draftId, documentId);
+        blob = await getDocumentInstancePdfBlob(documentId);
+      }
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url; link.download = `recu-${documentId}.pdf`; link.click();

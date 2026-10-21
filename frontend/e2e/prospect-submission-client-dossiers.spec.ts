@@ -47,7 +47,7 @@ test('new prospect submits Hahitantsoa services, payment retry keeps one receipt
   expect(draft.service_notes).toContain(service.name);
   expect((await (await page.request.get(`/api/v1/customers/${customer.id}/`)).json()).prospect_status).toBe('new');
   await page.getByRole('button', { name: 'Générer Devis/Proforma', exact: true }).click();
-  await page.getByRole('button', { name: 'Passer au paiement', exact: true }).click();
+  await page.getByRole('button', { name: /Passer au paiement/ }).click();
   await page.getByLabel(/Montant de ce paiement \(Ar\)/).fill(String(Number(terms.bare_deposit_amount)));
 
   // Lose the response after a real committed payment, then retry through the same UI.
@@ -71,7 +71,10 @@ test('new prospect submits Hahitantsoa services, payment retry keeps one receipt
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Télécharger le reçu PDF' }).click();
   expect((await download).suggestedFilename()).toContain('.pdf');
-  await page.getByRole('button', { name: 'Générer le contrat et ouvrir le dossier', exact: true }).click();
+  const secondDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Télécharger le reçu PDF' }).click();
+  expect((await secondDownload).suggestedFilename()).toContain('.pdf');
+  await page.getByRole('button', { name: /Générer le contrat et ouvrir le dossier/ }).click();
   await expect(page).toHaveURL(new RegExp('reservation-detail/hahitantsoa(?::|%3A)' + draft.id));
   await page.reload();
   const payments = await (await page.request.get(`/api/v1/payments/?hahitantsoa_event_draft_id=${draft.id}`)).json();
