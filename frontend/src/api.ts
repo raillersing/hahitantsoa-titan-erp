@@ -1009,17 +1009,18 @@ export async function getDocumentInstancePdfBlob(
   );
 
   if (response.status === 401 || response.status === 403) {
-    throw new Error(
+    throw new ApiError(
       "The PDF preview requires an authenticated session with document access.",
+      response.status,
     );
   }
 
   if (response.status === 404) {
-    throw new Error("No generated PDF artifact was found for this document instance.");
+    throw new ApiError("No generated PDF artifact was found for this document instance.", 404);
   }
 
   if (!response.ok) {
-    throw new Error("The requested PDF artifact could not be loaded.");
+    throw new ApiError("The requested PDF artifact could not be loaded.", response.status);
   }
 
   return response.blob();
