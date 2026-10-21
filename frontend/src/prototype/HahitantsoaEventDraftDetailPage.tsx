@@ -3045,6 +3045,8 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                             <td className="py-2.5 px-3 text-center">
                               <button
                                 type="button"
+                        disabled={!p.receipt_document?.id}
+                        title={!p.receipt_document?.id ? "Reçu officiel indisponible : actualisez le dossier" : "Ouvrir le reçu officiel"}
                                 onClick={() => setPreviewModal({
                                   title: `Reçu de paiement (${formatMoney(p.amount)})`,
                                   documentInstanceId: p.receipt_document?.id,
@@ -3053,7 +3055,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                                 })}
                                 className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-1 font-bold text-indigo-700 hover:bg-indigo-100 transition-colors text-[11px]"
                               >
-                                <i className="fa-solid fa-receipt text-indigo-600"></i> Reçu
+                                <i className="fa-solid fa-receipt text-indigo-600"></i> {p.receipt_document?.id ? "Reçu" : "Reçu indisponible"}
                               </button>
                             </td>
                           </tr>
@@ -4133,7 +4135,9 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   <span>Aperçu verrouillé : ce dossier présente un solde restant de {formatMoney(remainingTotalAmount)}. La facture définitive et son impression officielle ne seront débloquées qu'après règlement intégral.</span>
                 </div>
               )}
-              {previewModal.documentInstanceId ? (
+              {previewModal.type === "recu_paiement" ? (
+                <DocumentPreview type="recu_paiement" domain="hahitantsoa" hahitantsoaEventDraftId={draft.id} documentInstanceId={previewModal.documentInstanceId} />
+              ) : previewModal.documentInstanceId ? (
                 <DocumentArtifactPreviewPanel documentInstanceId={previewModal.documentInstanceId} />
               ) : (
                 <DocumentPreview

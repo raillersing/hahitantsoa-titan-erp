@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { saveDraftFiles, readDraftFiles, clearDraftFiles } from "./wizardDraftFiles";
 import { AvailabilityDatePicker } from "../components/AvailabilityDatePicker";
 import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
+import OfficialPaymentReceipt from "./OfficialPaymentReceipt";
+import BareRentalCompositionEditor from "./BareRentalCompositionEditor";
 import { calculateTitanCautionAmount } from "../utils";
 import {
   getCustomers,
@@ -36,6 +38,7 @@ import {
   previewNextPublicReference,
 } from "../api";
 import type {
+  BareRentalCompositionItem,
   CustomerCreatePayload,
   Customer,
   HahitantsoaVenue,
@@ -330,6 +333,7 @@ interface NewClientData {
 }
 
 interface HahitantsoaDetails {
+  bareRentalComposition?: BareRentalCompositionItem[];
   eventType: string;
   eventTypeOther?: string;
   date: string;
@@ -447,6 +451,7 @@ interface RecordedPayment {
   id: string;
   amount: number;
   method: string;
+  receiptDocumentId?: string | null;
 }
 
 interface Attachment {
@@ -727,6 +732,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     return getHahitantsoaCommercialTerms()
       .then((terms) => {
         setHahitantsoaTerms(terms);
+        setHDetails(current => current.bareRentalComposition === undefined ? { ...current, bareRentalComposition: terms.bare_rental_composition } : current);
         setErrorHahitantsoaTerms(null);
         setHDetails((current) => current.venuePrice === HAHITANTSOA_BASE_SPACE_RENTAL
           ? { ...current, venuePrice: Number(terms.base_space_rental_amount) }
@@ -1019,6 +1025,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
               guests: draft.guest_count ? String(draft.guest_count) : prev.guests,
               remarks: draft.notes || "",
               rentalType: draft.rental_type === "logistics" ? "Location + logistique" : "Location nue",
+              bareRentalComposition: draft.bare_rental_composition,
               durationOption: draft.duration_option || prev.durationOption,
               venuePrice: Number(draft.space_rental_amount || prev.venuePrice),
             }));
@@ -1115,7 +1122,8 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     setHDetails({
       eventType: "", eventTypeOther: "", date: "", venue: defaultVenueName, guests: "", remarks: "",
       startDate: "", startTime: "08:00", endDate: "", endTime: "20:00", rentalType: "Location nue", durationOption: "day",
-      venuePrice: Number(hahitantsoaTerms?.base_space_rental_amount ?? HAHITANTSOA_BASE_SPACE_RENTAL), logisticsPrice: 0
+      venuePrice: Number(hahitantsoaTerms?.base_space_rental_amount ?? HAHITANTSOA_BASE_SPACE_RENTAL), logisticsPrice: 0,
+      bareRentalComposition: hahitantsoaTerms?.bare_rental_composition
     });
     setTDetails({
       period: "", startDate: "", startTime: "08:00", endDate: "", endTime: "22:00", pickupDate: "", returnDate: "", remarks: "",
@@ -1297,7 +1305,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       setClientMode(data.clientMode === "new" ? "new" : "existing"); setSelectedClientId(data.selectedClientId || "");
       setNewClient({ ...newClient, ...data.newClient, additionalEmails: Array.isArray(data.newClient?.additionalEmails) ? data.newClient.additionalEmails : [], additionalPhones: Array.isArray(data.newClient?.additionalPhones) ? data.newClient.additionalPhones : [] });
       setDomain(data.domain === "titan" || data.domain === "hahitantsoa" ? data.domain : null);
-      setHDetails({ ...hDetails, ...data.hDetails });
+      setHDetails({ ...hDetails, ...data.hDetails, bareRentalComposition: data.hDetails?.bareRentalComposition ?? (persistedSnapshot && "bare_rental_composition" in persistedSnapshot ? persistedSnapshot.bare_rental_composition : hDetails.bareRentalComposition) });
       setTDetails({ ...tDetails, ...data.tDetails, startTime: data.tDetails?.startTime || "08:00", endTime: data.tDetails?.endTime || "22:00" });
       setSelectedMaterials(Array.isArray(data.selectedMaterials) ? data.selectedMaterials : []); setSelectedServices(Array.isArray(data.selectedServices) ? data.selectedServices : []);
       setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment || { method: "Espèces", amount: "", percent: (TITAN_DEFAULT_ADVANCE_RATE * 100).toString() });
@@ -1312,7 +1320,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
         if (requestId !== routeRequestRef.current) return;
         if (!persisted || persisted.status !== "draft" || ("contract_signed_at" in persisted && persisted.contract_signed_at)) throw new Error("Ce dossier est déjà signé ou n’est plus un brouillon. Consultez le dossier enregistré.");
         const confirmed = rows.filter(row => row.payment_status === "confirmed" || row.payment_status === "reconciled");
-        setRecordedPayments(confirmed.map(row => ({ id: row.id, amount: Number(row.amount), method: row.payment_method })));
+        setRecordedPayments(confirmed.map(row => ({ id: row.id, amount: Number(row.amount), method: row.payment_method, receiptDocumentId: row.receipt_document?.id })));
         const required = Number(persisted.required_deposit_amount ?? Number.POSITIVE_INFINITY);
         const covered = confirmed.reduce((sum, row) => sum + Number(row.amount), 0) >= required;
         setPaymentDone(covered);
@@ -1434,7 +1442,12 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     lastOfferRef.current = offerFingerprint;
   }, [offerFingerprint, restoringDraft]);
 
+  const compositionError = domain === "hahitantsoa" && hDetails.rentalType === "Location nue" && hDetails.bareRentalComposition && (
+    hDetails.bareRentalComposition.length < 1 || hDetails.bareRentalComposition.length > 50 || hDetails.bareRentalComposition.some(item => !item.label.trim() || item.label.trim().length > 200 || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 9999)
+  ) ? "Composition de la location nue : renseignez un libellé et une quantité entière entre 1 et 9999 pour chaque élément (50 éléments maximum)." : null;
+
   const persistCommercialDraft = async (): Promise<ProspectProformaEmission> => {
+    if (compositionError) throw new Error(compositionError);
     if (!domain) throw new Error("Sélectionnez le volet métier avant d’enregistrer le dossier.");
     const details = domain === "hahitantsoa" ? hDetails : tDetails;
     if (!details.startDate || !details.startTime || !details.endDate || !details.endTime) {
@@ -1470,6 +1483,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
           service_notes: formatHahitantsoaServiceNotes(selectedServices),
+          bare_rental_composition: hDetails.bareRentalComposition,
           start_at: startAt,
           end_at: endAt,
           rental_type: hDetails.rentalType === "Location + logistique" ? "logistics" as const : "bare" as const,
@@ -1513,6 +1527,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     const clientStep = path === "client_first" ? 1 : 2;
     if (step === clientStep && !(clientMode === "existing" ? selectedClientId : newClient.name.trim())) { setSubmitError("Sélectionnez un client ou renseignez son nom."); return; }
     if (step === 3) {
+      if (compositionError) { setSubmitError(compositionError); return; }
       const details = domain === "hahitantsoa" ? hDetails : tDetails;
       const periodError = reservationPeriodError(details.startDate, details.startTime, details.endDate, details.endTime);
       if (periodError) { setSubmitError(periodError); return; }
@@ -1552,6 +1567,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
   };
   const jumpTo = (targetStep: number) => {
     if (targetStep > step && step === 3) {
+      if (compositionError) { setSubmitError(compositionError); return; }
       const details = domain === "hahitantsoa" ? hDetails : tDetails;
       const periodError = reservationPeriodError(details.startDate, details.startTime, details.endDate, details.endTime);
       if (periodError) { setSubmitError(periodError); return; }
@@ -1669,6 +1685,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     if (!domain) {
       throw new Error("Sélectionnez un client et un volet avant d’émettre le proforma.");
     }
+    if (compositionError) throw new Error(compositionError);
     const customerId = await ensureCustomerId();
     if (!Number.isInteger(proformaValidity) || proformaValidity < 1) {
       throw new Error("La durée de validité doit être d’au moins un jour.");
@@ -1710,6 +1727,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
           service_notes: formatHahitantsoaServiceNotes(selectedServices),
+          bare_rental_composition: hDetails.bareRentalComposition,
           start_at: startAt,
           end_at: endAt,
           rental_type: hDetails.rentalType === "Location + logistique" ? "logistics" : "bare",
@@ -1749,6 +1767,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
           service_notes: formatHahitantsoaServiceNotes(selectedServices),
+          bare_rental_composition: hDetails.bareRentalComposition,
           start_at: startAt,
           end_at: endAt,
           rental_type: hDetails.rentalType === "Location + logistique" ? "logistics" : "bare",
@@ -2588,6 +2607,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">Remarques</label>
               <textarea className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" rows={2} value={hDetails.remarks} onChange={e => setHDetails({...hDetails, remarks: e.target.value})} placeholder="Notes spécifiques..."></textarea>
+              {hDetails.rentalType === "Location nue" && <BareRentalCompositionEditor value={hDetails.bareRentalComposition || []} onChange={value => setHDetails(current => ({ ...current, bareRentalComposition: value }))} />}
             </div>
           </div>
 
@@ -4451,6 +4471,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
                 <li key={item.id} className="flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
                   <span>Paiement {index + 1} — {item.method}</span>
                   <strong>{item.amount.toLocaleString('fr-FR')} Ar</strong>
+                  <details className="w-full"><summary className="cursor-pointer">Voir le reçu officiel</summary><OfficialPaymentReceipt documentId={item.receiptDocumentId} draftId={prospectProformaEmission?.draftId} domain={domain} /></details>
                 </li>
               ))}
             </ul>
@@ -4578,6 +4599,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
                     id: result.payment.id,
                     amount: currentPaymentAmount,
                     method: payment.method,
+                    receiptDocumentId: result.payment.receipt_document?.id,
                   }];
                   setRecordedPayments(nextRecordedPayments);
                   setPayment(current => ({ ...current, amount: "" }));
@@ -4632,6 +4654,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           <i className="fa-solid fa-file-signature fa-4x"></i>
         </div>
         <h3 className="text-2xl font-bold text-slate-800 mb-2">Aperçu Contrat</h3>
+        {recordedPayments.map(item => <details key={item.id} className="my-3 rounded-xl border p-3"><summary className="cursor-pointer">Reçu officiel — {item.amount.toLocaleString("fr-FR")} Ar</summary><OfficialPaymentReceipt documentId={item.receiptDocumentId} draftId={prospectProformaEmission?.draftId} domain={domain} /></details>)}
         <div className="flex flex-wrap items-center gap-3 mb-6">
           <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
             Prêt pour contractualisation

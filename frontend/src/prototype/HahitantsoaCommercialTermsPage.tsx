@@ -1,6 +1,8 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { getHahitantsoaCommercialTerms, updateHahitantsoaCommercialTerms } from "../api";
 import type { HahitantsoaCommercialTerms, HahitantsoaCommercialTermsUpdatePayload } from "../types";
+import type { BareRentalCompositionItem } from "../types";
+import BareRentalCompositionEditor from "./BareRentalCompositionEditor";
 
 type FormState = {
   base_space_rental_amount: string;
@@ -51,12 +53,13 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [composition, setComposition] = useState<BareRentalCompositionItem[]>([]);
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     void getHahitantsoaCommercialTerms(controller.signal)
-      .then((terms) => setForm(toForm(terms)))
+      .then((terms) => { setForm(toForm(terms)); setComposition(terms.bare_rental_composition || []); })
       .catch((err: unknown) => {
         if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Impossible de charger les modalités.");
       })
@@ -72,6 +75,10 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (!composition.length || composition.some(item => !item.label.trim() || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 9999)) {
+      setError("La composition doit contenir au moins un élément avec un libellé et une quantité entière entre 1 et 9999.");
+      return;
+    }
     const numericFields = [
       ["base_space_rental_amount", "Tarif de base"],
       ["included_guest_count", "Nombre de pax inclus"],
@@ -90,6 +97,7 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
     }
     setSaving(true); setError(null); setNotice(null);
     const payload: HahitantsoaCommercialTermsUpdatePayload = {
+      bare_rental_composition: composition,
       base_space_rental_amount: form.base_space_rental_amount,
       included_guest_count: Number(form.included_guest_count),
       excess_guest_amount: form.excess_guest_amount,
@@ -103,6 +111,7 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
     try {
       const terms = await updateHahitantsoaCommercialTerms(payload);
       setForm(toForm(terms));
+      setComposition(terms.bare_rental_composition || []);
       setNotice("Les tarifs et modalités officielles ont été enregistrés avec succès.");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Impossible d'enregistrer les modalités.");
@@ -157,6 +166,8 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
 
       <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <form onSubmit={submit} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+          <BareRentalCompositionEditor value={composition} onChange={setComposition} disabled={!canEdit || loading || saving} />
+          <p className="text-sm text-slate-500">Cette composition est copiée dans les nouvelles réservations. Les dossiers existants et les documents déjà émis conservent leur composition.</p>
           <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Grille Tarifaire Hahitantsoa</h2>

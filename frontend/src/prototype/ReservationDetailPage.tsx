@@ -2120,6 +2120,8 @@ export default function ReservationDetailPage({
                     <td className="px-4 py-3 text-center">
                       <button
                         type="button"
+                        disabled={!p.receipt_document?.id}
+                        title={!p.receipt_document?.id ? "Reçu officiel indisponible : actualisez le dossier" : "Ouvrir le reçu officiel"}
                         onClick={() =>
                           setPreviewModal({
                             title: `Reçu de versement - ${formatMoney(p.amount)}`,
@@ -2131,7 +2133,7 @@ export default function ReservationDetailPage({
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-bold transition-colors cursor-pointer"
                       >
                         <i className="fa-solid fa-file-invoice text-indigo-600"></i>
-                        <span>Reçu</span>
+                        <span>{p.receipt_document?.id ? "Reçu" : "Reçu indisponible"}</span>
                       </button>
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-emerald-600">
@@ -4374,7 +4376,9 @@ export default function ReservationDetailPage({
                   <span>Aperçu verrouillé : ce dossier présente un solde restant de {formatMoney(remainingAmount)}. La facture définitive et son impression officielle ne seront débloquées qu'après règlement intégral.</span>
                 </div>
               )}
-              {previewModal?.documentInstanceId ? (
+              {previewModal?.type === "recu_paiement" ? (
+                <DocumentPreview type="recu_paiement" domain="titan" reservationDraftId={draft.id} documentInstanceId={previewModal.documentInstanceId} />
+              ) : previewModal?.documentInstanceId ? (
                 <DocumentArtifactPreviewPanel documentInstanceId={previewModal.documentInstanceId} />
               ) : previewArtifact ? (
                 <DocumentArtifactPreviewPanel documentInstanceId={previewArtifact.id} />
