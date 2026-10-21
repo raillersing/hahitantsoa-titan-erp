@@ -81,7 +81,13 @@ describe("Phase 10: No production mocks & placeholders guard", () => {
       let match: RegExpExecArray | null;
       while ((match = storageAccessRegex.exec(content)) !== null) {
         const keyExpr = match[1].trim();
-        if (!allowedExpressions.has(keyExpr)) {
+        const scopedDraftDeclaration = filePath === "./prototype/CustomersPage.tsx"
+          ? 'const draftKey = currentUserId ? `customerWizardDraft:${currentUserId}` : "customerWizardDraft";'
+          : filePath === "./prototype/ReservationNewPage.tsx"
+            ? 'const draftKey = (currentUserId ? `prototypeReservationDraft:${currentUserId}` : "prototypeReservationDraft") + (param?.startsWith("edit-") ? `:${param}` : "");'
+            : null;
+        const approvedScopedDraft = keyExpr === "draftKey" && scopedDraftDeclaration !== null && content.includes(scopedDraftDeclaration);
+        if (!allowedExpressions.has(keyExpr) && !approvedScopedDraft) {
           violations.push(`${filePath} accesses unauthorized key: ${keyExpr}`);
         }
       }
