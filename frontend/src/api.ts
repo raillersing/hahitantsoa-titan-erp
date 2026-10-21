@@ -303,8 +303,9 @@ function buildReservationPeriodQuery(startAt: string, endAt: string): string {
 
 export function getInventoryItems(
   signal?: AbortSignal,
+  includeInactive = false,
 ): Promise<InventoryItem[]> {
-  return getAuthenticatedJson("/api/v1/inventory/items/", signal);
+  return getAuthenticatedJson(includeInactive ? "/api/v1/inventory/items/?include_inactive=true" : "/api/v1/inventory/items/", signal);
 }
 
 export function getInventoryItem(

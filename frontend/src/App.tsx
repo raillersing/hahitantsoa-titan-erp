@@ -206,12 +206,12 @@ function App() {
       case "hahitantsoa": return <HahitantsoaPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} canSuperAdminDelete={capabilities?.canSuperAdminDelete ?? false} />;
       case "titan": return <TitanPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} canSuperAdminDelete={capabilities?.canSuperAdminDelete ?? false} />;
       case "commercial-ops": return <CommercialOpsPage onNavigate={navigate} />;
-      case "customers": return <CustomersPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} canSuperAdminDelete={capabilities?.canSuperAdminDelete ?? false} />;
+      case "customers": return <CustomersPage currentUserId={state.user.id} onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} canSuperAdminDelete={capabilities?.canSuperAdminDelete ?? false} />;
       case "cashbox": return <CashboxPage onNavigate={navigate} />;
       case "caution": return <CautionPage onNavigate={navigate} param={activeParam} />;
       case "help": return <HelpPage onNavigate={navigate} canManageSupport={capabilities?.canManageIdentity ?? false} />;
       case "user-manual": return <UserManualPage onNavigate={navigate} />;
-      case "reservation-new": return <ReservationNewPage onNavigate={navigate} param={activeParam} />;
+      case "reservation-new": return <ReservationNewPage currentUserId={state.user.id} onNavigate={navigate} param={activeParam} />;
       case "reservation-detail":
         return activeParam?.startsWith("hahitantsoa:") ? (
           <HahitantsoaEventDraftDetailPage

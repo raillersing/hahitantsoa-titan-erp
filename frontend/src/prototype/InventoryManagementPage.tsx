@@ -21,6 +21,7 @@ interface DisplayItem {
   unitPrice: number;
   breakagePrice: number;
   status: "OK" | "Bas" | "Rupture";
+  isActive: boolean;
   imageUrl?: string;
   description?: string;
   code?: string;
@@ -54,8 +55,8 @@ const INVENTORY_COLUMNS_STORAGE_KEY = "titan.inventory.visible-columns.v1";
 function toDisplayItem(item: InventoryItem): DisplayItem {
   const typeMap: Record<string, DisplayItem["type"]> = {
     material: "Location",
-    article: "Location",
-    material_pack: "Location",
+    article: "Consommable",
+    material_pack: "Uniforme",
   };
   const stock = item.stock_summary;
   const reportedStock = stock?.reported_inventory_quantity ?? item.reported_inventory_quantity ?? 0;
@@ -63,6 +64,7 @@ function toDisplayItem(item: InventoryItem): DisplayItem {
   const brokenLostStock = stock?.damaged_lost_stock ?? item.reported_damaged_quantity ?? 0;
   return {
     id: item.id,
+    isActive: item.is_active !== false,
     name: item.name,
     kind: item.kind,
     type: typeMap[item.kind] ?? "Location",
@@ -85,6 +87,15 @@ function toDisplayItem(item: InventoryItem): DisplayItem {
     description: item.description,
     code: item.code,
   };
+}
+
+async function loadManagedInventory(signal?: AbortSignal): Promise<InventoryItem[]> {
+  try {
+    return await getInventoryItems(signal, true);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 403) return getInventoryItems(signal);
+    throw error;
+  }
 }
 
 export default function InventoryManagementPage({ onNavigate }: { onNavigate: (scope: any, param?: string) => void }) {
@@ -118,6 +129,16 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
 
   // Remote data state
   const [inventory, setInventory] = useState<DisplayItem[]>([]);
+  const [stockRefreshRequired, setStockRefreshRequired] = useState(false);
+  const refreshInventory = async () => {
+    try {
+      setInventory((await loadManagedInventory()).map(toDisplayItem));
+      setStockRefreshRequired(false);
+    } catch {
+      setStockRefreshRequired(true);
+      setToast("L’écriture est enregistrée. Actualisez l’inventaire avant une nouvelle modification du stock.");
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -145,7 +166,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
       try {
         setLoading(true);
         setError(null);
-        const items = await getInventoryItems(abortController.signal);
+        const items = await loadManagedInventory(abortController.signal);
         setInventory(items.map(toDisplayItem));
       } catch (err: any) {
         if (err.name === "AbortError") return;
@@ -294,6 +315,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
   };
 
   const handleOpenEdit = (item: any) => {
+    if (isSaving || stockRefreshRequired) return;
     setFormMode("edit");
     setEditForm({ ...item });
     setOriginalTotalStock(item.totalStock);
@@ -304,6 +326,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
 
   const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving || stockRefreshRequired) return;
     if (formMode === "edit" && editForm.totalStock !== originalTotalStock) {
       if (!stockChangeReason) {
         setStockError("Veuillez sélectionner un motif pour la modification du stock total.");
@@ -320,16 +343,8 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
 
     setIsSaving(true);
     try {
-      let kind: InventoryItem["kind"];
-      if (formMode === "edit" && editForm.kind) {
-        if (editForm.type === "Consommable" || editForm.type === "Uniforme") {
-          kind = "article";
-        } else {
-          kind = editForm.kind;
-        }
-      } else {
-        kind = editForm.type === "Location" ? "material" : "article";
-      }
+      const kind: InventoryItem["kind"] = editForm.type === "Location" ? "material"
+        : editForm.type === "Uniforme" ? "material_pack" : "article";
 
       const isBlob = typeof editForm.imageUrl === "string" && editForm.imageUrl.startsWith("blob:");
       const imageUrl = isBlob ? "" : (editForm.imageUrl || "");
@@ -344,7 +359,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
         description: editForm.description || "",
         image_url: imageUrl,
         reported_inventory_quantity: formMode === "create" ? editForm.totalStock : undefined,
-        is_active: editForm.status !== "Rupture",
+        is_active: formMode === "edit" ? editForm.isActive : editForm.status !== "Rupture",
       };
       const saved = formMode === "create"
         ? await createInventoryItem(payload)
@@ -360,19 +375,15 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
           notes: stockChangeReason,
         });
       }
-      const refreshed = formMode === "edit" && editForm.totalStock !== originalTotalStock
-        ? (await getInventoryItems()).map(toDisplayItem)
-        : [toDisplayItem(saved)];
-      setInventory(prev => formMode === "create" ? [refreshed[0], ...prev] : prev.map(i => {
-        const next = refreshed.find(candidate => candidate.id === i.id);
-        return next ?? i;
-      }));
+      setInventory(prev => formMode === "create" ? [toDisplayItem(saved), ...prev]
+        : prev.map(candidate => candidate.id === saved.id ? toDisplayItem(saved) : candidate));
       if (isBlob) {
         setToast((formMode === "create" ? "Article créé." : "Article mis à jour.") + " Note : l'image locale temporaire n'est pas persistée sur le serveur. Renseignez une URL pour conserver l'image.");
       } else {
         setToast(formMode === "create" ? "Article créé avec succès." : "Article mis à jour.");
       }
       setIsFormOpen(false);
+      if (formMode === "edit" && editForm.totalStock !== originalTotalStock) await refreshInventory();
     } catch (err) {
       setToast(err instanceof ApiError ? err.message : "La sauvegarde de l'article a échoué.");
     } finally {
@@ -381,7 +392,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
   };
 
   const handleToggleStatus = async (item: any) => {
-    const newStatus = (item.status === "OK" ? "Rupture" : "OK") as "OK" | "Bas" | "Rupture";
+    const newStatus = (item.isActive ? "Rupture" : "OK") as "OK" | "Bas" | "Rupture";
     try {
       const saved = await updateInventoryItem(item.id, { is_active: newStatus === "OK" });
       setInventory(prev => prev.map(i => i.id === item.id ? toDisplayItem(saved) : i));
@@ -392,6 +403,9 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
   };
 
   const handleOpenAdjustStock = (item: any) => {
+    if (isSaving || stockRefreshRequired) return;
+    setStockChangeReason("");
+    setStockError("");
     setAdjustItem(item);
     setStockDelta(0);
     setIsAdjustingStock(true);
@@ -399,7 +413,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
 
   const handleSaveStock = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adjustItem) return;
+    if (!adjustItem || isSaving || stockRefreshRequired) return;
     
     if (!stockChangeReason) {
       setStockError("Veuillez sélectionner un motif pour la modification du stock total.");
@@ -424,11 +438,11 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
         source_label: stockChangeReason,
         notes: stockChangeReason,
       });
-      setInventory((await getInventoryItems()).map(toDisplayItem));
       setToast(`Stock ajusté (${stockDelta > 0 ? '+' : ''}${stockDelta})`);
       setIsAdjustingStock(false);
       setStockDelta(0);
       setStockChangeReason("");
+      await refreshInventory();
     } catch (err) {
       setToast(err instanceof ApiError ? err.message : "L'ajustement du stock a échoué.");
     } finally {
@@ -442,7 +456,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
   };
 
   const handleConfirmDelete = async () => {
-    if (!deleteItem) return;
+    if (!deleteItem || isSaving) return;
     setIsSaving(true);
     try {
       await deleteInventoryItem(deleteItem.id);
@@ -733,8 +747,8 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                     <button className="text-slate-400 hover:text-tit-600 px-1.5" onClick={() => handleOpenAdjustStock(item)} aria-label={`Ajuster stock ${item.name}`} title="Ajuster stock">
                       <i className="fas fa-boxes" aria-hidden="true"></i>
                     </button>
-                    <button className="text-slate-400 hover:text-tit-600 px-1.5" onClick={() => handleToggleStatus(item)} aria-label={`${item.status === 'OK' ? 'Désactiver' : 'Réactiver'} ${item.name}`} title={item.status === 'OK' ? "Désactiver" : "Réactiver"}>
-                      <i className={`fas ${item.status === 'OK' ? 'fa-ban' : 'fa-check'}`} aria-hidden="true"></i>
+                    <button className="text-slate-400 hover:text-tit-600 px-1.5" onClick={() => handleToggleStatus(item)} aria-label={`${item.isActive ? 'Désactiver' : 'Réactiver'} ${item.name}`} title={item.isActive ? "Désactiver" : "Réactiver"}>
+                      <i className={`fas ${item.isActive ? 'fa-ban' : 'fa-check'}`} aria-hidden="true"></i>
                     </button>
                     <button className="text-slate-400 hover:text-rose-600 px-1.5" onClick={() => handleOpenDelete(item)} aria-label={`Supprimer ${item.name}`} title="Supprimer">
                       <i className="fas fa-trash" aria-hidden="true"></i>
@@ -955,6 +969,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
         </div>
       )}
 
+      {stockRefreshRequired && <div role="alert" className="fixed bottom-20 right-4 z-[60] rounded-lg bg-rose-50 border border-rose-300 p-4"><p>Actualisation du stock nécessaire.</p><button type="button" className="underline" onClick={() => void refreshInventory()}>Actualiser les données</button></div>}
       {toast && (
         <div className="toast fixed bottom-4 right-4 bg-slate-800 text-white px-4 py-2 rounded shadow-lg z-50 flex items-center gap-3">
           <span>{toast}</span>

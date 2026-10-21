@@ -326,14 +326,17 @@ function getTomorrowISO(): string {
 function getThisSaturdayISO(): string {
   const d = new Date();
   const day = d.getDay();
-  const diff = day === 6 ? 7 : (6 - day);
+  const diff = (6 - day + 7) % 7;
   d.setDate(d.getDate() + diff);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function getNextMonthISO(): string {
   const d = new Date();
+  const day = d.getDate();
+  d.setDate(1);
   d.setMonth(d.getMonth() + 1);
+  d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
@@ -382,6 +385,7 @@ export function AvailabilityDatePicker({
         ? false
         : Boolean(venueName);
 
+  const editingInputRef = useRef(false);
   const [inputValue, setInputValue] = useState<string>(formatDisplayDate(effectiveSelectedDate));
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [inputWarning, setInputWarning] = useState<string | null>(null);
@@ -407,7 +411,7 @@ export function AvailabilityDatePicker({
 
   // Keep input value in sync when external selected date changes
   useEffect(() => {
-    setInputValue(formatDisplayDate(effectiveSelectedDate));
+    if (!editingInputRef.current) setInputValue(formatDisplayDate(effectiveSelectedDate));
     if (effectiveSelectedDate) {
       const parsed = new Date(`${effectiveSelectedDate}T00:00:00`);
       if (!isNaN(parsed.getTime())) {
@@ -563,7 +567,9 @@ export function AvailabilityDatePicker({
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const raw = event.target.value;
+    editingInputRef.current = true;
     setInputValue(raw);
+    effectiveOnChange?.("");
 
     if (!raw.trim()) {
       setInputWarning(null);
@@ -571,7 +577,8 @@ export function AvailabilityDatePicker({
       return;
     }
 
-    const normalized = parseAndNormalizeDate(raw);
+    const complete = /^(?:\d{4}-\d{2}-\d{2}|\d{2}[/.-]\d{2}[/.-]\d{4})$/.test(raw.trim());
+    const normalized = complete ? parseAndNormalizeDate(raw) : null;
     if (normalized) {
       const today = getTodayISO();
       if (!allowPast && normalized < today) {
@@ -603,7 +610,9 @@ export function AvailabilityDatePicker({
     }
   };
 
-  const handleInputBlur = () => {
+  const handleInputBlur = (event?: React.FocusEvent<HTMLInputElement>) => {
+    editingInputRef.current = false;
+    if (event?.relatedTarget && containerRef.current?.contains(event.relatedTarget as Node)) return;
     if (!inputValue.trim()) {
       setInputWarning(null);
       effectiveOnChange?.("");
@@ -614,6 +623,7 @@ export function AvailabilityDatePicker({
       setInputValue(normalized);
       validateAndSelectDate(normalized);
     } else {
+      effectiveOnChange?.("");
       setInputWarning("Format de date invalide (attendu: AAAA-MM-JJ ou JJ/MM/AAAA)");
     }
   };
@@ -1095,6 +1105,7 @@ export function AvailabilityDatePicker({
           value={inputValue}
           onChange={handleInputChange}
           onBlur={handleInputBlur}
+          onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); handleInputBlur(); } }}
           placeholder={placeholder}
           required={required}
           disabled={disabled}

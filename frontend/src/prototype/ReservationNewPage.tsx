@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { saveDraftFiles, readDraftFiles, clearDraftFiles } from "./wizardDraftFiles";
 import { AvailabilityDatePicker } from "../components/AvailabilityDatePicker";
 import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
 import { calculateTitanCautionAmount } from "../utils";
@@ -26,12 +27,16 @@ import {
   generateHahitantsoaEventDraftDocumentInstancePdf,
   convertProformaToContract,
   createCustomer,
+  updateCustomer,
   convertProspectToClient,
   uploadAttachment,
   recordConfirmedDeposit,
+  getPayments,
+  getHahitantsoaEventDraftPayments,
   previewNextPublicReference,
 } from "../api";
 import type {
+  CustomerCreatePayload,
   Customer,
   HahitantsoaVenue,
   HahitantsoaService,
@@ -149,8 +154,20 @@ function toTimezoneAwareIso(date: string, time: string): string {
   return `${date}T${time}:00Z`;
 }
 
+function reservationPeriodError(startDate: string, startTime: string, endDate: string, endTime: string): string | null {
+  const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value + "T12:00:00Z").toISOString().slice(0, 10) === value;
+  if (!validDate(startDate) || !validDate(endDate) || !/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) return "Renseignez des dates et heures valides pour la réservation.";
+  const start = Date.parse(toTimezoneAwareIso(startDate, startTime));
+  const end = Date.parse(toTimezoneAwareIso(endDate, endTime));
+  return !Number.isFinite(start) || !Number.isFinite(end) || end <= start ? "La fin de la réservation doit être postérieure à son début." : null;
+}
+
+function calendarDate(date: Date): string {
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
+}
+
 function formatIsoDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  return calendarDate(date);
 }
 
 function titanOpenDay(date: Date, direction: -1 | 1, closedDates: Set<string>): Date {
@@ -259,6 +276,7 @@ function mapPreviewToCatalogItem(
 }
 
 interface ReservationNewPageProps {
+  currentUserId?: string;
   onNavigate: (scope: any, param?: string) => void;
   param?: string;
 }
@@ -619,11 +637,21 @@ export function calculateReservationTotals({
 
 
 
-export default function ReservationNewPage({ onNavigate, param }: ReservationNewPageProps) {
+export default function ReservationNewPage({ onNavigate, param, currentUserId }: ReservationNewPageProps) {
   // State
+  const draftKey = (currentUserId ? `prototypeReservationDraft:${currentUserId}` : "prototypeReservationDraft") + (param?.startsWith("edit-") ? `:${param}` : "");
+  const draftClosedRef = useRef(false);
+  const draftInitializingRef = useRef(false);
+  const routeRequestRef = useRef(0);
+  const restoredRouteRef = useRef(false);
+  const [draftWarning, setDraftWarning] = useState("");
+  const [restoringDraft, setRestoringDraft] = useState(false);
   const [path, setPath] = useState<PathType>(null);
   const [step, setStep] = useState<number>(0);
   const [maxReachedStep, setMaxReachedStep] = useState<number>(0);
+  const [isEditingClient, setIsEditingClient] = useState(false);
+  const createdClientIdRef = useRef<string | null>(null);
+  const lastOfferRef = useRef<string | null>(null);
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' | 'warning' } | null>(null);
   
@@ -823,7 +851,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [contractPreviewTab, setContractPreviewTab] = useState<"contract" | "discharge">("contract");
   const depositRecordingKeyRef = useRef<string | null>(null);
   const [clientAttachments, setClientAttachments] = useState<Attachment[]>([]);
-  const [dedicatedAttachments, setDedicatedAttachments] = useState<Partial<Record<DedicatedAttachmentCategory, Attachment>>>({});
+  const [dedicatedAttachments, setDedicatedAttachments] = useState<Partial<Record<DedicatedAttachmentCategory, Attachment[]>>>({});
   const [paymentAttachments, setPaymentAttachments] = useState<Attachment[]>([]);
 
   const isProspectProforma = param?.startsWith('prospect-proforma-') || false;
@@ -837,7 +865,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       ? (hDetails.endDate && hDetails.endTime ? toTimezoneAwareIso(hDetails.endDate, hDetails.endTime) : '')
       : (tDetails.endDate && tDetails.endTime ? toTimezoneAwareIso(tDetails.endDate, tDetails.endTime) : '');
 
-    if (!startAt || !endAt) return;
+    const details = domain === "hahitantsoa" ? hDetails : tDetails;
+    if (!domain || reservationPeriodError(details.startDate, details.startTime, details.endDate, details.endTime)) {
+      setAvailableCatalogItems([]); setLoadingCatalog(false); setErrorCatalog(null); return;
+    }
 
     let cancelled = false;
     setLoadingCatalog(true);
@@ -869,6 +900,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   }, [domain, hDetails.startDate, hDetails.startTime, hDetails.endDate, hDetails.endTime, tDetails.startDate, tDetails.startTime, tDetails.endDate, tDetails.endTime]);
 
   const applyParamRouting = (targetParam: string | undefined) => {
+    const requestId = ++routeRequestRef.current;
     if (targetParam && (targetParam.startsWith('edit-titan/') || targetParam.startsWith('edit-hahitantsoa/'))) {
       const isTitan = targetParam.startsWith('edit-titan/');
       const draftId = targetParam.split('/')[1];
@@ -890,6 +922,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       if (isTitan) {
         getReservationDraft(draftId)
           .then((draft) => {
+            if (requestId !== routeRequestRef.current) return;
+            draftInitializingRef.current = false;
             if (draft.status === 'confirmed' || draft.contract_signed_at) {
               const errMsg = "Ce dossier Titan est déjà confirmé et son contrat est validé. Les modifications directes sont interdites : veuillez utiliser un avenant officiel.";
               setEditingDraftContext(prev => ({ ...prev, loading: false, error: errMsg }));
@@ -950,6 +984,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             setMaxReachedStep(7);
           })
           .catch((err) => {
+            if (requestId !== routeRequestRef.current) return;
+            draftInitializingRef.current = false;
             const msg = err?.message || "Impossible de charger le dossier Titan.";
             setEditingDraftContext(prev => ({ ...prev, loading: false, error: msg }));
             showToastMsg(msg, 'error');
@@ -957,6 +993,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       } else {
         getHahitantsoaEventDraft(draftId)
           .then((draft) => {
+            if (requestId !== routeRequestRef.current) return;
+            draftInitializingRef.current = false;
             if (draft.status === 'confirmed') {
               const errMsg = "Cet événement Hahitantsoa est déjà confirmé et validé. Les modifications directes sont interdites : veuillez utiliser un avenant officiel.";
               setEditingDraftContext(prev => ({ ...prev, loading: false, error: errMsg }));
@@ -1016,6 +1054,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             setMaxReachedStep(7);
           })
           .catch((err) => {
+            if (requestId !== routeRequestRef.current) return;
+            draftInitializingRef.current = false;
             const msg = err?.message || "Impossible de charger l'événement Hahitantsoa.";
             setEditingDraftContext(prev => ({ ...prev, loading: false, error: msg }));
             showToastMsg(msg, 'error');
@@ -1061,9 +1101,13 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       setStep(0);
       setMaxReachedStep(0);
     }
+    queueMicrotask(() => { if (requestId === routeRequestRef.current) draftInitializingRef.current = false; });
   };
 
   const resetAllWizardState = () => {
+    setPath(null); setDomain(null); setClientMode("existing"); setClientSearchStr(""); setSubmitError(null);
+    setUseCustomReference(false); setCustomPublicReference("");
+    setEditingDraftContext({ isEditing: false, draftId: "", domain: null, publicReference: "", loading: false, error: null });
     setSelectedMaterials([]);
     setSelectedServices([]);
     setSelectedClientId("");
@@ -1089,7 +1133,9 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     setDiscountValue(0);
     setDiscountIsPercentage(true);
     setDiscountReason("");
-    setProspectProformaEmission(null);
+    setProspectProformaEmission(null); setIsEditingClient(false); createdClientIdRef.current = null; lastOfferRef.current = null;
+    setProformaGenerated(false); setIssuedProspectProformaId(null); setPaymentDone(false); setDocumentReference("");
+    setDeliveryModifiedManually(false); setReturnModifiedManually(false); depositRecordingKeyRef.current = null;
   };
 
   // Init from URL param if needed, or prompt to restore draft if unfinished
@@ -1100,12 +1146,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       return;
     }
 
-    if (param && (param.startsWith('edit-titan/') || param.startsWith('edit-hahitantsoa/'))) {
-      applyParamRouting(param);
-      return;
-    }
-
-    const saved = localStorage.getItem("prototypeReservationDraft");
+    if (restoredRouteRef.current) { restoredRouteRef.current = false; return; }
+    ++routeRequestRef.current;
+    draftInitializingRef.current = true;
+    draftClosedRef.current = false;
+    const saved = localStorage.getItem(draftKey);
     if (saved) {
       try {
         const data = JSON.parse(saved);
@@ -1114,12 +1159,13 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           return;
         }
       } catch {
-        localStorage.removeItem("prototypeReservationDraft");
+        localStorage.removeItem(draftKey);
       }
     }
 
+    resetAllWizardState();
     applyParamRouting(param);
-  }, [param]);
+  }, [param, draftKey]);
 
   useEffect(() => {
     if (domain === 'titan' && tDetails.startDate && tDetails.endDate) {
@@ -1187,64 +1233,111 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   );
 
   const saveDraft = () => {
-    if (editingDraftContext.isEditing) return;
+    if (draftClosedRef.current || draftInitializingRef.current || editingDraftContext.loading || showDraftPrompt || restoringDraft) return;
     const draft = {
+      routeParam: param ?? null, editingDraftContext, isEditingClient, documentReference, issuedProspectProformaId, proformaGenerated, proformaValidity,
+      deliveryModifiedManually, returnModifiedManually, lastCalculatedDelivery, lastCalculatedReturn,
+      useCustomReference, customPublicReference, depositRecordingKey: depositRecordingKeyRef.current,
       path, step, maxReachedStep, clientMode, selectedClientId, newClient, domain,
       hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment,
       clientAttachments: clientAttachments.map(({ file: _file, ...attachment }) => attachment),
-      dedicatedAttachments: Object.fromEntries(Object.entries(dedicatedAttachments).map(([category, attachment]) => [category, attachment ? (({ file: _file, ...rest }) => rest)(attachment) : attachment])),
+      dedicatedAttachments: Object.fromEntries(Object.entries(dedicatedAttachments).map(([category, pages]) => [category, (pages || []).map(({ file: _file, ...rest }) => rest)])),
       paymentAttachments: paymentAttachments.map(({ file: _file, ...attachment }) => attachment),
       recordedPayments,
       discountValue, discountIsPercentage, discountReason,
       prospectProformaEmission,
     };
-    localStorage.setItem("prototypeReservationDraft", JSON.stringify(draft));
+    try { localStorage.setItem(draftKey, JSON.stringify(draft)); }
+    catch { setDraftWarning("La sauvegarde automatique est indisponible. Gardez cette page ouverte."); }
   };
 
   useEffect(() => {
     if (hasDraftContent) {
       saveDraft();
     }
-  }, [hasDraftContent, step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, recordedPayments, discountValue, discountIsPercentage, discountReason, prospectProformaEmission]);
+  }, [hasDraftContent, step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, recordedPayments, discountValue, discountIsPercentage, discountReason, prospectProformaEmission, documentReference, issuedProspectProformaId, proformaGenerated, proformaValidity, deliveryModifiedManually, returnModifiedManually, lastCalculatedDelivery, lastCalculatedReturn, useCustomReference, customPublicReference, isEditingClient, draftKey]);
 
   useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (hasDraftContent) {
-        saveDraft();
-      }
-    };
+    const handleBeforeUnload = () => { if (hasDraftContent) saveDraft(); };
     window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      if (hasDraftContent) {
-        saveDraft();
-      }
-    };
-  }, [hasDraftContent, step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, recordedPayments, discountValue, discountIsPercentage, discountReason, prospectProformaEmission]);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasDraftContent, step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, recordedPayments, discountValue, discountIsPercentage, discountReason, prospectProformaEmission, documentReference, issuedProspectProformaId, proformaGenerated, proformaValidity, deliveryModifiedManually, returnModifiedManually, lastCalculatedDelivery, lastCalculatedReturn, useCustomReference, customPublicReference, draftKey]);
 
-  const restoreDraft = () => {
-    const saved = localStorage.getItem("prototypeReservationDraft");
-    if (saved) {
+  useEffect(() => {
+    if (!hasDraftContent || draftClosedRef.current || restoringDraft) return;
+    const pages = [...clientAttachments, ...paymentAttachments, ...Object.values(dedicatedAttachments).flatMap(items => items || [])];
+    if (pages.some(page => page.file)) void saveDraftFiles(draftKey, pages).catch(() => setDraftWarning("Les fichiers ne peuvent pas être sauvegardés sur cet appareil. Ils devront être sélectionnés à nouveau après rechargement."));
+  }, [clientAttachments, paymentAttachments, dedicatedAttachments, draftKey, hasDraftContent, restoringDraft]);
+
+  useEffect(() => () => { ++routeRequestRef.current; }, []);
+
+  const restoreDraft = async () => {
+    if (restoringDraft) return;
+    const requestId = routeRequestRef.current;
+    setRestoringDraft(true);
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (!saved) return;
       const data = JSON.parse(saved);
-      setPath(data.path); setStep(data.step); setMaxReachedStep(data.maxReachedStep);
-      setClientMode(data.clientMode); setSelectedClientId(data.selectedClientId); setNewClient(data.newClient);
-      setDomain(data.domain);
-      setHDetails(data.hDetails);
-      setTDetails({
-        ...data.tDetails,
-        startTime: data.tDetails?.startTime || "08:00",
-        endTime: data.tDetails?.endTime || "22:00",
-      });
-      setSelectedMaterials(data.selectedMaterials || []); setSelectedServices(data.selectedServices || []);
-      setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment || { method: "Espèces", amount: "", percent: (TITAN_DEFAULT_ADVANCE_RATE * 100).toString() }); setClientAttachments(data.clientAttachments || []); setDedicatedAttachments(data.dedicatedAttachments || {}); setPaymentAttachments(data.paymentAttachments || []); setRecordedPayments(data.recordedPayments || []);
+      if (!data || typeof data !== "object") throw new Error("Brouillon invalide");
+      const savedDraftId = data.editingDraftContext?.draftId || data.prospectProformaEmission?.draftId;
+      const savedDomain = data.editingDraftContext?.domain || data.domain;
+      const persistedSnapshot = savedDraftId ? (savedDomain === "titan" ? await getReservationDraft(savedDraftId) : await getHahitantsoaEventDraft(savedDraftId)) : null;
+      if (requestId !== routeRequestRef.current) return;
+      if (persistedSnapshot && (persistedSnapshot.status !== "draft" || ("contract_signed_at" in persistedSnapshot && persistedSnapshot.contract_signed_at))) throw new Error("Ce dossier n’est plus modifiable directement. Ouvrez son dossier pour consulter les actions autorisées.");
+      if (data.editingDraftContext?.isEditing) setEditingDraftContext({ ...data.editingDraftContext, loading: false, error: null });
+      const files = await readDraftFiles(draftKey).catch(() => { setDraftWarning("Les champs sont conservés. Les fichiers devront être sélectionnés à nouveau."); return {} as Record<string, File>; });
+      if (requestId !== routeRequestRef.current) return;
+      const restorePage = (page: Attachment): Attachment => ({ ...page, file: files[page.id] });
+      const resumedStep = Number.isInteger(data.step) ? Math.max(0, Math.min(9, data.step)) : 0;
+      setPath(data.path === "domain_first" ? "domain_first" : "client_first"); setStep(resumedStep);
+      setMaxReachedStep(Math.max(resumedStep, Math.min(9, Number(data.maxReachedStep) || resumedStep)));
+      lastOfferRef.current = null;
+      setIsEditingClient(Boolean(data.isEditingClient));
+      setClientMode(data.clientMode === "new" ? "new" : "existing"); setSelectedClientId(data.selectedClientId || "");
+      setNewClient({ ...newClient, ...data.newClient, additionalEmails: Array.isArray(data.newClient?.additionalEmails) ? data.newClient.additionalEmails : [], additionalPhones: Array.isArray(data.newClient?.additionalPhones) ? data.newClient.additionalPhones : [] });
+      setDomain(data.domain === "titan" || data.domain === "hahitantsoa" ? data.domain : null);
+      setHDetails({ ...hDetails, ...data.hDetails });
+      setTDetails({ ...tDetails, ...data.tDetails, startTime: data.tDetails?.startTime || "08:00", endTime: data.tDetails?.endTime || "22:00" });
+      setSelectedMaterials(Array.isArray(data.selectedMaterials) ? data.selectedMaterials : []); setSelectedServices(Array.isArray(data.selectedServices) ? data.selectedServices : []);
+      setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment || { method: "Espèces", amount: "", percent: (TITAN_DEFAULT_ADVANCE_RATE * 100).toString() });
+      setClientAttachments((data.clientAttachments || []).map(restorePage));
+      setDedicatedAttachments(Object.fromEntries(Object.entries(data.dedicatedAttachments || {}).map(([category, pages]) => [category, (Array.isArray(pages) ? pages : pages ? [pages] : []).map(restorePage)])));
+      setPaymentAttachments((data.paymentAttachments || []).map(restorePage));
+      if (data.prospectProformaEmission?.draftId && (resumedStep >= 8 || data.maxReachedStep >= 8 || data.recordedPayments?.length || data.depositRecordingKey)) {
+        const draftId = data.prospectProformaEmission.draftId;
+        const [persisted, rows] = data.domain === "hahitantsoa"
+          ? await Promise.all([Promise.resolve(persistedSnapshot), getHahitantsoaEventDraftPayments(draftId)])
+          : await Promise.all([Promise.resolve(persistedSnapshot), getPayments(draftId)]);
+        if (requestId !== routeRequestRef.current) return;
+        if (!persisted || persisted.status !== "draft" || ("contract_signed_at" in persisted && persisted.contract_signed_at)) throw new Error("Ce dossier est déjà signé ou n’est plus un brouillon. Consultez le dossier enregistré.");
+        const confirmed = rows.filter(row => row.payment_status === "confirmed" || row.payment_status === "reconciled");
+        setRecordedPayments(confirmed.map(row => ({ id: row.id, amount: Number(row.amount), method: row.payment_method })));
+        const required = Number(persisted.required_deposit_amount ?? Number.POSITIVE_INFINITY);
+        const covered = confirmed.reduce((sum, row) => sum + Number(row.amount), 0) >= required;
+        setPaymentDone(covered);
+        if (covered) setPayment(current => ({ ...current, amount: "" }));
+        if (resumedStep === 9 && !covered) setStep(8);
+      } else { setRecordedPayments([]); setPaymentDone(false); }
+      depositRecordingKeyRef.current = data.depositRecordingKey || null;
       setDiscountValue(data.discountValue || 0); setDiscountIsPercentage(data.discountIsPercentage ?? true); setDiscountReason(data.discountReason || "");
-      setProspectProformaEmission(data.prospectProformaEmission || null);
-      setShowDraftPrompt(false);
-    }
+      setProspectProformaEmission(data.prospectProformaEmission ? { ...data.prospectProformaEmission, ...(persistedSnapshot?.required_deposit_amount !== undefined ? { requiredDepositAmount: Number(persistedSnapshot.required_deposit_amount) } : {}) } : null); setDocumentReference(data.documentReference || "");
+      setIssuedProspectProformaId(data.issuedProspectProformaId || null); setProformaGenerated(Boolean(data.proformaGenerated)); setProformaValidity(data.proformaValidity || 15);
+      setDeliveryModifiedManually(Boolean(data.deliveryModifiedManually)); setReturnModifiedManually(Boolean(data.returnModifiedManually));
+      setLastCalculatedDelivery(data.lastCalculatedDelivery || { date: "", time: "" }); setLastCalculatedReturn(data.lastCalculatedReturn || { date: "", time: "" });
+      setUseCustomReference(Boolean(data.useCustomReference)); setCustomPublicReference(data.customPublicReference || "");
+      draftClosedRef.current = false; draftInitializingRef.current = false; setShowDraftPrompt(false);
+      if (Object.hasOwn(data, "routeParam") && data.routeParam !== (param ?? null)) { restoredRouteRef.current = true; onNavigate("reservation-new", data.routeParam || undefined); }
+    } catch (error) { setDraftWarning(error instanceof Error ? error.message : "Le brouillon ne peut pas être repris. Vos données sont conservées."); }
+    finally { setRestoringDraft(false); }
   };
 
   const clearDraft = (resetState = true) => {
-    localStorage.removeItem("prototypeReservationDraft");
+    ++routeRequestRef.current;
+    draftClosedRef.current = !resetState;
+    draftInitializingRef.current = false;
+    localStorage.removeItem(draftKey);
+    void clearDraftFiles(draftKey).catch(() => undefined);
     setShowDraftPrompt(false);
     if (resetState) {
       resetAllWizardState();
@@ -1254,17 +1347,24 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
   const addAttachment = (type: 'client' | 'payment', category: string, fileList: FileList | null, label: string) => {
     if (!fileList || !fileList.length) return;
-    const newAtt: Attachment = { id: crypto.randomUUID(), name: fileList[0].name, category, label: label.trim() || category, file: fileList[0] };
-    if (type === 'client') setClientAttachments([...clientAttachments, newAtt]);
-    else setPaymentAttachments([...paymentAttachments, newAtt]);
+    const pages = Array.from(fileList).map(file => ({ id: crypto.randomUUID(), name: file.name, category, label: label.trim() || category, file }));
+    if (type === 'client') setClientAttachments(current => [...current, ...pages]);
+    else setPaymentAttachments(current => [...current, ...pages]);
   };
   const addDedicatedAttachment = (category: DedicatedAttachmentCategory, fileList: FileList | null) => {
     if (!fileList || !fileList.length) return;
+    const pages = Array.from(fileList).map(file => ({ id: crypto.randomUUID(), name: file.name, category, label: category, file }));
     setDedicatedAttachments(current => ({
       ...current,
-      [category]: { id: crypto.randomUUID(), name: fileList[0].name, category, label: category, file: fileList[0] },
+      [category]: [...(current[category] || []), ...pages],
     }));
   };
+  const renderDedicatedPages = (category: DedicatedAttachmentCategory) => (dedicatedAttachments[category] || []).map(attachment => (
+    <div key={attachment.id} className="flex items-center gap-1">
+      <AttachmentMiniPreview attachment={attachment} />
+      <button type="button" aria-label={`Retirer ${attachment.name}`} onClick={() => setDedicatedAttachments(current => ({ ...current, [category]: current[category]?.filter(page => page.id !== attachment.id) }))}>×</button>
+    </div>
+  ));
   const removeAttachment = (type: 'client' | 'payment', id: string) => {
     if (type === 'client') setClientAttachments(clientAttachments.filter(a => a.id !== id));
     else setPaymentAttachments(paymentAttachments.filter(a => a.id !== id));
@@ -1325,6 +1425,15 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     discountIsPercentage,
   });
 
+  const offerFingerprint = JSON.stringify({ domain, selectedClientId, clientMode, newClient, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, discountValue, discountIsPercentage, discountReason, proformaValidity });
+  useEffect(() => {
+    if (lastOfferRef.current !== null && lastOfferRef.current !== offerFingerprint && !restoringDraft) {
+      setProspectProformaEmission(current => current?.documentId ? { ...current, documentId: undefined, htmlGenerated: false, documentPdfGenerated: false } : current);
+      setIssuedProspectProformaId(null); setProformaGenerated(false);
+    }
+    lastOfferRef.current = offerFingerprint;
+  }, [offerFingerprint, restoringDraft]);
+
   const persistCommercialDraft = async (): Promise<ProspectProformaEmission> => {
     if (!domain) throw new Error("Sélectionnez le volet métier avant d’enregistrer le dossier.");
     const details = domain === "hahitantsoa" ? hDetails : tDetails;
@@ -1335,6 +1444,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       throw new Error("Ajoutez au moins un article Titan avant d’enregistrer le dossier.");
     }
 
+    const periodError = reservationPeriodError(details.startDate, details.startTime, details.endDate, details.endTime);
+    if (periodError) throw new Error(periodError);
     const customerId = await ensureCustomerId();
     const startAt = toTimezoneAwareIso(details.startDate, details.startTime);
     const endAt = toTimezoneAwareIso(details.endDate, details.endTime);
@@ -1370,7 +1481,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         const draft = emission.draftId
           ? await updateHahitantsoaEventDraft(emission.draftId, payload)
           : await createHahitantsoaEventDraft(payload);
-        emission = { ...emission, draftId: draft.id };
+        emission = { ...emission, draftId: draft.id, ...(draft.required_deposit_amount !== undefined ? { requiredDepositAmount: Number(draft.required_deposit_amount) } : {}) };
       } else {
         const payload = {
           customer_id: customerId,
@@ -1386,7 +1497,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         const draft = emission.draftId
           ? await updateReservationDraft(emission.draftId, payload)
           : await createReservationDraft(payload);
-        emission = { ...emission, draftId: draft.id };
+        emission = { ...emission, draftId: draft.id, ...(draft.required_deposit_amount !== undefined ? { requiredDepositAmount: Number(draft.required_deposit_amount) } : {}) };
       }
       setProspectProformaEmission(emission);
       return emission;
@@ -1398,11 +1509,20 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   // Navigation
   const goNext = async () => {
     if (serverDraftSaving) return;
+    setSubmitError(null);
+    const clientStep = path === "client_first" ? 1 : 2;
+    if (step === clientStep && !(clientMode === "existing" ? selectedClientId : newClient.name.trim())) { setSubmitError("Sélectionnez un client ou renseignez son nom."); return; }
+    if (step === 3) {
+      const details = domain === "hahitantsoa" ? hDetails : tDetails;
+      const periodError = reservationPeriodError(details.startDate, details.startTime, details.endDate, details.endTime);
+      if (periodError) { setSubmitError(periodError); return; }
+    }
     if (domain === "hahitantsoa" && (errorHahitantsoaTerms || !hahitantsoaTerms)) {
       setSubmitError("Impossible de continuer : les conditions tarifaires officielles n'ont pas pu être chargées depuis le serveur. Veuillez réessayer le chargement des tarifs.");
       return;
     }
     try {
+      if (step === clientStep && isEditingClient) await ensureCustomerId();
       const details = domain === "hahitantsoa" ? hDetails : tDetails;
       const reachesPersistableOfferCompletion = step === 5
         && domain !== null
@@ -1431,7 +1551,12 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     setStep(Math.max(0, prevStep));
   };
   const jumpTo = (targetStep: number) => {
-    if (targetStep <= maxReachedStep) setStep(targetStep);
+    if (targetStep > step && step === 3) {
+      const details = domain === "hahitantsoa" ? hDetails : tDetails;
+      const periodError = reservationPeriodError(details.startDate, details.startTime, details.endDate, details.endTime);
+      if (periodError) { setSubmitError(periodError); return; }
+    }
+    if (targetStep <= maxReachedStep) { setSubmitError(null); setStep(targetStep); }
   };
 
   const getStepTitle = (idx: number) => {
@@ -1454,12 +1579,13 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   };
 
   const ensureCustomerId = async (): Promise<string> => {
-    if (clientMode === "existing" && selectedClientId) return selectedClientId;
-    if (clientMode !== "new" || !newClient.name.trim()) {
+    if (clientMode === "existing" && selectedClientId && !isEditingClient) return selectedClientId;
+    if (clientMode === "new" && createdClientIdRef.current) return createdClientIdRef.current;
+    if ((clientMode !== "new" && !isEditingClient) || !newClient.name.trim()) {
       throw new Error("Sélectionnez un client enregistré ou renseignez le nouveau client.");
     }
 
-    const customer = await createCustomer({
+    const payload: CustomerCreatePayload = {
       display_name: newClient.name.trim(),
       lifecycle_status: "client",
       party_type: newClient.type === "Entreprise" ? "company" : "individual",
@@ -1487,10 +1613,21 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       rcs: newClient.rcs || "",
       representative_name: newClient.repFirstName || "",
       representative_role: newClient.repRole || "",
-    });
-    setApiCustomers((current) => [...current, customer]);
+    };
+    const { lifecycle_status: _lifecycleStatus, ...customerChanges } = payload;
+    const customer = isEditingClient && selectedClientId
+      ? await updateCustomer(selectedClientId, customerChanges)
+      : await createCustomer(payload);
+    createdClientIdRef.current = customer.id;
+    setIsEditingClient(false);
+    setApiCustomers((current) => [...current.filter(item => item.id !== customer.id), customer]);
     setSelectedClientId(customer.id);
     setClientMode("existing");
+    // Persist the returned identity before later uploads/document requests can fail or navigation occurs.
+    try {
+      const saved = JSON.parse(localStorage.getItem(draftKey) || "{}");
+      localStorage.setItem(draftKey, JSON.stringify({ ...saved, selectedClientId: customer.id, clientMode: "existing", isEditingClient: false }));
+    } catch { setDraftWarning("Le client est enregistré. La sauvegarde locale de la reprise est indisponible."); }
     return customer.id;
   };
 
@@ -1500,7 +1637,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     hahitantsoaEventDraftId?: string;
   }) => {
     const pending = [
-      ...Object.values(dedicatedAttachments).filter((attachment): attachment is Attachment => Boolean(attachment)).map(attachment => ({ attachment, target: "dedicated" as const })),
+      ...Object.values(dedicatedAttachments).flatMap(pages => pages || []).map(attachment => ({ attachment, target: "dedicated" as const })),
       ...clientAttachments.map(attachment => ({ attachment, target: "client" as const })),
       ...paymentAttachments.map(attachment => ({ attachment, target: "payment" as const })),
     ].filter(({ attachment }) => !attachment.uploadedId);
@@ -1518,7 +1655,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         item.id === attachment.id ? { ...item, uploadedId: uploaded.id, file: undefined } : item
       ));
       if (target === "dedicated") {
-        setDedicatedAttachments(current => Object.fromEntries(Object.entries(current).map(([category, item]) => [category, item?.id === attachment.id ? { ...item, uploadedId: uploaded.id, file: undefined } : item])) as Partial<Record<DedicatedAttachmentCategory, Attachment>>);
+        setDedicatedAttachments(current => Object.fromEntries(Object.entries(current).map(([category, pages]) => [category, update(pages || [])])) as Partial<Record<DedicatedAttachmentCategory, Attachment[]>>);
       } else if (target === "client") setClientAttachments(update);
       else setPaymentAttachments(update);
     }
@@ -1621,7 +1758,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           lines,
         });
       } else {
-        await updateReservationDraft(emission.draftId, {
+        const updated = await updateReservationDraft(emission.draftId, {
           customer_id: customerId,
           public_reference: customRef,
           start_at: startAt,
@@ -1632,6 +1769,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           discount_reason: discountAmount > 0 ? discountReason.trim() : "",
           lines,
         });
+        if (updated.required_deposit_amount !== undefined) {
+          emission = { ...emission, requiredDepositAmount: Number(updated.required_deposit_amount) };
+          setProspectProformaEmission(emission);
+        }
       }
     }
 
@@ -1782,7 +1923,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center mb-8">
         <h3 className="text-xl font-bold text-slate-800 text-center flex-1">Comment voulez-vous commencer ?</h3>
-        {localStorage.getItem("prototypeReservationDraft") && (
+        {localStorage.getItem(draftKey) && (
            <button onClick={restoreDraft} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg">
              Reprendre le brouillon
            </button>
@@ -1812,6 +1953,17 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       </div>
     </div>
   );
+
+  const startClientCorrection = () => {
+    const customer = apiCustomers.find(item => item.id === selectedClientId);
+    if (!customer) return;
+    const mapped = mapCustomerToClient(customer);
+    setNewClient({ ...newClient, ...mapped, idType: mapped.idType === "Passeport" ? "Passeport" : "CIN", civilite: mapped.civilite === "Monsieur" || mapped.civilite === "Madame" ? mapped.civilite : "", name: customer.display_name, notes: customer.notes || "", email: customer.email || "", phone: customer.phone || "",
+      additionalEmails: (customer.contact_points || []).filter(point => point.kind === "email" && !point.is_primary).map(point => point.value),
+      additionalPhones: (customer.contact_points || []).filter(point => point.kind === "phone" && !point.is_primary).map(point => point.value),
+    });
+    setIsEditingClient(true);
+  };
 
   const renderClientStep = () => (
     <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
@@ -1843,20 +1995,22 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       <div className="flex gap-4 mb-6">
         <button 
           className={`px-4 py-2 rounded-lg text-sm font-medium ${clientMode === 'existing' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-600 border border-transparent'}`}
-          onClick={() => setClientMode("existing")}
+          onClick={() => { setClientMode("existing"); setIsEditingClient(false); }}
         >
           Client existant
         </button>
         <button 
           className={`px-4 py-2 rounded-lg text-sm font-medium ${clientMode === 'new' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-600 border border-transparent'}`}
-          onClick={() => setClientMode("new")}
+          onClick={() => { setClientMode("new"); setIsEditingClient(false); createdClientIdRef.current = null; }}
         >
           Nouveau client
         </button>
       </div>
       )}
 
-      {clientMode === "existing" && !isReservationClientParam(param) ? (
+      {clientMode === "existing" && selectedClientId && !isEditingClient && <button type="button" className="mb-4 text-indigo-700 underline font-semibold" onClick={startClientCorrection}>Corriger les informations du client</button>}
+      {isEditingClient && <p className="mb-4 text-sm text-indigo-700">Les corrections de cette fiche client seront enregistrées en continuant.</p>}
+      {clientMode === "existing" && !isEditingClient && !isReservationClientParam(param) ? (
         <div className="space-y-4">
           <label className="block text-sm font-medium text-slate-700">Chercher un client existant</label>
           <div className="relative">
@@ -1875,7 +2029,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
              ) : null}
              {!loadingClients && !errorClients && (<>
              {clients.filter(c => c.name.toLowerCase().includes(clientSearchStr.toLowerCase()) || c.phone.includes(clientSearchStr) || (c.email && c.email.toLowerCase().includes(clientSearchStr.toLowerCase())) || c.id.toLowerCase().includes(clientSearchStr.toLowerCase())).map(c => (
-                <div key={c.id} data-testid={`client-select-${c.id}`} className={`p-3 border-b border-slate-100 cursor-pointer hover:bg-indigo-50 flex items-center justify-between ${selectedClientId === c.id ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : ''}`} onClick={() => setSelectedClientId(c.id)}>
+                <div key={c.id} data-testid={`client-select-${c.id}`} className={`p-3 border-b border-slate-100 cursor-pointer hover:bg-indigo-50 flex items-center justify-between ${selectedClientId === c.id ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : ''}`} onClick={() => { setSelectedClientId(c.id); setIsEditingClient(false); }}>
                    <div>
                      <p className="font-bold text-slate-800 text-sm">{c.name} <span className="text-xs font-normal text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded ml-2">{c.type}</span></p>
                      <p className="text-xs text-slate-500 mt-0.5">{c.phone} {c.email ? `• ${c.email}` : ''}</p>
@@ -1892,7 +2046,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
              </>)}
           </div>
         </div>
-      ) : clientMode === "new" ? (
+      ) : clientMode === "new" || isEditingClient ? (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -1948,12 +2102,12 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 </div>
                 <div className="w-2/3">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Numéro et pièce jointe</label>
-                  <div className="flex items-center gap-2">
-                    <input type="text" className="min-w-0 flex-1 border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.idNumber || ''} onChange={e => setNewClient({...newClient, idNumber: e.target.value})} />
-                    {dedicatedAttachments[(newClient.idType || "CIN") as DedicatedAttachmentCategory] && <AttachmentMiniPreview attachment={dedicatedAttachments[(newClient.idType || "CIN") as DedicatedAttachmentCategory]!} />}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input type="text" className="min-w-0 flex-1 basis-40 border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.idNumber || ''} onChange={e => setNewClient({...newClient, idNumber: e.target.value})} />
+                    {renderDedicatedPages((newClient.idType || "CIN") as DedicatedAttachmentCategory)}
                     <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
                       <i className="fa-solid fa-paperclip" aria-hidden="true"></i> Ajouter
-                      <input type="file" className="sr-only" accept=".jpg,.jpeg,.png,.webp,.pdf" aria-label={`Ajouter une pièce jointe pour ${newClient.idType || "CIN"}`} onChange={e => { addDedicatedAttachment((newClient.idType || "CIN") as DedicatedAttachmentCategory, e.target.files); e.target.value = ""; }} />
+                      <input type="file" multiple className="sr-only" accept=".jpg,.jpeg,.png,.webp,.pdf" aria-label={`Ajouter une pièce jointe pour ${newClient.idType || "CIN"}`} onChange={e => { addDedicatedAttachment((newClient.idType || "CIN") as DedicatedAttachmentCategory, e.target.files); e.target.value = ""; }} />
                     </label>
                   </div>
                 </div>
@@ -1995,15 +2149,15 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">NIF</label>
-                <div className="flex items-center gap-2"><input type="text" className="min-w-0 flex-1 border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.nif || ''} onChange={e => setNewClient({...newClient, nif: e.target.value})} />{dedicatedAttachments.NIF && <AttachmentMiniPreview attachment={dedicatedAttachments.NIF} />}<label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"><i className="fa-solid fa-paperclip" aria-hidden="true"></i> Ajouter<input type="file" className="sr-only" accept=".jpg,.jpeg,.png,.webp,.pdf" aria-label="Ajouter une pièce jointe pour NIF" onChange={e => { addDedicatedAttachment("NIF", e.target.files); e.target.value = ""; }} /></label></div>
+                <div className="flex flex-wrap items-center gap-2"><input type="text" className="min-w-0 flex-1 basis-40 border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.nif || ''} onChange={e => setNewClient({...newClient, nif: e.target.value})} />{renderDedicatedPages("NIF")}<label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"><i className="fa-solid fa-paperclip" aria-hidden="true"></i> Ajouter<input type="file" multiple className="sr-only" accept=".jpg,.jpeg,.png,.webp,.pdf" aria-label="Ajouter une pièce jointe pour NIF" onChange={e => { addDedicatedAttachment("NIF", e.target.files); e.target.value = ""; }} /></label></div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">STAT</label>
-                <div className="flex items-center gap-2"><input type="text" className="min-w-0 flex-1 border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.stat || ''} onChange={e => setNewClient({...newClient, stat: e.target.value})} />{dedicatedAttachments.STAT && <AttachmentMiniPreview attachment={dedicatedAttachments.STAT} />}<label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"><i className="fa-solid fa-paperclip" aria-hidden="true"></i> Ajouter<input type="file" className="sr-only" accept=".jpg,.jpeg,.png,.webp,.pdf" aria-label="Ajouter une pièce jointe pour STAT" onChange={e => { addDedicatedAttachment("STAT", e.target.files); e.target.value = ""; }} /></label></div>
+                <div className="flex flex-wrap items-center gap-2"><input type="text" className="min-w-0 flex-1 basis-40 border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.stat || ''} onChange={e => setNewClient({...newClient, stat: e.target.value})} />{renderDedicatedPages("STAT")}<label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"><i className="fa-solid fa-paperclip" aria-hidden="true"></i> Ajouter<input type="file" multiple className="sr-only" accept=".jpg,.jpeg,.png,.webp,.pdf" aria-label="Ajouter une pièce jointe pour STAT" onChange={e => { addDedicatedAttachment("STAT", e.target.files); e.target.value = ""; }} /></label></div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">RCS</label>
-                <div className="flex items-center gap-2"><input type="text" className="min-w-0 flex-1 border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.rcs || ''} onChange={e => setNewClient({...newClient, rcs: e.target.value})} />{dedicatedAttachments.RCS && <AttachmentMiniPreview attachment={dedicatedAttachments.RCS} />}<label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"><i className="fa-solid fa-paperclip" aria-hidden="true"></i> Ajouter<input type="file" className="sr-only" accept=".jpg,.jpeg,.png,.webp,.pdf" aria-label="Ajouter une pièce jointe pour RCS" onChange={e => { addDedicatedAttachment("RCS", e.target.files); e.target.value = ""; }} /></label></div>
+                <div className="flex flex-wrap items-center gap-2"><input type="text" className="min-w-0 flex-1 basis-40 border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.rcs || ''} onChange={e => setNewClient({...newClient, rcs: e.target.value})} />{renderDedicatedPages("RCS")}<label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"><i className="fa-solid fa-paperclip" aria-hidden="true"></i> Ajouter<input type="file" multiple className="sr-only" accept=".jpg,.jpeg,.png,.webp,.pdf" aria-label="Ajouter une pièce jointe pour RCS" onChange={e => { addDedicatedAttachment("RCS", e.target.files); e.target.value = ""; }} /></label></div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Nom et prénom du représentant</label>
@@ -2018,7 +2172,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         </div>
           ) : null}
 
-      {clientMode === "new" && (
+      {(clientMode === "new" || isEditingClient) && (
         <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
           <h4 className="text-sm font-bold text-slate-800">Autres références de contact</h4>
           <p className="mt-1 text-xs text-slate-500">Ajoutez autant d’e-mails ou de téléphones que nécessaire.</p>
@@ -2069,7 +2223,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           <div className="flex flex-wrap items-end gap-3">
             <label className="text-xs font-semibold text-slate-600">Intitulé<input id="clientAttachmentLabel" className="mt-1 block rounded-lg border border-slate-300 p-2 text-sm" placeholder="Ex. justificatif domicile" /></label>
             <label className="text-xs font-semibold text-slate-600">Type<select id="clientCat" className="mt-1 block min-w-[180px] rounded-lg border border-slate-300 bg-white p-2 text-sm"><option value="Justificatif domicile">Justificatif domicile</option><option value="Logo">Logo</option><option value="Pièce jointe email">Pièce jointe email</option><option value="Autre">Autre</option></select></label>
-            <input type="file" id="clientFile" className="text-sm file:mr-4 file:rounded-full file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:font-semibold file:text-indigo-700" accept=".jpg,.jpeg,.png,.webp,.pdf" />
+            <input type="file" multiple id="clientFile" className="text-sm file:mr-4 file:rounded-full file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:font-semibold file:text-indigo-700" accept=".jpg,.jpeg,.png,.webp,.pdf" />
             <button type="button" className="min-h-11 rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200" onClick={() => { const cat = (document.getElementById('clientCat') as HTMLSelectElement).value; const label = (document.getElementById('clientAttachmentLabel') as HTMLInputElement).value; const fileInput = document.getElementById('clientFile') as HTMLInputElement; if (!label.trim()) { showToastMsg("Indiquez l'intitulé de la pièce jointe.", "warning"); return; } addAttachment('client', cat, fileInput.files, label); fileInput.value = ""; (document.getElementById('clientAttachmentLabel') as HTMLInputElement).value = ""; }}><i className="fa-solid fa-plus mr-1" aria-hidden="true"></i> Ajouter</button>
           </div>
         </div>
@@ -2303,17 +2457,17 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <div className="flex gap-2">
                   <button type="button" onClick={() => {
                     const d = new Date();
-                    setHDetails(p => ({...p, startDate: d.toISOString().split('T')[0], endDate: d.toISOString().split('T')[0]}));
+                    setHDetails(p => ({...p, startDate: calendarDate(d), endDate: calendarDate(d)}));
                   }} className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs hover:bg-slate-200 font-medium transition-colors">Aujourd'hui</button>
                   <button type="button" onClick={() => {
                     const d = new Date();
                     d.setDate(d.getDate() + 1);
-                    setHDetails(p => ({...p, startDate: d.toISOString().split('T')[0], endDate: d.toISOString().split('T')[0]}));
+                    setHDetails(p => ({...p, startDate: calendarDate(d), endDate: calendarDate(d)}));
                   }} className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs hover:bg-slate-200 font-medium transition-colors">Demain</button>
                   <button type="button" onClick={() => {
                     const d = new Date();
                     d.setDate(d.getDate() + (6 - d.getDay()));
-                    setHDetails(p => ({...p, startDate: d.toISOString().split('T')[0], endDate: d.toISOString().split('T')[0]}));
+                    setHDetails(p => ({...p, startDate: calendarDate(d), endDate: calendarDate(d)}));
                   }} className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs hover:bg-slate-200 font-medium transition-colors">Ce Samedi</button>
                 </div>
               </div>
@@ -2330,9 +2484,9 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   onDateSelect={(dateStr: string) => {
                     let endDate = dateStr;
                     if (hDetails.durationOption === "night_2") {
-                      const dt = new Date(dateStr);
+                      const dt = new Date(dateStr + "T12:00:00");
                       dt.setDate(dt.getDate() + 1);
-                      endDate = dt.toISOString().split('T')[0];
+                      endDate = calendarDate(dt);
                     }
                     setHDetails(p => ({ ...p, startDate: dateStr, endDate }));
                   }}
@@ -2344,29 +2498,29 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Date début</label>
-                    <input type="date" min={new Date().toISOString().split('T')[0]} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={hDetails.startDate} onChange={e => {
+                    <input type="date" min={calendarDate(new Date())} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" aria-label="Date début événement" value={hDetails.startDate} onChange={e => {
                         let endDate = e.target.value;
                         if (hDetails.durationOption === "night_2" && e.target.value) {
-                          const dt = new Date(e.target.value);
+                          const dt = new Date(e.target.value + "T12:00:00");
                           dt.setDate(dt.getDate() + 1);
-                          endDate = dt.toISOString().split('T')[0];
+                          endDate = calendarDate(dt);
                         }
                         setHDetails({...hDetails, startDate: e.target.value, endDate});
                     }} />
                   </div>
                   <div className="w-1/3">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Heure début</label>
-                    <input type="time" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={hDetails.startTime} onChange={e => setHDetails({...hDetails, startTime: e.target.value})} />
+                    <input type="time" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" aria-label="Heure début événement" value={hDetails.startTime} onChange={e => setHDetails({...hDetails, startTime: e.target.value})} />
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Date fin</label>
-                    <input disabled type="date" min={hDetails.startDate || new Date().toISOString().split('T')[0]} className={`w-full border rounded-lg p-2.5 text-sm bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed`} value={hDetails.endDate} onChange={e => setHDetails({...hDetails, endDate: e.target.value})} />
+                    <input disabled type="date" min={hDetails.startDate || calendarDate(new Date())} className={`w-full border rounded-lg p-2.5 text-sm bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed`} aria-label="Date fin événement" value={hDetails.endDate} onChange={e => setHDetails({...hDetails, endDate: e.target.value})} />
                   </div>
                   <div className="w-1/3">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Heure fin</label>
-                    <input disabled type="time" className="w-full border border-slate-200 bg-slate-50 text-slate-500 rounded-lg p-2.5 text-sm cursor-not-allowed" value={hDetails.endTime} onChange={e => setHDetails({...hDetails, endTime: e.target.value})} />
+                    <input disabled type="time" className="w-full border border-slate-200 bg-slate-50 text-slate-500 rounded-lg p-2.5 text-sm cursor-not-allowed" aria-label="Heure fin événement" value={hDetails.endTime} onChange={e => setHDetails({...hDetails, endTime: e.target.value})} />
                   </div>
                 </div>
               </div>
@@ -2398,7 +2552,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                       <input type="radio" name="durationOption" value={opt.key} checked={hDetails.durationOption === opt.key} onChange={() => {
                         const updates: Partial<HahitantsoaDetails> = { durationOption: opt.key };
 
-                        const startDate = hDetails.startDate || new Date().toISOString().split('T')[0];
+                        const startDate = hDetails.startDate || calendarDate(new Date());
                         if (!hDetails.startDate) updates.startDate = startDate;
 
                         let endDate = startDate;
@@ -2406,7 +2560,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                           updates.endTime = opt.endTime;
                           const d = new Date(startDate);
                           d.setDate(d.getDate() + 1);
-                          endDate = d.toISOString().split('T')[0];
+                          endDate = calendarDate(d);
                         } else updates.endTime = opt.endTime;
                         updates.endDate = endDate;
                         setHDetails({...hDetails, ...updates});
@@ -2594,12 +2748,12 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               <h4 className="font-bold text-slate-800 mb-2">Période de location</h4>
               
               <div className="flex flex-wrap gap-2 mb-4 mt-2">
-                <button type="button" onClick={() => { const s = new Date().toISOString().split('T')[0]; setTDetails(p => ({...p, startDate: s, endDate: s})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">Aujourd'hui</button>
-                <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 1); const s = d.toISOString().split('T')[0]; setTDetails(p => ({...p, startDate: s, endDate: s})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">Demain</button>
-                <button type="button" onClick={() => { const d = new Date(); const day = d.getDay(); const diffToSat = day === 6 ? 0 : day === 0 ? -1 : 6 - day; d.setDate(d.getDate() + diffToSat); const d2 = new Date(d); d2.setDate(d.getDate() + 1); setTDetails(p => ({...p, startDate: d.toISOString().split('T')[0], endDate: d2.toISOString().split('T')[0]})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">Ce week-end</button>
-                <button type="button" onClick={() => { const d = new Date(); const day = d.getDay(); const diffToSat = day === 6 ? 7 : day === 0 ? 6 : 13 - day; d.setDate(d.getDate() + diffToSat); const d2 = new Date(d); d2.setDate(d.getDate() + 1); setTDetails(p => ({...p, startDate: d.toISOString().split('T')[0], endDate: d2.toISOString().split('T')[0]})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">Week-end prochain</button>
-                <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 7); const s = d.toISOString().split('T')[0]; setTDetails(p => ({...p, startDate: s, endDate: s})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">+7 jours</button>
-                <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 14); const s = d.toISOString().split('T')[0]; setTDetails(p => ({...p, startDate: s, endDate: s})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">+14 jours</button>
+                <button type="button" onClick={() => { const s = calendarDate(new Date()); setTDetails(p => ({...p, startDate: s, endDate: s})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">Aujourd'hui</button>
+                <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 1); const s = calendarDate(d); setTDetails(p => ({...p, startDate: s, endDate: s})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">Demain</button>
+                <button type="button" onClick={() => { const d = new Date(); const day = d.getDay(); const diffToSat = (6 - day + 7) % 7; d.setDate(d.getDate() + diffToSat); const d2 = new Date(d); d2.setDate(d.getDate() + 1); setTDetails(p => ({...p, startDate: calendarDate(d), endDate: calendarDate(d2)})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">Ce week-end</button>
+                <button type="button" onClick={() => { const d = new Date(); const day = d.getDay(); const diffToSat = day === 6 ? 7 : day === 0 ? 6 : 13 - day; d.setDate(d.getDate() + diffToSat); const d2 = new Date(d); d2.setDate(d.getDate() + 1); setTDetails(p => ({...p, startDate: calendarDate(d), endDate: calendarDate(d2)})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">Week-end prochain</button>
+                <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 7); const s = calendarDate(d); setTDetails(p => ({...p, startDate: s, endDate: s})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">+7 jours</button>
+                <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 14); const s = calendarDate(d); setTDetails(p => ({...p, startDate: s, endDate: s})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">+14 jours</button>
                 <button type="button" onClick={() => setTDetails(p => ({...p, startDate: '', endDate: ''}))} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-medium rounded border border-rose-200 transition-colors ml-auto">Effacer</button>
               </div>
 
@@ -2625,7 +2779,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Date début de location</label>
-                    <input aria-label="Date début de location" type="date" min={new Date().toISOString().split('T')[0]} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.startDate || ''} onChange={e => setTDetails({...tDetails, startDate: e.target.value})} />
+                    <input aria-label="Date début de location" type="date" min={calendarDate(new Date())} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.startDate || ''} onChange={e => setTDetails({...tDetails, startDate: e.target.value})} />
                   </div>
                   <div className="w-1/3">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Heure</label>
@@ -2635,7 +2789,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Date fin de location</label>
-                    <input aria-label="Date fin de location" type="date" min={tDetails.startDate || new Date().toISOString().split('T')[0]} className={`w-full border rounded-lg p-2.5 text-sm ${tDetails.startDate && tDetails.endDate && tDetails.endDate < tDetails.startDate ? 'border-rose-500 bg-rose-50' : 'border-slate-300'}`} value={tDetails.endDate || ''} onChange={e => setTDetails({...tDetails, endDate: e.target.value})} />
+                    <input aria-label="Date fin de location" type="date" min={tDetails.startDate || calendarDate(new Date())} className={`w-full border rounded-lg p-2.5 text-sm ${tDetails.startDate && tDetails.endDate && tDetails.endDate < tDetails.startDate ? 'border-rose-500 bg-rose-50' : 'border-slate-300'}`} value={tDetails.endDate || ''} onChange={e => setTDetails({...tDetails, endDate: e.target.value})} />
                   </div>
                   <div className="w-1/3">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Heure</label>
@@ -2697,7 +2851,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                     Livraison prévue (J-1, jour ouvré)
                     {!deliveryModifiedManually && tDetails.pickupDate && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Calcul automatique</span>}
                   </label>
-                  <input aria-label="Livraison prévue" type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={new Date().toISOString().split('T')[0]} value={tDetails.pickupDate || ''} readOnly />
+                  <input aria-label="Livraison prévue" type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={calendarDate(new Date())} value={tDetails.pickupDate || ''} readOnly />
                   <p className="text-xs text-slate-500 mt-1">Aucune heure n’est demandée pour les manœuvres Titan.</p>
                 </div>
                 <div>
@@ -2705,7 +2859,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                     Récupération prévue (J+1, jour ouvré)
                     {!returnModifiedManually && tDetails.returnDate && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Calcul automatique</span>}
                   </label>
-                  <input aria-label="Récupération prévue" type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={tDetails.pickupDate || new Date().toISOString().split('T')[0]} value={tDetails.returnDate || ''} readOnly />
+                  <input aria-label="Récupération prévue" type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={tDetails.pickupDate || calendarDate(new Date())} value={tDetails.returnDate || ''} readOnly />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Adresse livraison (si différente de la destination)</label>
@@ -2735,14 +2889,14 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                     Prélèvement prévu (J-1, jour ouvré)
                     {!deliveryModifiedManually && tDetails.pickupDate && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Calcul automatique</span>}
                   </label>
-                  <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={new Date().toISOString().split('T')[0]} value={tDetails.pickupDate || ''} readOnly />
+                  <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={calendarDate(new Date())} value={tDetails.pickupDate || ''} readOnly />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     Retour prévu (J+1, jour ouvré)
                     {!returnModifiedManually && tDetails.returnDate && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Calcul automatique</span>}
                   </label>
-                  <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={tDetails.pickupDate || new Date().toISOString().split('T')[0]} value={tDetails.returnDate || ''} readOnly />
+                  <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={tDetails.pickupDate || calendarDate(new Date())} value={tDetails.returnDate || ''} readOnly />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Type de véhicule prévu</label>
@@ -3993,7 +4147,6 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                     const issued = await issueProspectProforma();
                     setIssuedProspectProformaId(issued.documentId);
                     setProformaGenerated(true);
-                    clearDraft(false);
                     showToastMsg("Proforma prospect émise et PDF généré.", 'success');
                   } catch (err: unknown) {
                     const message = err instanceof Error ? err.message : "Erreur lors de l’émission du proforma";
@@ -4322,7 +4475,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                <option value="Pièce jointe email">Pièce jointe email</option>
                <option value="Autre">Autre</option>
              </select>
-             <input type="file" id="paymentFile" className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" accept=".jpg,.jpeg,.png,.webp,.pdf" />
+             <input type="file" multiple id="paymentFile" className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" accept=".jpg,.jpeg,.png,.webp,.pdf" />
              <button 
                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium text-sm hover:bg-slate-200 transition-colors whitespace-nowrap"
                onClick={() => {
@@ -4411,6 +4564,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   }
                   const idempotencyKey = depositRecordingKeyRef.current ?? crypto.randomUUID();
                   depositRecordingKeyRef.current = idempotencyKey;
+                  saveDraft();
                   const result = await recordConfirmedDeposit({
                     ...(domain === "hahitantsoa"
                       ? { hahitantsoa_event_draft: emitted.draftId }
@@ -4420,7 +4574,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                     notes: "Paiement confirmé depuis l’assistant de réservation.",
                     idempotency_key: idempotencyKey,
                   });
-                  const nextRecordedPayments = [...recordedPayments, {
+                  const nextRecordedPayments = [...recordedPayments.filter(row => row.id !== result.payment.id), {
                     id: result.payment.id,
                     amount: currentPaymentAmount,
                     method: payment.method,
@@ -4696,7 +4850,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   };
 
   if (showDraftPrompt) {
-    const saved = localStorage.getItem("prototypeReservationDraft");
+    const saved = localStorage.getItem(draftKey);
     let draftInfo: any = null;
     try {
       if (saved) draftInfo = JSON.parse(saved);
@@ -4723,10 +4877,12 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             <br />
             Voulez-vous reprendre là où vous vous étiez arrêté ou directement commencer une nouvelle réservation ?
           </p>
+          {draftWarning && <p role="alert" className="mb-4 text-rose-700">{draftWarning}</p>}
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <button 
               type="button"
-              onClick={() => clearDraft(true)}
+              disabled={restoringDraft}
+              onClick={() => { if (param?.startsWith("edit-")) { clearDraft(false); onNavigate("reservation-new"); } else clearDraft(true); }}
               className="px-6 py-3 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
             >
               <i className="fa-solid fa-plus"></i>
@@ -4734,7 +4890,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             </button>
             <button 
               type="button"
-              onClick={() => restoreDraft()}
+              disabled={restoringDraft} onClick={() => void restoreDraft()}
               className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-sm flex items-center justify-center gap-2"
             >
               <i className="fa-solid fa-rotate-left"></i>
@@ -4877,6 +5033,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           </div>
         </div>
       )}
+      {draftWarning && <p role="alert" className="text-rose-700">{draftWarning}</p>}
       {editingDraftContext.loading && (
         <div className="bg-blue-50 text-blue-700 p-4 rounded-xl text-sm flex items-center gap-2 mb-6">
           <i className="fa-solid fa-spinner fa-spin"></i> Chargement des données du dossier à modifier...

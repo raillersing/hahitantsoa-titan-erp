@@ -1,17 +1,20 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   ApiError,
   createCustomer,
+  updateCustomer,
   getCustomers,
   transitionProspectStatus,
   uploadAttachment,
 } from "../api";
-import type { Customer as ApiCustomer, CustomerContactPoint, Client } from "../types";
+import type { Customer as ApiCustomer, CustomerContactPoint, CustomerCreatePayload, Client } from "../types";
 import { AvailabilityDatePicker, EmptyState, LoadingSpinner } from "../components";
+import { saveDraftFiles, readDraftFiles, clearDraftFiles } from "./wizardDraftFiles";
 import { useTableSort, SortableHeader } from "./tableSortUtils";
 
 interface CustomersPageProps {
   onNavigate: (scope: any, param?: string) => void;
+  currentUserId?: string;
   canSensitiveWrite?: boolean;
   canSuperAdminDelete?: boolean;
 }
@@ -23,17 +26,17 @@ type CustomerWizardAttachment = {
   category: string;
   label?: string;
   status: string;
-  file: File;
+  file?: File;
 };
 
 type CustomerContactDraft = CustomerContactPoint & { id: string };
 
 function AttachmentMiniPreview({ attachment }: { attachment: CustomerWizardAttachment }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const isImage = attachment.file.type.startsWith("image/");
+  const isImage = attachment.file?.type.startsWith("image/");
 
   useEffect(() => {
-    if (!isImage) return;
+    if (!isImage || !attachment.file) return;
     const url = URL.createObjectURL(attachment.file);
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
@@ -59,6 +62,7 @@ function AttachmentMiniPreview({ attachment }: { attachment: CustomerWizardAttac
 
 export default function CustomersPage({
   onNavigate,
+  currentUserId,
   canSensitiveWrite = false,
   canSuperAdminDelete = false,
 }: CustomersPageProps) {
@@ -120,9 +124,79 @@ export default function CustomersPage({
 
   const [wizardStep, setWizardStep] = useState(1);
   const [maxWizardStep, setMaxWizardStep] = useState(1);
+  const createdCustomerRef = useRef<ApiCustomer | null>(null);
   const [attachments, setAttachments] = useState<CustomerWizardAttachment[]>([]);
-  const [legalAttachments, setLegalAttachments] = useState<Partial<Record<LegalAttachmentCategory, CustomerWizardAttachment>>>({});
+  const [legalAttachments, setLegalAttachments] = useState<Partial<Record<LegalAttachmentCategory, CustomerWizardAttachment[]>>>({});
   const [attachmentLabel, setAttachmentLabel] = useState("");
+  const draftKey = currentUserId ? `customerWizardDraft:${currentUserId}` : "customerWizardDraft";
+  const draftEnabledRef = useRef(false);
+  const [savedClientDraft, setSavedClientDraft] = useState<string | null>(() => {
+    try { return localStorage.getItem(draftKey); } catch { return null; }
+  });
+  const [draftWarning, setDraftWarning] = useState("");
+
+  useEffect(() => {
+    if (!isAddingClient || !draftEnabledRef.current) return;
+    try {
+      const snapshot = { wizardStep, maxWizardStep, newType, newStatus, newName, newEmail, newPhone,
+        additionalContacts, newCivilite, newBirthDate, newAddress, newNotes, newIdType, newIdNumber,
+        newIdIssuePlace, newIdIssueDate, newIdDuplicataDate, newIdDuplicataPlace,
+        newNif, newStat, newRcs, newRepName, newRepRole, attachmentLabel,
+        createdCustomer: createdCustomerRef.current,
+        attachments: attachments.map(({ file: _file, ...page }) => page),
+        legalAttachments: Object.fromEntries(Object.entries(legalAttachments).map(([category, pages]) => [category, pages?.map(({ file: _file, ...page }) => page)])),
+      };
+      const serialized = JSON.stringify(snapshot);
+      localStorage.setItem(draftKey, serialized);
+      setSavedClientDraft(serialized);
+    } catch { setDraftWarning("La sauvegarde automatique est indisponible. Gardez cette page ouverte."); }
+  }, [isAddingClient, wizardStep, maxWizardStep, newType, newStatus, newName, newEmail, newPhone,
+    additionalContacts, newCivilite, newBirthDate, newAddress, newNotes, newIdType, newIdNumber,
+    newIdIssuePlace, newIdIssueDate, newIdDuplicataDate, newIdDuplicataPlace,
+    newNif, newStat, newRcs, newRepName, newRepRole, attachments, legalAttachments, attachmentLabel, draftKey]);
+
+  useEffect(() => {
+    if (!isAddingClient || !draftEnabledRef.current) return;
+    const pages = [...attachments, ...Object.values(legalAttachments).flatMap(items => items || [])];
+    if (pages.some(page => page.file)) void saveDraftFiles(draftKey, pages).catch(() => setDraftWarning("Les fichiers ne peuvent pas être sauvegardés sur cet appareil. Ils devront être sélectionnés à nouveau après rechargement."));
+  }, [isAddingClient, attachments, legalAttachments, draftKey]);
+
+  const resumeClientDraft = async () => {
+    if (!savedClientDraft) return;
+    try {
+      const draft = JSON.parse(savedClientDraft);
+      if (!draft || typeof draft !== "object") throw new Error("Brouillon invalide");
+      const files = await readDraftFiles(draftKey).catch(() => { setDraftWarning("Les champs sont conservés. Les fichiers devront être sélectionnés à nouveau."); return {} as Record<string, File>; });
+      setWizardStep(Math.max(1, Math.min(5, Number(draft.wizardStep) || 1)));
+      setMaxWizardStep(Math.max(1, Math.min(5, Number(draft.maxWizardStep) || 1)));
+      setNewType(draft.newType === "Entreprise" ? "Entreprise" : "Particulier");
+      setNewStatus(draft.newStatus || "Client");
+      setNewName(draft.newName || ""); setNewEmail(draft.newEmail || ""); setNewPhone(draft.newPhone || "");
+      setAdditionalContacts(Array.isArray(draft.additionalContacts) ? draft.additionalContacts : []);
+      setNewCivilite(draft.newCivilite || ""); setNewBirthDate(draft.newBirthDate || "");
+      setNewAddress(draft.newAddress || ""); setNewNotes(draft.newNotes || "");
+      setNewIdType(draft.newIdType === "Passeport" ? "Passeport" : "CIN"); setNewIdNumber(draft.newIdNumber || "");
+      setNewIdIssuePlace(draft.newIdIssuePlace || ""); setNewIdIssueDate(draft.newIdIssueDate || "");
+      setNewIdDuplicataDate(draft.newIdDuplicataDate || ""); setNewIdDuplicataPlace(draft.newIdDuplicataPlace || "");
+      setNewNif(draft.newNif || ""); setNewStat(draft.newStat || ""); setNewRcs(draft.newRcs || "");
+      setNewRepName(draft.newRepName || ""); setNewRepRole(draft.newRepRole || "");
+      setAttachmentLabel(draft.attachmentLabel || "");
+      createdCustomerRef.current = draft.createdCustomer || null;
+      const restorePage = (page: CustomerWizardAttachment) => ({ ...page, file: files[page.id] });
+      setAttachments((draft.attachments || []).map(restorePage));
+      setLegalAttachments(Object.fromEntries(Object.entries(draft.legalAttachments || {}).map(([category, pages]) => [category, (Array.isArray(pages) ? pages : []).map(restorePage)])));
+      draftEnabledRef.current = true;
+      setIsAddingClient(true);
+      setCreateError(null);
+    } catch { setDraftWarning("Ce brouillon n’a pas pu être repris. Les données conservées n’ont pas été effacées."); }
+  };
+
+  const discardClientDraft = () => {
+    draftEnabledRef.current = false;
+    localStorage.removeItem(draftKey);
+    setSavedClientDraft(null);
+    void clearDraftFiles(draftKey).catch(() => undefined);
+  };
 
   // Pipeline status helpers
   const PROSPECT_STATUS_LABELS: Record<string, string> = {
@@ -392,6 +466,7 @@ export default function CustomersPage({
     setNewRepRole("");
     setAttachments([]);
     setLegalAttachments({});
+    createdCustomerRef.current = null;
     setAttachmentLabel("");
     setCreateError(null);
   };
@@ -448,7 +523,7 @@ export default function CustomersPage({
     setCreateError(null);
 
     try {
-      const created = await createCustomer({
+      const payload: CustomerCreatePayload = {
         display_name: finalName.trim(),
         lifecycle_status: "client",
         party_type: newType === "Entreprise" ? "company" : "individual",
@@ -469,35 +544,35 @@ export default function CustomersPage({
         representative_name: newRepName,
         representative_role: newRepRole,
         notes: newNotes,
-      });
+      };
 
+      const created = createdCustomerRef.current
+        ? await updateCustomer(createdCustomerRef.current.id, payload)
+        : await createCustomer(payload);
+      createdCustomerRef.current = created;
+      try {
+        const saved = JSON.parse(localStorage.getItem(draftKey) || "{}");
+        localStorage.setItem(draftKey, JSON.stringify({ ...saved, createdCustomer: created }));
+      } catch { setDraftWarning("Le client est créé, mais la sauvegarde de la reprise est indisponible."); }
       const pendingAttachments = [
-        ...Object.values(legalAttachments).filter((attachment): attachment is CustomerWizardAttachment =>
-          Boolean(attachment)
-        ),
+        ...Object.values(legalAttachments).flatMap(pages => pages || []),
         ...attachments,
       ];
-      const uploadResults = await Promise.allSettled(
-        pendingAttachments.map((attachment) =>
-          uploadAttachment(
-            attachment.file,
-            attachment.category,
-            { customerId: created.id },
-            undefined,
-            attachment.label || attachment.category
-          )
-        )
-      );
-      const uploadFailed = uploadResults.some((result) => result.status === "rejected");
+      for (const attachment of pendingAttachments) {
+        if (!attachment.file) throw new Error(`Sélectionnez à nouveau le fichier « ${attachment.name} ».`);
+        await uploadAttachment(attachment.file, attachment.category, { customerId: created.id }, undefined, attachment.label || attachment.category);
+        setAttachments(current => current.filter(page => page.id !== attachment.id));
+        setLegalAttachments(current => Object.fromEntries(Object.entries(current).map(([category, pages]) => [category, pages?.filter(page => page.id !== attachment.id)])));
+      }
+      discardClientDraft();
       setIsAddingClient(false);
       resetClientWizard();
-      if (uploadFailed) {
-        setCreateError("Le client a été créé, mais certaines pièces jointes n’ont pas pu être enregistrées.");
-      }
       await loadCustomers();
       onNavigate("customer", created.id);
     } catch (error: unknown) {
-      if (error instanceof ApiError && error.status === 403) {
+      if (createdCustomerRef.current) {
+        setCreateError("Le client est créé. Certaines pages n’ont pas été enregistrées. Réessayez pour envoyer uniquement les pages restantes.");
+      } else if (error instanceof ApiError && error.status === 403) {
         setCreateError("Vous n’êtes pas autorisé à créer un client.");
       } else if (error instanceof ApiError && error.status === 400) {
         setCreateError("Les informations saisies sont invalides. Vérifiez le nom et les coordonnées.");
@@ -770,7 +845,8 @@ export default function CustomersPage({
               </div>
             </div>
 
-            {createError && (
+            {draftWarning && <p role="alert" className="text-rose-700">{draftWarning}</p>}
+          {createError && (
               <div
                 role="alert"
                 className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700 flex items-center gap-2"
@@ -840,7 +916,6 @@ export default function CustomersPage({
           <button
             onClick={() => {
               setIsAddingClient(false);
-              resetClientWizard();
             }}
             className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200"
             aria-label="Retour"
@@ -1177,7 +1252,7 @@ export default function CustomersPage({
                       </div>
                       <div className="flex-1">
                         <label className="block text-sm font-medium text-slate-700 mb-1">Numéro et pièce jointe</label>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <input
                             type="text"
                             value={newIdNumber}
@@ -1185,29 +1260,25 @@ export default function CustomersPage({
                             className="min-w-0 flex-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             placeholder="Numéro de la pièce"
                           />
-                          {legalAttachments[newIdType] && (
-                            <AttachmentMiniPreview attachment={legalAttachments[newIdType]!} />
-                          )}
+                          {legalAttachments[newIdType]?.map(attachment => (
+                            <div key={attachment.id} className="flex items-center gap-1">
+                              <AttachmentMiniPreview attachment={attachment} />
+                              <button type="button" aria-label={`Retirer ${attachment.name}`} onClick={() => setLegalAttachments(current => ({ ...current, [newIdType]: current[newIdType]?.filter(page => page.id !== attachment.id) }))}>×</button>
+                            </div>
+                          ))}
                           <label className="flex min-h-10 shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
                             <i className="fa-solid fa-paperclip" aria-hidden="true"></i> Ajouter
                             <input
-                              type="file"
+                              type="file" multiple
                               className="sr-only"
                               accept=".jpg,.jpeg,.png,.webp,.pdf"
                               aria-label={`Ajouter une pièce jointe pour ${newIdType}`}
                               onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file)
-                                  setLegalAttachments((current) => ({
-                                    ...current,
-                                    [newIdType]: {
-                                      id: crypto.randomUUID(),
-                                      name: file.name,
-                                      category: newIdType,
-                                      status: "Présent",
-                                      file,
-                                    },
-                                  }));
+                                const files = Array.from(e.target.files || []);
+                                  setLegalAttachments(current => ({ ...current, [newIdType]: [
+                                    ...(current[newIdType] || []),
+                                    ...files.map(file => ({ id: crypto.randomUUID(), name: file.name, category: newIdType, status: "Présent", file })),
+                                  ] }));
                                 e.target.value = "";
                               }}
                             />
@@ -1267,11 +1338,11 @@ export default function CustomersPage({
                       const value = category === "NIF" ? newNif : category === "STAT" ? newStat : newRcs;
                       const setValue =
                         category === "NIF" ? setNewNif : category === "STAT" ? setNewStat : setNewRcs;
-                      const attachment = legalAttachments[category];
+                      const pages = legalAttachments[category] || [];
                       return (
                         <div key={category}>
                           <label className="block text-sm font-medium text-slate-700 mb-1">{category}</label>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <input
                               type="text"
                               value={value}
@@ -1279,27 +1350,20 @@ export default function CustomersPage({
                               className="min-w-0 flex-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                               placeholder={category}
                             />
-                            {attachment && <AttachmentMiniPreview attachment={attachment} />}
+                            {pages.map(attachment => <div key={attachment.id} className="flex items-center gap-1"><AttachmentMiniPreview attachment={attachment} /><button type="button" aria-label={`Retirer ${attachment.name}`} onClick={() => setLegalAttachments(current => ({ ...current, [category]: current[category]?.filter(page => page.id !== attachment.id) }))}>×</button></div>)}
                             <label className="flex min-h-10 shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
                               <i className="fa-solid fa-paperclip" aria-hidden="true"></i> Ajouter
                               <input
-                                type="file"
+                                type="file" multiple
                                 className="sr-only"
                                 accept=".jpg,.jpeg,.png,.webp,.pdf"
                                 aria-label={`Ajouter une pièce jointe pour ${category}`}
                                 onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file)
-                                    setLegalAttachments((current) => ({
-                                      ...current,
-                                      [category]: {
-                                        id: crypto.randomUUID(),
-                                        name: file.name,
-                                        category,
-                                        status: "Présent",
-                                        file,
-                                      },
-                                    }));
+                                  const files = Array.from(e.target.files || []);
+                                  setLegalAttachments(current => ({ ...current, [category]: [
+                                    ...(current[category] || []),
+                                    ...files.map(file => ({ id: crypto.randomUUID(), name: file.name, category: category, status: "Présent", file })),
+                                  ] }));
                                   e.target.value = "";
                                 }}
                               />
@@ -1337,23 +1401,19 @@ export default function CustomersPage({
                     <i className="fa-solid fa-upload" aria-hidden="true"></i>
                     <span>Téléverser</span>
                     <input
-                      type="file"
+                      type="file" multiple
                       className="sr-only"
                       onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
+                        const files = Array.from(e.target.files || []);
+                        if (!files.length) return;
                         const cat =
                           (document.getElementById("attCategory") as HTMLSelectElement)?.value || "Autre";
                         setAttachments((current) => [
                           ...current,
-                          {
-                            id: crypto.randomUUID(),
-                            name: file.name,
-                            category: cat,
-                            label: attachmentLabel.trim(),
-                            status: "Présent",
-                            file,
-                          },
+                          ...files.map(file => ({
+                            id: crypto.randomUUID(), name: file.name, category: cat,
+                            label: attachmentLabel.trim(), status: "Présent", file,
+                          })),
                         ]);
                         setAttachmentLabel("");
                         e.target.value = "";
@@ -1413,7 +1473,7 @@ export default function CustomersPage({
                 <div className="flex justify-between">
                   <span className="font-semibold">Pièces jointes</span>
                   <span>
-                    {attachments.length + Object.keys(legalAttachments).length} document(s)
+                    {attachments.length + Object.values(legalAttachments).reduce((count, pages) => count + (pages?.length || 0), 0)} document(s)
                   </span>
                 </div>
               </div>
@@ -1472,6 +1532,8 @@ export default function CustomersPage({
       {/* Modal Express Prospect */}
       {isAddingProspect && renderProspectExpressModal()}
 
+      {savedClientDraft && canSensitiveWrite && <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 flex flex-wrap items-center gap-3" role="status"><span>Une création de client est en cours sur cet appareil.</span><button type="button" onClick={() => void resumeClientDraft()} className="font-bold text-indigo-700 underline">Reprendre la création du client</button><button type="button" onClick={discardClientDraft} className="text-slate-600 underline">Abandonner ce brouillon</button></div>}
+      {draftWarning && <p role="alert" className="text-rose-700">{draftWarning}</p>}
       {/* Header Principal */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -1520,7 +1582,9 @@ export default function CustomersPage({
                 className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold shadow-2xs transition flex items-center gap-2"
                 onClick={() => {
                   setCreateError(null);
+                  discardClientDraft();
                   resetClientWizard();
+                  draftEnabledRef.current = true;
                   setIsAddingClient(true);
                 }}
               >

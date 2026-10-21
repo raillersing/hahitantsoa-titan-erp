@@ -255,3 +255,55 @@ describe('CustomersPage', () => {
     expect(screen.queryByText('Ando Rakoto')).not.toBeInTheDocument();
   });
 });
+
+it('uploads all identity pages and retries only remaining pages without recreating the customer', async () => {
+  const created = { ...API_CUSTOMERS[0], id: 'CUST-PAGES', display_name: 'Recto Verso' };
+  const create = vi.spyOn(api, 'createCustomer').mockResolvedValue(created).mockClear();
+  const update = vi.spyOn(api, 'updateCustomer').mockResolvedValue(created).mockClear();
+  const upload = vi.spyOn(api, 'uploadAttachment').mockResolvedValueOnce({ id: 'recto' } as never).mockRejectedValueOnce(new Error('network')).mockResolvedValue({ id: 'verso' } as never).mockClear();
+  const navigate = vi.fn();
+  render(<CustomersPage onNavigate={navigate} canSensitiveWrite />);
+  await screen.findByText('Ando Rakoto');
+  fireEvent.click(screen.getByRole('button', { name: /Nouveau client/i }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+  fireEvent.change(screen.getByPlaceholderText('Ex: Rakoto Jean'), { target: { value: 'Recto Verso' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+  const recto = new File(['a'], 'recto.png', { type: 'image/png' });
+  const verso = new File(['b'], 'verso.png', { type: 'image/png' });
+  const extra = new File(['c'], 'extra.png', { type: 'image/png' });
+  const input = screen.getByLabelText('Ajouter une pièce jointe pour CIN');
+  expect(input).toHaveAttribute('multiple');
+  fireEvent.change(input, { target: { files: [recto, verso] } });
+  fireEvent.change(input, { target: { files: [extra] } });
+  expect(screen.getAllByAltText('Aperçu CIN')).toHaveLength(3);
+  fireEvent.click(screen.getByRole('button', { name: 'Retirer extra.png' }));
+  expect(screen.getAllByAltText('Aperçu CIN')).toHaveLength(2);
+  fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Créer le client' }));
+  expect(await screen.findByText(/Certaines pages n’ont pas été enregistrées/)).toBeInTheDocument();
+  expect(navigate).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Créer le client' }));
+  await waitFor(() => expect(navigate).toHaveBeenCalledWith('customer', 'CUST-PAGES'));
+  expect(create).toHaveBeenCalledTimes(1);
+  expect(update).toHaveBeenCalledWith(created.id, expect.objectContaining({ display_name: 'Recto Verso' }));
+  expect(upload.mock.calls.map(call => call[0].name)).toEqual(['recto.png', 'verso.png', 'verso.png']);
+});
+
+it('resumes a client creation at the saved step and preserves corrected fields on navigation', async () => {
+  localStorage.clear();
+  const { unmount } = render(<CustomersPage onNavigate={vi.fn()} canSensitiveWrite />);
+  await screen.findByText('Ando Rakoto');
+  fireEvent.click(screen.getByRole('button', { name: /Nouveau client/i }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+  fireEvent.change(screen.getByPlaceholderText('Ex: Rakoto Jean'), { target: { value: 'Client en cours' } });
+  fireEvent.change(screen.getByPlaceholderText('Ex: 034 00 000 00'), { target: { value: '0341234567' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+  unmount();
+  render(<CustomersPage onNavigate={vi.fn()} canSensitiveWrite />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Reprendre la création du client' }));
+  await screen.findByLabelText('Ajouter une pièce jointe pour CIN');
+  fireEvent.click(screen.getAllByRole('button', { name: 'Retour' }).at(-1)!);
+  expect(screen.getByPlaceholderText('Ex: Rakoto Jean')).toHaveValue('Client en cours');
+  expect(screen.getByPlaceholderText('Ex: 034 00 000 00')).toHaveValue('0341234567');
+});

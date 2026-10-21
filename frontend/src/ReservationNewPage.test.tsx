@@ -31,8 +31,11 @@ import {
   getHahitantsoaEventDraftDocumentInstances,
   convertProformaToContract,
   createCustomer,
+  updateCustomer,
   uploadAttachment,
   recordConfirmedDeposit,
+  getPayments,
+  getHahitantsoaEventDraftPayments,
   getDocumentArtifactHtml,
   getDocumentTemplatePreview,
   getReservationDrafts,
@@ -206,8 +209,11 @@ vi.mock('./api', () => ({
   getHahitantsoaEventDraftDocumentInstances: vi.fn().mockResolvedValue([]),
   convertProformaToContract: vi.fn(),
   createCustomer: vi.fn(),
+  updateCustomer: vi.fn(),
   uploadAttachment: vi.fn(),
   recordConfirmedDeposit: vi.fn(),
+  getPayments: vi.fn(),
+  getHahitantsoaEventDraftPayments: vi.fn(),
   getDocumentArtifactHtml: vi.fn(),
   getDocumentTemplatePreview: vi.fn(),
   getReservationDrafts: vi.fn(),
@@ -352,6 +358,72 @@ describe('ReservationNewPage', () => {
     expect(withoutPackage.subTotalAmount).toBe(160000);
   });
 
+
+  it('restores an older incomplete snapshot with defaults and keeps manually chosen movement dates', async () => {
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify({ path: 'domain_first', step: 3, maxReachedStep: 3, domain: 'titan', selectedClientId: 'CUST-001', deliveryModifiedManually: true, returnModifiedManually: true, tDetails: { startDate: '2027-08-25', endDate: '2027-08-26', pickupDate: '2027-08-20', returnDate: '2027-08-30' } }));
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    expect(await screen.findByLabelText('Date début de location')).toHaveValue('2027-08-25');
+    expect(screen.getByLabelText('Heure de début de location')).toHaveValue('08:00');
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).tDetails.pickupDate).toBe('2027-08-20'));
+    expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).tDetails.returnDate).toBe('2027-08-30');
+  });
+
+  it('blocks progression for empty or reversed dates and accepts corrected dates', async () => {
+    render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+    fireEvent.click(await screen.findByTestId('client-select-CUST-001'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Aller au catalogue' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('dates et heures valides');
+    fireEvent.change(screen.getByLabelText('Date début de location'), { target: { value: '2027-08-25' } });
+    fireEvent.change(screen.getByLabelText('Date fin de location'), { target: { value: '2027-08-24' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aller au catalogue' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('postérieure');
+    fireEvent.change(screen.getByLabelText('Date fin de location'), { target: { value: '2027-08-26' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aller au catalogue' }));
+    expect(await screen.findByRole('button', { name: 'Aller à la Livraison' })).toBeInTheDocument();
+  });
+
+  it('updates the chosen customer from the wizard without creating a duplicate', async () => {
+    vi.mocked(updateCustomer).mockResolvedValue({ ...mockCustomersData[0], display_name: 'Ando corrigé' } as never);
+    render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+    fireEvent.click(await screen.findByTestId('client-select-CUST-001'));
+    fireEvent.click(screen.getByRole('button', { name: 'Corriger les informations du client' }));
+    fireEvent.change(screen.getByDisplayValue('Ando Rakoto'), { target: { value: 'Ando corrigé' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    await waitFor(() => expect(updateCustomer).toHaveBeenCalledWith('CUST-001', expect.objectContaining({ display_name: 'Ando corrigé' })));
+    expect(createCustomer).not.toHaveBeenCalled();
+    expect(await screen.findByRole('heading', { name: 'Détails Location (Titan)' })).toBeInTheDocument();
+  });
+
+
+  it('rechecks server payments before resuming a contract preview and refuses an uncovered deposit', async () => {
+    vi.mocked(getReservationDraft).mockResolvedValue({ id: 'DRAFT-001', status: 'draft', required_deposit_amount: '100.00', contract_signed_at: null } as never);
+    vi.mocked(getPayments).mockResolvedValue([{ id: 'PAY-1', payment_status: 'confirmed', amount: '20.00', payment_method: 'cash' }] as never);
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify({ path: 'domain_first', step: 9, maxReachedStep: 9, domain: 'titan', selectedClientId: 'CUST-001', clientMode: 'existing', recordedPayments: [{ id: 'FAKE-LOCAL', amount: 10000, method: 'Espèces' }], prospectProformaEmission: { domain: 'titan', draftId: 'DRAFT-001', requiredDepositAmount: 100 }, selectedMaterials: [{ id: 'MAT-01', name: 'Chaise', quantity: 1, price: 100 }], tDetails: { startDate: '2027-08-25', endDate: '2027-08-26' } }));
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    expect(await screen.findByRole('heading', { name: 'Acompte / Paiement' })).toBeInTheDocument();
+    expect(getPayments).toHaveBeenCalledWith('DRAFT-001');
+    expect(screen.queryByRole('heading', { name: 'Aperçu Contrat' })).not.toBeInTheDocument();
+    expect(recordConfirmedDeposit).not.toHaveBeenCalled();
+  });
+
+
+  it('uses the local calendar day for shortcuts and minima after midnight', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2027-03-09T21:30:00Z'));
+    try {
+      render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+      fireEvent.click(await screen.findByTestId('client-select-CUST-001'));
+      fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+      fireEvent.click((await screen.findAllByRole('button', { name: "Aujourd'hui" }))[0]);
+      const local = [new Date().getFullYear(), String(new Date().getMonth() + 1).padStart(2, '0'), String(new Date().getDate()).padStart(2, '0')].join('-');
+      expect(screen.getByLabelText('Date début de location')).toHaveValue(local);
+      expect(screen.getByLabelText('Date début de location')).toHaveAttribute('min', local);
+    } finally { vi.useRealTimers(); }
+  });
+
   it('1. la première étape affiche les deux chemins si pas de param', async () => {
     render(<ReservationNewPage onNavigate={mockNavigate} />);
     await waitFor(() => {
@@ -388,6 +460,8 @@ describe('ReservationNewPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Suivant (Services)')).toBeInTheDocument();
     });
+    fireEvent.change(screen.getByLabelText('Date début événement'), { target: { value: '2027-08-01' } });
+    fireEvent.change(screen.getByLabelText('Date fin événement'), { target: { value: '2027-08-02' } });
     fireEvent.click(screen.getByText('Suivant (Services)'));
 
     // Step 5: Services (Hahitantsoa) (skipped catalogue)
@@ -423,6 +497,8 @@ describe('ReservationNewPage', () => {
       expect(screen.getByText('Détails Location (Titan)')).toBeInTheDocument();
     });
     expect(screen.queryByText("Type d'événement")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Date début de location'), { target: { value: '2027-08-01' } });
+    fireEvent.change(screen.getByLabelText('Date fin de location'), { target: { value: '2027-08-02' } });
     fireEvent.click(screen.getByText('Aller au catalogue'));
 
     // Catalogue
@@ -463,6 +539,8 @@ describe('ReservationNewPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Suivant (Services)')).toBeInTheDocument();
     });
+    fireEvent.change(screen.getByLabelText('Date début événement'), { target: { value: '2027-08-01' } });
+    fireEvent.change(screen.getByLabelText('Date fin événement'), { target: { value: '2027-08-02' } });
     fireEvent.click(screen.getByText('Suivant (Services)'));
 
     expect(screen.getByText('Services Hahitantsoa')).toBeInTheDocument();
@@ -574,7 +652,15 @@ describe('ReservationNewPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Pièces jointes client')).toBeInTheDocument();
     });
-    expect(screen.getByLabelText(/ajouter une pièce jointe pour CIN/i)).toBeInTheDocument();
+    const identityInput = screen.getByLabelText(/ajouter une pièce jointe pour CIN/i);
+    expect(identityInput).toHaveAttribute('multiple');
+    const recto = new File(['recto'], 'recto.png', { type: 'image/png' });
+    const verso = new File(['verso'], 'verso.png', { type: 'image/png' });
+    fireEvent.change(identityInput, { target: { files: [recto, verso] } });
+    fireEvent.change(identityInput, { target: { files: [new File(['extra'], 'extra.png', { type: 'image/png' })] } });
+    expect(screen.getAllByRole('button', { name: /Retirer .*\.png/ })).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer extra.png' }));
+    expect(screen.getAllByRole('button', { name: /Retirer .*\.png/ })).toHaveLength(2);
     expect(screen.getByPlaceholderText('Ex. justificatif domicile')).toBeInTheDocument();
     const generalCategories = Array.from((document.getElementById('clientCat') as HTMLSelectElement).options).map(option => option.value);
     expect(generalCategories).not.toContain('CIN');
@@ -716,6 +802,8 @@ describe('ReservationNewPage', () => {
     fireEvent.change(screen.getByPlaceholderText('Ex: -18.8792'), { target: { value: '-18.0' } });
     fireEvent.change(screen.getByPlaceholderText('Ex: 47.5079'), { target: { value: '47.0' } });
 
+    fireEvent.change(screen.getByLabelText('Date début de location'), { target: { value: '2027-08-01' } });
+    fireEvent.change(screen.getByLabelText('Date fin de location'), { target: { value: '2027-08-02' } });
     fireEvent.click(screen.getByText('Aller au catalogue'));
 
     await waitFor(() => {
@@ -762,6 +850,8 @@ describe('ReservationNewPage', () => {
     fireEvent.change(screen.getByPlaceholderText('Ex: Lot XYZ Ambohibao'), { target: { value: 'Lot 123' } });
     fireEvent.change(screen.getByPlaceholderText('Ex: Antananarivo'), { target: { value: 'Tana' } });
 
+    fireEvent.change(screen.getByLabelText('Date début de location'), { target: { value: '2027-08-01' } });
+    fireEvent.change(screen.getByLabelText('Date fin de location'), { target: { value: '2027-08-02' } });
     fireEvent.click(screen.getByText('Aller au catalogue'));
 
     await waitFor(() => {
