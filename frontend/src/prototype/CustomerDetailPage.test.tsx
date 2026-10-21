@@ -1,8 +1,9 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CustomerDetailPage from './CustomerDetailPage';
 import * as api from '../api';
+import type { CommercialTimelineEvent } from '../types';
 
 const customer = (id: string, display_name: string, party_type: 'individual' | 'company', lifecycle_status: 'client' | 'prospect' = 'client') => ({
   id, public_reference: `CLI-${id}`, display_name, party_type, lifecycle_status, email: `${id.toLowerCase()}@example.test`, phone: '', address: '', notes: '',
@@ -31,6 +32,57 @@ beforeEach(() => {
 });
 
 describe('CustomerDetailPage', () => {
+  it('retrouve la proforma liée à un brouillon prospect et ouvre le bon volet', async () => {
+    vi.mocked(api.getCustomerTimeline).mockResolvedValue([
+      { type: 'reservation', title: 'Événement H-002/2027', date: '2027-01-01', description: '', metadata: { business_scope: 'hahitantsoa', hahitantsoa_event_draft_id: 'hahi-prospect-id', reservation_draft_id: 'hahi-prospect-id', public_reference: 'H-002/2027', status: 'draft' } },
+      { type: 'proforma', title: 'Proforma', date: '2027-01-01', description: '', metadata: { template_key: 'hahitantsoa.proforma.v1', hahitantsoa_event_draft_id: 'hahi-prospect-id', status: 'prepared' } },
+    ]);
+    const onNavigate = vi.fn();
+    render(<CustomerDetailPage param="PROS-001" onNavigate={onNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Voir proforma' }));
+    expect(onNavigate).toHaveBeenCalledWith('reservation-detail', 'hahitantsoa:hahi-prospect-id');
+  });
+
+  it('ouvre chaque dossier dans son volet avec son identifiant et affiche sa référence officielle', async () => {
+    vi.mocked(api.getCustomerTimeline).mockResolvedValue([
+      { type: 'reservation', title: 'Événement H-001/2027', date: '2027-01-01', description: '', metadata: { business_scope: 'hahitantsoa', hahitantsoa_event_draft_id: 'uuid-hahi', reservation_draft_id: 'uuid-hahi', public_reference: 'H-001/2027', status: 'draft' } },
+      { type: 'reservation', title: 'Réservation T-001/2027', date: '2027-01-02', description: '', metadata: { business_scope: 'titan', reservation_draft_id: 'uuid-titan', public_reference: 'T-001/2027', status: 'draft' } },
+    ]);
+    const onNavigate = vi.fn();
+    render(<CustomerDetailPage param="CUST-001" onNavigate={onNavigate} />);
+    const history = within((await screen.findByText('Historique des dossiers')).parentElement!);
+    fireEvent.click(await history.findByRole('button', { name: /H-001\/2027/ }));
+    expect(onNavigate).toHaveBeenLastCalledWith('reservation-detail', 'hahitantsoa:uuid-hahi');
+    fireEvent.click(history.getByRole('button', { name: /T-001\/2027/ }));
+    expect(onNavigate).toHaveBeenLastCalledWith('reservation-detail', 'titan:uuid-titan');
+    expect(history.queryByText('uuid-hahi')).not.toBeInTheDocument();
+  });
+
+  it('distingue le chargement, une erreur et un historique vide et permet de réessayer', async () => {
+    let rejectTimeline!: (error: Error) => void;
+    vi.mocked(api.getCustomerTimeline).mockImplementationOnce(() => new Promise((_, reject) => { rejectTimeline = reject; })).mockResolvedValueOnce([]);
+    render(<CustomerDetailPage param="CUST-001" onNavigate={vi.fn()} />);
+    expect(await screen.findByText('Chargement des dossiers liés…')).toBeInTheDocument();
+    expect(screen.queryByText('Aucun dossier trouvé pour ce contact.')).not.toBeInTheDocument();
+    await act(async () => rejectTimeline(new Error('network')));
+    expect(await screen.findByText('Impossible de charger les dossiers liés.')).toBeInTheDocument();
+    expect(screen.queryByText('Aucun dossier trouvé pour ce contact.')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer les dossiers' }));
+    expect(await screen.findByText('Aucun dossier trouvé pour ce contact.')).toBeInTheDocument();
+  });
+
+  it('ignore une réponse tardive du client précédent lors du changement de fiche', async () => {
+    let resolvePrevious!: (events: CommercialTimelineEvent[]) => void;
+    vi.mocked(api.getCustomerTimeline).mockImplementationOnce(() => new Promise(resolve => { resolvePrevious = resolve; })).mockResolvedValueOnce([]);
+    const view = render(<CustomerDetailPage param="CUST-001" onNavigate={vi.fn()} />);
+    await screen.findByText('Fiche client — Ando Rakoto');
+    view.rerender(<CustomerDetailPage param="CUST-002" onNavigate={vi.fn()} />);
+    await screen.findByText('Fiche client — Rasoa Nomena');
+    await act(async () => resolvePrevious([{ type: 'reservation', date: '2027-01-01', title: 'Ancien dossier', description: '', metadata: { business_scope: 'titan', reservation_draft_id: 'old-id', public_reference: 'T-OLD' } }]));
+    expect(screen.queryByText('T-OLD')).not.toBeInTheDocument();
+    expect(screen.getByText('Aucun dossier trouvé pour ce contact.')).toBeInTheDocument();
+  });
+
   it('1. Affiche un particulier (CUST-001) avec ses sections', async () => {
     const mockNavigate = vi.fn();
     render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} canSensitiveWrite />);

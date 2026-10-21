@@ -620,7 +620,7 @@ describe('ReservationNewPage', () => {
     fireEvent.click(screen.getByText('Générer le contrat et ouvrir le dossier'));
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('titan');
+      expect(mockNavigate).toHaveBeenCalledWith('reservation-detail', 'titan:DRAFT-001');
     });
     expect(createReservationDraft).toHaveBeenCalledWith(expect.objectContaining({
       customer_id: 'CUST-001',
@@ -1254,7 +1254,7 @@ describe('ReservationNewPage', () => {
 
   it('21. permet un versement supérieur à l’acompte minimum requis jusqu’au solde total', async () => {
     vi.mocked(recordConfirmedDeposit).mockClear();
-    vi.mocked(recordConfirmedDeposit).mockResolvedValue({ payment: { id: 'PAY-OVER' }, replayed: false } as any);
+    vi.mocked(recordConfirmedDeposit).mockResolvedValue({ payment: { id: 'PAY-OVER', receipt_document: { id: 'RECEIPT-OFFICIAL' } }, replayed: false } as any);
 
     render(<ReservationNewPage onNavigate={mockNavigate} />);
 
@@ -1326,6 +1326,10 @@ describe('ReservationNewPage', () => {
         })
       );
     });
+    const receipt = await screen.findByTitle('Reçu officiel de paiement');
+    expect(receipt.closest('details')).toHaveAttribute('open');
+    expect(getDocumentArtifactHtml).toHaveBeenCalledWith('RECEIPT-OFFICIAL', expect.any(AbortSignal));
+    expect(recordConfirmedDeposit).toHaveBeenCalledTimes(1);
   });
 
   it('22. étape Date & disponibilité Hahitantsoa affiche le récapitulatif des choix et ne propose plus d\'input de tarif de base', async () => {
@@ -1791,7 +1795,7 @@ describe('ReservationNewPage', () => {
     fireEvent.click(generateBtn);
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('hahitantsoa');
+      expect(mockNavigate).toHaveBeenCalledWith('reservation-detail', 'hahitantsoa:EVENT-001');
     });
   });
 

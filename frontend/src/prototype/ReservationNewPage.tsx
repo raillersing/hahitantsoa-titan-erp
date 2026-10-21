@@ -4150,7 +4150,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
               <div className="space-y-1">
                 <h4 className="font-bold text-slate-900 text-sm">Option 1 : Émettre le Proforma (Prospect)</h4>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Le contact demande un devis à emporter pour réflexion. Génère la facture proforma PDF officielle et enregistre le contact comme prospect qualifié.
+                  Le contact demande un devis à emporter pour réflexion. Génère la facture proforma PDF officielle sans modifier son statut commercial.
                 </p>
               </div>
             </div>
@@ -4239,7 +4239,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           <p className="mt-1 text-xs text-emerald-700">
             {editingDraftContext.isEditing
               ? `Le dossier ${editingDraftContext.publicReference || editingDraftContext.draftId} a été mis à jour avec le nouveau contenu. La nouvelle révision officielle est prête.`
-              : `Le document officiel a été généré avec une durée de validité de ${proformaValidity} jours. Le contact est enregistré comme prospect qualifié.`}
+              : `Le document officiel a été généré avec une durée de validité de ${proformaValidity} jours. Le statut commercial du contact est conservé.`}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {editingDraftContext.isEditing ? (
@@ -4471,7 +4471,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
                 <li key={item.id} className="flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
                   <span>Paiement {index + 1} — {item.method}</span>
                   <strong>{item.amount.toLocaleString('fr-FR')} Ar</strong>
-                  <details className="w-full"><summary className="cursor-pointer">Voir le reçu officiel</summary><OfficialPaymentReceipt documentId={item.receiptDocumentId} draftId={prospectProformaEmission?.draftId} domain={domain} /></details>
+                  <details open={index === recordedPayments.length - 1} className="w-full"><summary className="cursor-pointer">Voir le reçu officiel</summary><OfficialPaymentReceipt documentId={item.receiptDocumentId} draftId={prospectProformaEmission?.draftId} domain={domain} /></details>
                 </li>
               ))}
             </ul>
@@ -4654,7 +4654,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           <i className="fa-solid fa-file-signature fa-4x"></i>
         </div>
         <h3 className="text-2xl font-bold text-slate-800 mb-2">Aperçu Contrat</h3>
-        {recordedPayments.map(item => <details key={item.id} className="my-3 rounded-xl border p-3"><summary className="cursor-pointer">Reçu officiel — {item.amount.toLocaleString("fr-FR")} Ar</summary><OfficialPaymentReceipt documentId={item.receiptDocumentId} draftId={prospectProformaEmission?.draftId} domain={domain} /></details>)}
+        {recordedPayments.map((item, index) => <details open={index === recordedPayments.length - 1} key={item.id} className="my-3 rounded-xl border p-3"><summary className="cursor-pointer">Reçu officiel — {item.amount.toLocaleString("fr-FR")} Ar</summary><OfficialPaymentReceipt documentId={item.receiptDocumentId} draftId={prospectProformaEmission?.draftId} domain={domain} /></details>)}
         <div className="flex flex-wrap items-center gap-3 mb-6">
           <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
             Prêt pour contractualisation
@@ -4824,7 +4824,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
                   : "Contrat Titan préparé avec succès. Signature et confirmation restent à effectuer.";
                 showToastMsg(msg, 'success');
                 clearDraft(false);
-                onNavigate(domain === "hahitantsoa" ? "hahitantsoa" : "titan");
+                onNavigate("reservation-detail", `${domain}:${generated.draftId}`);
               } catch (err: any) {
                 setSubmitError(err?.message || "Erreur lors de la création du dossier");
                 showToastMsg("Erreur : " + (err?.message || "inconnue"), 'error');

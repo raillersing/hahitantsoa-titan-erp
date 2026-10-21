@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 
 import {
+  ApiError,
+  getDocumentInstancePdfBlob,
   getRoles,
   getRoleAssignments,
   checkEndpointPermission,
@@ -41,6 +43,15 @@ beforeEach(() => {
 });
 
 describe("session authentication", () => {
+  it.each([401, 403, 404, 500])('preserves PDF HTTP status %s for safe download recovery', async (status) => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => mockFetchResponse({}, status, false));
+    const result = getDocumentInstancePdfBlob('receipt-1');
+    await expect(result).rejects.toBeInstanceOf(ApiError);
+    await expect(result).rejects.toHaveProperty('status', status);
+    expect(fetchSpy).toHaveBeenCalledWith('/api/v1/documents/instances/receipt-1/pdf/', expect.objectContaining({ credentials: 'include' }));
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("loads the real session with credentials", async () => {
     const payload = { authenticated: false as const, user: null };
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
