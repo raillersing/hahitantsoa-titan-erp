@@ -78,6 +78,7 @@ def test_inventory_item_detail_returns_active_not_deleted_item(authenticated_cli
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("method", ["get", "head"])
 @pytest.mark.parametrize(
     "item_kwargs",
     [
@@ -88,10 +89,11 @@ def test_inventory_item_detail_returns_active_not_deleted_item(authenticated_cli
 def test_inventory_item_detail_returns_404_for_hidden_items(
     authenticated_client,
     item_kwargs: dict,
+    method: str,
 ) -> None:
     item = InventoryItem.objects.create(**item_kwargs)
 
-    response = authenticated_client.get(f"/api/v1/inventory/items/{item.pk}/")
+    response = getattr(authenticated_client, method)(f"/api/v1/inventory/items/{item.pk}/")
 
     assert response.status_code == 404
 
@@ -165,6 +167,51 @@ def test_inventory_item_list_filter_by_name(authenticated_client):
     results = response.json()
     assert len(results) == 1
     assert results[0]["id"] == str(matching.id)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("method", ["get", "head"])
+def test_inventory_reader_cannot_request_inactive_items(authenticated_client, method):
+    response = getattr(authenticated_client, method)(
+        "/api/v1/inventory/items/?include_inactive=true"
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_inventory_manager_can_find_reload_and_reactivate_inactive_item(client, django_user_model):
+    user = django_user_model.objects.create_user(username="stock-manager", is_staff=True)
+    client.force_login(user)
+    inactive = InventoryItem.objects.create(
+        name="Inactive camera", kind="material", is_active=False
+    )
+    active = InventoryItem.objects.create(name="Active camera", kind="article")
+    deleted = InventoryItem.objects.create(name="Deleted camera", kind="material", is_deleted=True)
+
+    default_response = client.get("/api/v1/inventory/items/")
+    assert default_response.status_code == 200
+    assert [item["id"] for item in default_response.json()] == [str(active.pk)]
+    management_response = client.get("/api/v1/inventory/items/?include_inactive=true&name=camera")
+    assert management_response.status_code == 200
+    assert {item["id"] for item in management_response.json()} == {str(active.pk), str(inactive.pk)}
+    detail_url = f"/api/v1/inventory/items/{inactive.pk}/"
+    assert client.get(detail_url).status_code == 200
+    assert client.head(detail_url).status_code == 200
+    assert client.head("/api/v1/inventory/items/?include_inactive=true").status_code == 200
+    response = client.patch(detail_url, data={"is_active": True}, content_type="application/json")
+    assert response.status_code == 200
+    inactive.refresh_from_db()
+    assert inactive.is_active is True
+    assert client.get(detail_url).json()["is_active"] is True
+    deleted_url = f"/api/v1/inventory/items/{deleted.pk}/"
+    assert client.get(deleted_url).status_code == 404
+    assert (
+        client.patch(
+            deleted_url, data={"is_active": True}, content_type="application/json"
+        ).status_code
+        == 404
+    )
 
 
 @pytest.mark.django_db
