@@ -221,24 +221,43 @@ if [ "$pr_state" = "OPEN" ]; then
     required_ok=1
   fi
 
-  if [ "$required_ok" -eq 1 ]; then
-    echo "INFO: Required checks verified successfully via gh pr checks --required."
-  else
-    echo "INFO: No required checks reported or checks failed. Falling back to statusCheckRollup validation..."
-
-    # Check if any check failed
-    failed_count="$(gh pr view "$pr_number" --json statusCheckRollup --jq '[.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "NEUTRAL" and .conclusion != "SKIPPED" and .conclusion != null)] | length' 2>/dev/null || echo "0")"
-    if [ "${failed_count:-0}" -gt 0 ]; then
-      echo "ERROR: One or more checks in statusCheckRollup have failed."
-      gh pr view "$pr_number" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "NEUTRAL" and .conclusion != "SKIPPED" and .conclusion != null) | "Check run \(.name) is \(.conclusion)"'
-      exit 1
-    fi
+  # Fetch once: an unavailable or empty rollup never authorizes a merge.
+  check_statuses="$(gh pr view "$pr_number" --json statusCheckRollup --jq '.statusCheckRollup[] | [(.name // .context // ""), (.status // .state // ""), (.conclusion // .state // "")] | @tsv')" || {
+    echo "ERROR: Could not retrieve PR check statuses."
+    exit 1
+  }
+  if [ -z "$check_statuses" ]; then
+    echo "ERROR: PR check statuses are missing."
+    exit 1
   fi
 
-  policy_status="$(gh pr view "$pr_number" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.name == "CI policy gate") | .conclusion' 2>/dev/null || true)"
-  if [ "$policy_status" != "SUCCESS" ]; then
-    echo "ERROR: CI policy gate must be SUCCESS, got: '$policy_status'"
+  policy_count=0
+  policy_ok=1
+  all_checks_ok=1
+  while IFS=$'\t' read -r check_name check_status check_conclusion; do
+    if [ "$check_name" = "CI policy gate" ]; then
+      policy_count=$((policy_count + 1))
+      if [ "$check_status" != "COMPLETED" ] || [ "$check_conclusion" != "SUCCESS" ]; then
+        policy_ok=0
+      fi
+    fi
+    case "$check_status:$check_conclusion" in
+      COMPLETED:SUCCESS|COMPLETED:NEUTRAL|COMPLETED:SKIPPED|SUCCESS:SUCCESS) ;;
+      *) all_checks_ok=0 ;;
+    esac
+  done <<< "$check_statuses"
+
+  if [ "$policy_count" -eq 0 ] || [ "$policy_ok" -ne 1 ]; then
+    echo "ERROR: At least one CI policy gate is required; every gate must be COMPLETED and SUCCESS."
     exit 1
+  fi
+  if [ "$required_ok" -eq 1 ]; then
+    echo "INFO: Required checks verified successfully via gh pr checks --required."
+  elif [ "$all_checks_ok" -ne 1 ]; then
+    echo "ERROR: Fallback check validation requires every check to finish successfully."
+    exit 1
+  else
+    echo "INFO: All checks verified through statusCheckRollup fallback."
   fi
 
   before_main_head="$(git rev-parse HEAD)"
