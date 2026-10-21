@@ -23,7 +23,10 @@ from apps.documents.formatting import (
     parse_hahitantsoa_services_total,
 )
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
-from apps.documents.payment_receipts import build_payment_receipt_context
+from apps.documents.payment_receipts import (
+    build_payment_receipt_context,
+    payment_receipt_template_key,
+)
 from apps.documents.rendering import resolve_document_template_path
 from apps.hahitantsoa.composition import BARE_RENTAL_LABEL
 
@@ -695,7 +698,10 @@ def generate_document_instance_html(
             code="invalid_document_status_for_generation",
         )
 
-    if document_instance.hahitantsoa_event_draft_id:
+    if (
+        document_instance.hahitantsoa_event_draft_id
+        and document_instance.template_key != "RECU-PAIEMENT"
+    ):
         from apps.hahitantsoa.models import HahitantsoaEventDraft
 
         event_draft = HahitantsoaEventDraft.objects.select_for_update().get(
@@ -742,6 +748,7 @@ def generate_document_instance_html(
     if document_instance.template_key in {
         "titan.payment_receipt.v1",
         "hahitantsoa.payment_receipt.v1",
+        "RECU-PAIEMENT",
     }:
         from apps.payments.models import Payment
 
@@ -760,14 +767,33 @@ def generate_document_instance_html(
                 "Payment receipt document is not linked to a payment source.",
                 code=PAYMENT_RECEIPT_PAYMENT_NOT_FOUND,
             )
-        context = build_payment_receipt_context(
-            payment=payment, template_key=document_instance.template_key
-        )
+        receipt_template_key = document_instance.template_key
+        if receipt_template_key == "RECU-PAIEMENT":
+            receipt_template_key = payment_receipt_template_key(payment=payment)
+            expected_scope = "hahitantsoa" if payment.hahitantsoa_event_draft_id else "titan"
+            source = payment.hahitantsoa_event_draft or payment.reservation_draft
+            if (
+                source is None
+                or document_instance.reservation_draft_id != payment.reservation_draft_id
+                or document_instance.hahitantsoa_event_draft_id
+                != payment.hahitantsoa_event_draft_id
+                or document_instance.business_scope != expected_scope
+                or (
+                    document_instance.customer_id is not None
+                    and document_instance.customer_id != source.customer_id
+                )
+            ):
+                raise DocumentRuntimeGenerationError(
+                    "Legacy payment receipt source does not match its linked payment.",
+                    code="payment_receipt_source_mismatch",
+                )
+        # ponytail: resolve the legacy alias only for rendering; keep issued metadata intact.
+        context = build_payment_receipt_context(payment=payment, template_key=receipt_template_key)
         template_path = (
             "documents/hahitantsoa_payment_receipt.html"
-            if document_instance.template_key == "hahitantsoa.payment_receipt.v1"
+            if receipt_template_key == "hahitantsoa.payment_receipt.v1"
             else "documents/titan_payment_receipt.html"
-            if document_instance.template_key == "titan.payment_receipt.v1"
+            if receipt_template_key == "titan.payment_receipt.v1"
             else "documents/shared_payment_receipt.html"
         )
     elif document_instance.template_key == "shared.payment_refund_receipt.v1":
