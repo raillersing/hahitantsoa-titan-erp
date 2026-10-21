@@ -220,6 +220,12 @@ class Command(BaseCommand):
         )
         recalculate_reservation_draft_totals(reservation_draft=draft)
         self._emit_titan_document(draft=draft, actor=actor, template_key="titan.proforma.v1")
+        transition_prospect_status(
+            customer=customer,
+            target_status=ProspectStatus.PROFORMA_SENT,
+            actor=actor,
+            reason="Envoi de la proforma simulé dans le scénario de démonstration.",
+        )
 
     def _seed_titan_confirmed(self, *, actor, item: InventoryItem) -> None:
         customer = self._customer(
