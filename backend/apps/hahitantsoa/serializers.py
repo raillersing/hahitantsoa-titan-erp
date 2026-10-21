@@ -754,11 +754,28 @@ class HahitantsoaEventDraftLineSerializer(serializers.ModelSerializer):
         return quantity
 
 
+class BareRentalCompositionField(serializers.JSONField):
+    def to_internal_value(self, data):
+        from django.core.exceptions import ValidationError
+
+        from apps.hahitantsoa.composition import validate_bare_rental_composition
+
+        value = super().to_internal_value(data)
+        try:
+            validate_bare_rental_composition(value)
+        except ValidationError as error:
+            raise serializers.ValidationError(error.messages) from error
+        return [{"label": row["label"].strip(), "quantity": row["quantity"]} for row in value]
+
+
 class HahitantsoaCommercialTermsSerializer(serializers.ModelSerializer):
+    bare_rental_composition = BareRentalCompositionField(required=False)
+
     class Meta:
         model = HahitantsoaCommercialTerms
         fields = (
             "base_space_rental_amount",
+            "bare_rental_composition",
             "included_guest_count",
             "excess_guest_amount",
             "bare_deposit_amount",
@@ -807,6 +824,17 @@ class HahitantsoaEventDraftCancelSerializer(serializers.Serializer):
 
 
 class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
+    bare_rental_composition = BareRentalCompositionField(required=False)
+
+    def validate_bare_rental_composition(self, value):
+        if self.instance is not None and (
+            self.instance.status != "draft" or self.instance.contract_signed_at is not None
+        ):
+            raise serializers.ValidationError(
+                "La composition ne peut être modifiée que sur un brouillon."
+            )
+        return value
+
     public_reference = serializers.CharField(max_length=32, required=False, allow_blank=True)
     customer_id = serializers.PrimaryKeyRelatedField(
         source="customer",
@@ -837,6 +865,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             "event_name",
             "event_type",
             "rental_type",
+            "bare_rental_composition",
             "duration_option",
             "guest_count",
             "space_rental_amount",
@@ -943,6 +972,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
         if "public_reference" in validated_data and not validated_data["public_reference"]:
             validated_data.pop("public_reference")
         terms = get_hahitantsoa_commercial_terms()
+        validated_data.setdefault("bare_rental_composition", terms.bare_rental_composition)
         validated_data["space_rental_amount"] = calculate_space_rental_amount(
             terms=terms,
             guest_count=validated_data.get("guest_count", 0),
@@ -998,6 +1028,16 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def update(self, instance, validated_data):
+        if "bare_rental_composition" in validated_data:
+            instance = HahitantsoaEventDraft.objects.select_for_update().get(pk=instance.pk)
+            if instance.status != "draft" or instance.contract_signed_at is not None:
+                raise serializers.ValidationError(
+                    {
+                        "bare_rental_composition": (
+                            "La composition ne peut être modifiée que sur un brouillon non signé."
+                        )
+                    }
+                )
         lines_data = validated_data.pop("lines", None)
         new_reference = validated_data.pop("public_reference", None)
         old_reference = instance.public_reference

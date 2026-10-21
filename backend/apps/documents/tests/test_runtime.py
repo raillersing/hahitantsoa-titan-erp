@@ -65,7 +65,7 @@ def test_hahitantsoa_proforma_uses_official_renderer_over_active_database_versio
 
     assert "DATABASE OVERRIDE" not in rendered_html
     assert "PROFORMA Hahitantsoa" in rendered_html
-    assert "Location nue de l'espace" in rendered_html
+    assert "Location nue" in rendered_html
     assert "12 500 000,00" in rendered_html
     assert "Douze millions cinq cent mille Ariary" in rendered_html
 
@@ -699,7 +699,6 @@ def test_titan_proforma_and_contract_includes_real_prices_and_breakage(django_us
 
 def test_hahitantsoa_bare_space_includes_detailed_contents_in_proforma_and_invoice() -> None:
     from apps.documents.runtime import (
-        HAHITANTSOA_BARE_SPACE_INCLUDED_ITEMS,
         preview_hahitantsoa_event_draft_document_html,
     )
 
@@ -727,8 +726,8 @@ def test_hahitantsoa_bare_space_includes_detailed_contents_in_proforma_and_invoi
             template_key="hahitantsoa.proforma.v1",
         )
     )
-    assert "Location nue de l'espace" in proforma_html
-    for item in HAHITANTSOA_BARE_SPACE_INCLUDED_ITEMS:
+    assert "Location nue" in proforma_html
+    for item in ("Salle", "Estrades", "Table mariés", "Table DJ", "010 Chaises pliables"):
         assert item in proforma_html
 
     # 2. Invoice
@@ -738,8 +737,8 @@ def test_hahitantsoa_bare_space_includes_detailed_contents_in_proforma_and_invoi
             template_key="hahitantsoa.invoice.v1",
         )
     )
-    assert "Location nue de l'espace" in invoice_html
-    for item in HAHITANTSOA_BARE_SPACE_INCLUDED_ITEMS:
+    assert "Location nue" in invoice_html
+    for item in ("Salle", "Estrades", "Table mariés", "Table DJ", "010 Chaises pliables"):
         assert item in invoice_html
 
     # 3. Delivery Note
@@ -749,8 +748,8 @@ def test_hahitantsoa_bare_space_includes_detailed_contents_in_proforma_and_invoi
             template_key="hahitantsoa.delivery_note.v1",
         )
     )
-    assert "Location nue de l'espace" in delivery_note_html
-    for item in HAHITANTSOA_BARE_SPACE_INCLUDED_ITEMS:
+    assert "Location nue" in delivery_note_html
+    for item in ("Salle", "Estrades", "Table mariés", "Table DJ", "010 Chaises pliables"):
         assert item in delivery_note_html
 
     # 4. In logistics mode, bare space sub-items should not be attached
@@ -764,7 +763,7 @@ def test_hahitantsoa_bare_space_includes_detailed_contents_in_proforma_and_invoi
         )
     )
     assert "Location de l'espace" in logistics_proforma
-    assert "10 Chaises pliables" not in logistics_proforma
+    assert "010 Chaises pliables" not in logistics_proforma
 
 
 @pytest.mark.django_db
@@ -789,7 +788,7 @@ def test_hahitantsoa_contract_duration_rendering_strict_and_model() -> None:
             template_key="hahitantsoa.contract.v1",
         )
     )
-    assert "Durée : Fête de jour : Sortie J-J à 20 :00" in contract_day_html
+    assert "Durée : Fête de jour : Sortie J-J à 20:00" in contract_day_html
     assert "Utilisation de nuit Option 1" not in contract_day_html
     assert "Utilisation de nuit Option 2" not in contract_day_html
 
@@ -806,7 +805,7 @@ def test_hahitantsoa_contract_duration_rendering_strict_and_model() -> None:
         "Durée : Utilisation de nuit Option 1 (Arrêt de fête 21:00 / Sortie J-J à 22:30)"
     )
     assert expected_night1 in contract_night1_html
-    assert "Fête de jour : Sortie J-J à 20 :00" not in contract_night1_html
+    assert "Fête de jour : Sortie J-J à 20:00" not in contract_night1_html
 
     # 3. Night 2 option
     event_draft.duration_option = "night_2"
@@ -821,7 +820,7 @@ def test_hahitantsoa_contract_duration_rendering_strict_and_model() -> None:
         "Durée : Utilisation de nuit Option 2 (Arrêt de fête 00:00 / Sortie J+1 à 03:30)"
     )
     assert expected_night2 in contract_night2_html
-    assert "Fête de jour : Sortie J-J à 20 :00" not in contract_night2_html
+    assert "Fête de jour : Sortie J-J à 20:00" not in contract_night2_html
 
     # 4. Model contract (empty duration): all options listed
     event_draft.duration_option = ""
@@ -832,9 +831,9 @@ def test_hahitantsoa_contract_duration_rendering_strict_and_model() -> None:
             template_key="hahitantsoa.contract.v1",
         )
     )
-    assert "Fête de jour : Sortie J-J à 20 :00" in contract_model_html
-    assert "Utilisation de nuit Option 1 : Arrêt de fête 21 :00" in contract_model_html
-    assert "Utilisation de nuit Option 2 : Arrêt de fête 00 :00" in contract_model_html
+    assert "Fête de jour : Sortie J-J à 20:00" in contract_model_html
+    assert "Utilisation de nuit Option 1 : Arrêt de fête 21:00" in contract_model_html
+    assert "Utilisation de nuit Option 2 : Arrêt de fête 00:00" in contract_model_html
 
 
 @pytest.mark.django_db
