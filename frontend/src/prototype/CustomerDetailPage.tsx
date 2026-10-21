@@ -26,7 +26,7 @@ type Client = {
   idDuplicataDate?: string; idDuplicataPlace?: string; birthDate?: string;
   nif?: string; stat?: string; rcs?: string; repFirstName?: string; repRole?: string;
 };
-type ReservationSummary = { id: string; title: string; date: string; amount: number | null; status: string; type: string };
+type ReservationSummary = { id: string | null; reference: string; scope: "hahitantsoa" | "titan" | null; title: string; date: string; amount: number | null; status: string; type: string };
 type CommercialHistorySummary = {
   reservations: ReservationSummary[];
   agendaEvents: CommercialTimelineEvent[];
@@ -78,11 +78,12 @@ function metadataAmountOrNull(event: CommercialTimelineEvent): number | null {
 function summarizeCommercialTimeline(events: CommercialTimelineEvent[]): CommercialHistorySummary {
   const reservations = events
     .filter((event) => event.type === "reservation")
-    .map((event) => {
-      const reservationId = metadataString(event, "reservation_draft_id") ?? metadataString(event, "public_reference") ?? event.title;
+    .map<ReservationSummary>((event) => {
       const scope = metadataString(event, "business_scope");
       return {
-        id: reservationId,
+        id: scope === "hahitantsoa" ? metadataString(event, "hahitantsoa_event_draft_id") ?? metadataString(event, "reservation_draft_id") : metadataString(event, "reservation_draft_id"),
+        reference: metadataString(event, "public_reference") ?? event.title,
+        scope: scope === "hahitantsoa" || scope === "titan" ? scope : null,
         title: event.title,
         date: metadataString(event, "start_at") ?? event.date,
         amount: metadataAmountOrNull(event),
@@ -151,7 +152,7 @@ export default function CustomerDetailPage({
   const [showConversionAssistant, setShowConversionAssistant] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [timelineEvents, setTimelineEvents] = useState<CommercialTimelineEvent[]>([]);
-  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineLoading, setTimelineLoading] = useState(true);
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const commercialHistory = summarizeCommercialTimeline(timelineEvents);
   const { reservations, totalBilled, totalPaid, totalDue } = commercialHistory;
@@ -191,14 +192,15 @@ export default function CustomerDetailPage({
     setIsLoading(true);
     setLoadError(null);
     void getCustomer(clientId, controller.signal).then((customer) => {
+      if (controller.signal.aborted) return;
       setClient(mapApiCustomer(customer));
     }).catch((error: unknown) => {
-      if ((error as { name?: string }).name === "AbortError") return;
+      if (controller.signal.aborted || (error as { name?: string }).name === "AbortError") return;
       if (error instanceof ApiError && error.status === 404) setLoadError("Cette fiche client est introuvable.");
       else if (error instanceof ApiError && error.status === 403) setLoadError("Vous n’avez pas accès à cette fiche client.");
       else if (error instanceof ApiError && error.status === 401) setLoadError("Votre session a expiré. Reconnectez-vous puis réessayez.");
       else setLoadError("Impossible de charger cette fiche client. Vérifiez votre connexion puis réessayez.");
-    }).finally(() => setIsLoading(false));
+    }).finally(() => { if (!controller.signal.aborted) setIsLoading(false); });
     return () => controller.abort();
   }, [clientId, retryKey]);
 
@@ -206,12 +208,14 @@ export default function CustomerDetailPage({
     const controller = new AbortController();
     setTimelineLoading(true);
     setTimelineError(null);
+    setTimelineEvents([]);
     void getCustomerTimeline(clientId, controller.signal).then((data) => {
+      if (controller.signal.aborted) return;
       setTimelineEvents(data);
     }).catch((error: unknown) => {
-      if ((error as { name?: string }).name === "AbortError") return;
+      if (controller.signal.aborted || (error as { name?: string }).name === "AbortError") return;
       setTimelineError("Impossible de charger la chronologie commerciale.");
-    }).finally(() => setTimelineLoading(false));
+    }).finally(() => { if (!controller.signal.aborted) setTimelineLoading(false); });
     return () => controller.abort();
   }, [clientId, retryKey]);
 
@@ -219,10 +223,13 @@ export default function CustomerDetailPage({
     const controller = new AbortController();
     setAttachmentsLoading(true);
     setAttachmentsError(null);
-    void getCustomerAttachments(clientId, controller.signal).then(setAttachments).catch((error: unknown) => {
-      if ((error as { name?: string }).name === "AbortError") return;
+    setAttachments([]);
+    void getCustomerAttachments(clientId, controller.signal).then(data => {
+      if (!controller.signal.aborted) setAttachments(data);
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted || (error as { name?: string }).name === "AbortError") return;
       setAttachmentsError("Impossible de charger les pièces jointes. Réessayez.");
-    }).finally(() => setAttachmentsLoading(false));
+    }).finally(() => { if (!controller.signal.aborted) setAttachmentsLoading(false); });
     return () => controller.abort();
   }, [clientId, retryKey]);
 
@@ -416,7 +423,10 @@ export default function CustomerDetailPage({
     reqVolet = lines[1]?.split(': ')[1] || reqVolet;
     reqDate = lines[2]?.split(': ')[1] || reqDate;
   }
-  const linkedProforma = reservations.find((reservation) => reservation.status === "Proforma");
+  const linkedProforma = reservations.find((reservation) => reservation.status === "draft" && timelineEvents.some(event =>
+    event.type === "proforma" && metadataString(event, "template_key")?.includes(".proforma.") &&
+    (metadataString(event, "hahitantsoa_event_draft_id") ?? metadataString(event, "reservation_draft_id")) === reservation.id
+  ));
 
   if (isLoading) {
     return <div className="page active max-w-7xl mx-auto"><div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Chargement de la fiche client…</div></div>;
@@ -1045,9 +1055,9 @@ export default function CustomerDetailPage({
                       <h4 className="font-bold text-slate-800 flex items-center gap-2">
                         <i className="fa-solid fa-file-invoice text-indigo-500"></i> Proforma liée
                       </h4>
-                      <p className="text-xs text-slate-500 mt-1">{linkedProforma.id} • {linkedProforma.amount === null ? "Montant non renseigné" : `${linkedProforma.amount.toLocaleString('fr-FR')} Ar`} • Brouillon</p>
+                      <p className="text-xs text-slate-500 mt-1">{linkedProforma.reference} • {linkedProforma.amount === null ? "Montant non renseigné" : `${linkedProforma.amount.toLocaleString('fr-FR')} Ar`} • Brouillon</p>
                     </div>
-                    <button onClick={() => onNavigate("reservation-detail", linkedProforma.id)} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg hover:bg-indigo-100 transition-colors whitespace-nowrap">
+                    <button disabled={!linkedProforma.id || !linkedProforma.scope} onClick={() => onNavigate("reservation-detail", `${linkedProforma.scope}:${linkedProforma.id}`)} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg hover:bg-indigo-100 transition-colors whitespace-nowrap">
                       Voir proforma
                     </button>
                   </div>
@@ -1203,16 +1213,20 @@ export default function CustomerDetailPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {reservations.length === 0 && (
+                  {timelineLoading ? (
+                    <tr><td colSpan={5} className="py-8 text-center text-slate-500" role="status">Chargement des dossiers liés…</td></tr>
+                  ) : timelineError ? (
+                    <tr><td colSpan={5} className="py-8 text-center text-red-600"><span role="alert">Impossible de charger les dossiers liés.</span> <button type="button" className="font-semibold underline" onClick={() => setRetryKey(value => value + 1)}>Réessayer les dossiers</button></td></tr>
+                  ) : reservations.length === 0 && (
                     <tr>
                       <td colSpan={5} className="py-8 text-center text-slate-500">Aucun dossier trouvé pour ce contact.</td>
                     </tr>
                   )}
-                  {reservations.map(res => (
-                    <tr key={res.id} className="hover:bg-slate-50 transition-colors">
+                  {!timelineLoading && !timelineError && reservations.map(res => (
+                    <tr key={`${res.scope}:${res.id ?? res.title}`} className="hover:bg-slate-50 transition-colors">
                       <td className="py-3 pr-4">
-                        <button onClick={() => onNavigate("reservation-detail", res.id)} className="min-h-11 text-left group">
-                          <div className="font-medium text-indigo-600 group-hover:underline">{res.id}</div>
+                        <button disabled={!res.id || !res.scope} onClick={() => onNavigate("reservation-detail", `${res.scope}:${res.id}`)} className="min-h-11 text-left group">
+                          <div className="font-medium text-indigo-600 group-hover:underline">{res.reference}</div>
                           <div className="text-xs text-slate-500">{res.title}</div>
                         </button>
                       </td>
