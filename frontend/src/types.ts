@@ -71,6 +71,10 @@ export type Customer = {
   updated_by: string | null;
   reservation_count?: number;
   event_count?: number;
+  current_dossier_count?: number;
+  closed_dossier_count?: number;
+  draft_dossier_count?: number;
+  cancelled_dossier_count?: number;
   document_count?: number;
   last_activity_at?: string | null;
 };
@@ -2011,6 +2015,10 @@ export type Client = {
   notes?: string;
   reservationCount?: number;
   eventCount?: number;
+  currentDossierCount?: number;
+  closedDossierCount?: number;
+  draftDossierCount?: number;
+  cancelledDossierCount?: number;
   documentCount?: number;
   prospectStatus?: string;
   prospectStatusChangedAt?: string | null;

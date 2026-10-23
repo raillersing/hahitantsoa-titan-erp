@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import {
   ApiError,
   createCustomer,
@@ -255,8 +255,12 @@ export default function CustomersPage({
         : "bg-indigo-100 text-indigo-700",
       address: customer.address,
       notes: customer.notes,
-      reservationCount: customer.reservation_count ?? 0,
+      reservationCount: (customer.reservation_count ?? 0) + (customer.event_count ?? 0),
       eventCount: customer.event_count ?? 0,
+      currentDossierCount: customer.current_dossier_count,
+      closedDossierCount: customer.closed_dossier_count,
+      draftDossierCount: customer.draft_dossier_count,
+      cancelledDossierCount: customer.cancelled_dossier_count,
       documentCount: customer.document_count ?? 0,
       prospectStatus: customer.prospect_status,
       prospectStatusChangedAt: customer.prospect_status_changed_at,
@@ -265,22 +269,40 @@ export default function CustomersPage({
     };
   };
 
-  const loadCustomers = async () => {
+  const customerRequestRef = useRef<AbortController | null>(null);
+  const loadCustomers = useCallback(async () => {
+    customerRequestRef.current?.abort();
+    const request = new AbortController();
+    customerRequestRef.current = request;
     setIsLoading(true);
     setLoadError(null);
     try {
-      const customers = await getCustomers();
+      const customers = await getCustomers(undefined, request.signal);
+      if (request.signal.aborted) return;
       setApiClients(customers.map(mapApiCustomer));
     } catch {
-      setLoadError("Impossible de charger les fiches clients. Réessayez.");
+      if (request.signal.aborted) return;
+      setLoadError("Impossible de charger les fiches clients. Les informations affichées peuvent être anciennes. Réessayez.");
     } finally {
-      setIsLoading(false);
+      if (!request.signal.aborted) setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void loadCustomers();
-  }, []);
+    const refresh = () => { if (!document.hidden) void loadCustomers(); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      customerRequestRef.current?.abort();
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [loadCustomers]);
+
+  const hasPendingFollowUp = (client: Client) =>
+    !["converted", "disqualified", "lost"].includes(client.prospectStatus || "") &&
+    (client.prospectStatus === "to_recall" || Boolean(client.prospectNextFollowUp));
 
   // Compteurs par catégorie
   const counts = useMemo(() => {
@@ -288,7 +310,7 @@ export default function CustomersPage({
     const prospects = apiClients.filter((c) => c.status === "Prospect").length;
     const clients = apiClients.filter((c) => c.status === "Client").length;
     const toRecall = apiClients.filter(
-      (c) => c.status === "Prospect" && (c.prospectStatus === "to_recall" || Boolean(c.prospectNextFollowUp))
+      hasPendingFollowUp
     ).length;
     const particuliers = apiClients.filter((c) => c.type === "Particulier").length;
     const entreprises = apiClients.filter((c) => c.type === "Entreprise").length;
@@ -313,10 +335,9 @@ export default function CustomersPage({
       if (filterType === "Clients" && c.status !== "Client") return false;
       if (filterType === "Particuliers" && c.type !== "Particulier") return false;
       if (filterType === "Entreprises" && c.type !== "Entreprise") return false;
-      if (filterType === "Avec dossier actif" && !c.reservationCount) return false;
+      if (filterType === "Avec dossier actif" && !c.currentDossierCount) return false;
       if (filterType === "À relancer") {
-        if (c.status !== "Prospect") return false;
-        if (c.prospectStatus !== "to_recall" && !c.prospectNextFollowUp) return false;
+        if (!hasPendingFollowUp(c)) return false;
       }
 
       return true;
@@ -327,8 +348,9 @@ export default function CustomersPage({
 
   const { sortConfig, handleSort, resetSort, sortItems } = useTableSort<Client, CustomerSortKey>({
     extractors: {
-      followUp: (c) => c.prospectNextFollowUp || (c as any).lastActivity || "",
-      category: (c) => (c as any).clientCategory || (c as any).category || "",
+      followUp: (c) => c.prospectNextFollowUp || "",
+      category: (c) => c.status,
+      status: (c) => c.prospectStatus || "",
       reservationCount: (c) => c.reservationCount || 0,
     },
     tieBreaker: (a, b) => a.name.localeCompare(b.name, "fr", { numeric: true }),
@@ -1544,6 +1566,9 @@ export default function CustomersPage({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <button type="button" onClick={() => void loadCustomers()} disabled={isLoading} className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 disabled:opacity-50">
+            Actualiser les fiches
+          </button>
           <div className="relative">
             <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
             <input
@@ -1706,10 +1731,15 @@ export default function CustomersPage({
                 </tr>
               )}
               {sortedClients.map((client) => {
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                 const isOverdue =
-                  client.prospectStatus === "to_recall" &&
+                  hasPendingFollowUp(client) &&
                   client.prospectNextFollowUp &&
-                  new Date(client.prospectNextFollowUp) < new Date();
+                  new Date(`${client.prospectNextFollowUp}T00:00:00`) < today;
+                const followUpLabel = client.prospectNextFollowUp
+                  ? new Date(`${client.prospectNextFollowUp}T00:00:00`).toLocaleDateString("fr-FR")
+                  : null;
 
                 return (
                   <tr
@@ -1783,7 +1813,7 @@ export default function CustomersPage({
 
                     {/* Pipeline */}
                     <td className="px-4 py-3.5">
-                      {client.status === "Prospect" && client.prospectStatus ? (
+                      {client.prospectStatus ? (
                         <div className="flex flex-col gap-0.5">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border w-fit ${getProspectStatusBadgeClass(
@@ -1805,34 +1835,36 @@ export default function CustomersPage({
 
                     {/* Relance */}
                     <td className="px-4 py-3.5">
-                      {client.status === "Prospect" ? (
+                      {hasPendingFollowUp(client) ? (
                         isOverdue ? (
                           <span className="inline-flex items-center gap-1 text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
                             <i className="fa-solid fa-triangle-exclamation text-[10px]"></i>
-                            <span>Dépassée ({new Date(client.prospectNextFollowUp!).toLocaleDateString("fr-FR")})</span>
+                            <span>Dépassée ({followUpLabel})</span>
                           </span>
                         ) : client.prospectNextFollowUp ? (
                           <span className="inline-flex items-center gap-1 text-slate-700 font-medium">
                             <i className="fa-solid fa-clock text-slate-400 text-[10px]"></i>
-                            <span>{new Date(client.prospectNextFollowUp).toLocaleDateString("fr-FR")}</span>
+                            <span>{followUpLabel}</span>
                           </span>
                         ) : (
-                          <span className="text-slate-400">—</span>
+                          <span className="text-slate-500">À planifier</span>
                         )
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-slate-400">{followUpLabel ? `Relance inactive (${followUpLabel})` : "—"}</span>
                       )}
                     </td>
 
                     {/* Dossiers liés */}
                     <td className="px-4 py-3.5">
-                      {client.reservationCount ? (
-                        <span className="inline-flex items-center gap-1 font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">
-                          <i className="fa-solid fa-folder-open text-slate-500 text-[10px]"></i>
-                          <span>{client.reservationCount} dossier(s)</span>
-                        </span>
+                      {[client.currentDossierCount, client.closedDossierCount, client.draftDossierCount, client.cancelledDossierCount].every(count => count !== undefined) ? (
+                        <div className="flex flex-wrap gap-1 text-[11px] font-semibold" aria-label={`Dossiers liés de ${client.name}`}>
+                          <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-emerald-800">Actuels : {client.currentDossierCount}</span>
+                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-slate-700">Clos : {client.closedDossierCount}</span>
+                          <span className="rounded-md bg-amber-50 px-2 py-0.5 text-amber-800">Brouillons : {client.draftDossierCount}</span>
+                          <span className="rounded-md bg-rose-50 px-2 py-0.5 text-rose-800">Annulés : {client.cancelledDossierCount}</span>
+                        </div>
                       ) : (
-                        <span className="text-slate-400">Aucun dossier</span>
+                        <span className="text-slate-500">Statistiques indisponibles</span>
                       )}
                     </td>
                   </tr>
