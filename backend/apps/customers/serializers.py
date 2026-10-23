@@ -45,6 +45,10 @@ class CustomerSerializer(serializers.ModelSerializer):
         choices=CustomerPartyType.choices,
         required=False,
     )
+    current_dossier_count = serializers.IntegerField(read_only=True, default=0)
+    closed_dossier_count = serializers.IntegerField(read_only=True, default=0)
+    draft_dossier_count = serializers.IntegerField(read_only=True, default=0)
+    cancelled_dossier_count = serializers.IntegerField(read_only=True, default=0)
     reservation_count = serializers.SerializerMethodField()
     event_count = serializers.SerializerMethodField()
     document_count = serializers.SerializerMethodField()
@@ -118,6 +122,10 @@ class CustomerSerializer(serializers.ModelSerializer):
             "deleted_at",
             "created_by",
             "updated_by",
+            "current_dossier_count",
+            "closed_dossier_count",
+            "draft_dossier_count",
+            "cancelled_dossier_count",
             "reservation_count",
             "event_count",
             "document_count",
