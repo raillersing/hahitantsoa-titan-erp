@@ -1,5 +1,4 @@
 from django.contrib.auth import get_user_model
-from django.db.models import Count, Max, Prefetch, Q
 from django.http import Http404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics, serializers, status
@@ -10,12 +9,11 @@ from rest_framework.views import APIView
 from apps.identity.permissions import HasReservationSensitiveAccess, HasSuperAdminAccess
 
 from .models import (
-    Customer,
-    CustomerContactPoint,
     DesiredDateWaitlistEntry,
     DesiredDateWaitlistStatus,
     ProspectStatus,
 )
+from .selectors import active_customers
 from .serializers import (
     CommercialTimelineEventSerializer,
     CustomerSerializer,
@@ -51,32 +49,6 @@ class CustomerCommercialTimelineAPIView(APIView):
         timeline = get_commercial_timeline(customer.id)
         serializer = CommercialTimelineEventSerializer(timeline, many=True)
         return Response(serializer.data)
-
-
-def active_customers():
-    return (
-        Customer.objects.filter(is_active=True, is_deleted=False)
-        .annotate(
-            reservation_count=Count(
-                "reservation_drafts",
-                filter=Q(reservation_drafts__is_deleted=False),
-                distinct=True,
-            ),
-            event_count=Count(
-                "hahitantsoa_event_drafts",
-                filter=Q(hahitantsoa_event_drafts__is_deleted=False),
-                distinct=True,
-            ),
-            document_count=Count("document_instances", distinct=True),
-            last_reservation_at=Max(
-                "reservation_drafts__updated_at",
-            ),
-            last_event_at=Max("hahitantsoa_event_drafts__updated_at"),
-            last_document_at=Max("document_instances__updated_at"),
-        )
-        .prefetch_related(Prefetch("contact_points", queryset=CustomerContactPoint.objects.all()))
-        .order_by("display_name")
-    )
 
 
 class CustomerListAPIView(generics.ListAPIView):
