@@ -132,11 +132,13 @@ describe('AppShell', () => {
     expect(screen.queryByRole('link', { name: 'Dates souhaitées' })).not.toBeInTheDocument();
   });
 
-  it('4. La sidebar ne contient plus "Nouvelle réservation"', () => {
+  it('4. La sidebar ne contient plus "Nouvelle réservation" ni "Mobile & Tablette"', () => {
     render(<AppShell activeScope="dashboard" onNavigate={mockNavigate}><div>Content</div></AppShell>);
     const sidebarLinks = screen.getAllByRole('link');
     const newResLink = sidebarLinks.find(link => link.textContent?.includes('Nouvelle réservation'));
+    const mobileTabletLink = sidebarLinks.find(link => link.textContent?.includes('Mobile & Tablette'));
     expect(newResLink).toBeUndefined();
+    expect(mobileTabletLink).toBeUndefined();
   });
 
   it('5. Le bouton dark/light mode change le thème', () => {

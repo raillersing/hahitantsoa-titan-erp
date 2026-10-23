@@ -462,9 +462,6 @@ export default function AppShell({
               <i className="fas fa-shield-alt w-5 text-center"></i><span>Audit & Sécurité</span>
             </a>
           )}
-          <a href="#mobile-tablet" onClick={(e) => { e.preventDefault(); onNavigate("mobile-tablet"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "mobile-tablet" ? "active" : ""}`}>
-            <i className="fas fa-mobile-alt w-5 text-center"></i><span>Mobile & Tablette</span>
-          </a>
           <a href="#help" onClick={(e) => { e.preventDefault(); onNavigate("help"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "help" ? "active" : ""}`}>
             <i className="fas fa-question-circle w-5 text-center"></i><span>Aide & Onboarding</span>
           </a>
