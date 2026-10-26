@@ -300,6 +300,10 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     expect(screen.getByText(DRAFT.event_name)).toBeInTheDocument();
     expect(screen.getAllByText("Grande Salle Hahitantsoa").length).toBeGreaterThan(0);
     expect(screen.getByText("+261 34 00 123 45")).toBeInTheDocument();
+    expect(screen.getAllByText("Location nue").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Salle")).toBeInTheDocument();
+    expect(screen.getByText("010 Chaises pliables")).toBeInTheDocument();
+    expect(screen.queryByText(/Location Salle \/ Espace/i)).not.toBeInTheDocument();
     expect(screen.getByText("Table Ronde 8 Personnes")).toBeInTheDocument();
     expect(screen.getByText("Pack Décoration V.I.P")).toBeInTheDocument();
 

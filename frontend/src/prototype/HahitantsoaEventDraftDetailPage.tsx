@@ -51,6 +51,7 @@ import {
   type ConflictResolutionTarget,
 } from "./DraftConflictResolutionModal";
 import type {
+  BareRentalCompositionItem,
   Customer,
   DocumentInstance,
   HahitantsoaEventDraft,
@@ -77,6 +78,14 @@ type Props = {
   param?: string;
   onBack?: () => void;
 };
+
+const DEFAULT_BARE_RENTAL_COMPOSITION: BareRentalCompositionItem[] = [
+  { label: "Salle", quantity: 1 },
+  { label: "Estrades", quantity: 1 },
+  { label: "Table mariés", quantity: 1 },
+  { label: "Table DJ", quantity: 1 },
+  { label: "Chaises pliables", quantity: 10 },
+];
 
 
 export function parseHahitantsoaServiceNotes(
@@ -465,6 +474,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         allSettlements,
         allExecutions,
         allItems,
+        terms,
       ] = await Promise.all([
         getHahitantsoaEventDraftConfirmationPreflight(param).catch(() => null),
         getHahitantsoaEventDraftDocumentInstances(param).catch(() => []),
@@ -474,12 +484,16 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         getDamageLossSettlements().catch(() => [] as InventoryDamageLossSettlement[]),
         getDamageLossSettlementExecutions().catch(() => [] as InventoryDamageLossSettlementExecution[]),
         getInventoryItems().catch(() => [] as InventoryItem[]),
+        getHahitantsoaCommercialTerms().catch(() => null),
       ]);
 
       setPreflight(nextPreflight);
       setDocuments(nextDocuments);
       setPayments(nextPayments);
       setCatalogItems(allItems);
+      if (terms) {
+        setCommercialTerms(terms);
+      }
 
       const draftReturns = allReturns.filter((r) => r.hahitantsoa_event_draft === param);
       setReturnOperations(draftReturns);
@@ -814,6 +828,16 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     if (fromTerms && !isNaN(fromTerms) && fromTerms > 0) return fromTerms;
     return 500000;
   }, [draft, commercialTerms]);
+
+  const bareRentalItems: BareRentalCompositionItem[] = useMemo(() => {
+    if (draft?.bare_rental_composition && draft.bare_rental_composition.length > 0) {
+      return draft.bare_rental_composition;
+    }
+    if (commercialTerms?.bare_rental_composition && commercialTerms.bare_rental_composition.length > 0) {
+      return commercialTerms.bare_rental_composition;
+    }
+    return DEFAULT_BARE_RENTAL_COMPOSITION;
+  }, [draft?.bare_rental_composition, commercialTerms?.bare_rental_composition]);
 
   const cautionPaidAmount = useMemo(() => {
     return payments
@@ -2514,18 +2538,35 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {/* Highlight venue line if present */}
-              {draft.venue_name && (
+              {/* Premier élément : Location nue avec la composition issue des réglages / snapshot */}
+              {(draft.venue_name || draft.rental_type) && (
                 <tr key="venue-line" className="bg-indigo-50/30">
-                  <td className="py-3 px-4 font-bold text-indigo-950 flex items-center gap-2">
-                    <i className="fa-solid fa-landmark text-indigo-600"></i>
-                    <span>Location Salle / Espace : {draft.venue_name}</span>
+                  <td className="py-3 px-4">
+                    <div className="font-bold text-indigo-950 flex items-center gap-2">
+                      <i className="fa-solid fa-landmark text-indigo-600"></i>
+                      <span>Location nue</span>
+                    </div>
+                    {bareRentalItems.length > 0 && (
+                      <ul className="mt-1.5 ml-6 space-y-0.5 text-xs text-slate-600 list-disc">
+                        {bareRentalItems.map((item, idx) => (
+                          <li key={idx}>
+                            {item.quantity === 1
+                              ? item.label
+                              : `${String(item.quantity).padStart(3, "0")} ${item.label}`}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </td>
                   <td className="py-3 px-4">
-                    <span className="rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-800">Salle de réception</span>
+                    <span className="rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-800">
+                      Salle de réception
+                    </span>
                   </td>
                   <td className="py-3 px-4 text-center font-bold">1 événement</td>
-                  <td className="py-3 px-4 text-xs text-slate-600">{draft.location_details || "Mise à disposition complète de l'espace"}</td>
+                  <td className="py-3 px-4 text-xs text-slate-600">
+                    {draft.location_details || draft.venue_name || "Mise à disposition complète de l'espace"}
+                  </td>
                 </tr>
               )}
 
