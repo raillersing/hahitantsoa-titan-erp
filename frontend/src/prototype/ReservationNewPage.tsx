@@ -1442,7 +1442,8 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     lastOfferRef.current = offerFingerprint;
   }, [offerFingerprint, restoringDraft]);
 
-  const compositionError = domain === "hahitantsoa" && hDetails.rentalType === "Location nue" && hDetails.bareRentalComposition && (
+  const isBareOrLogistics = hDetails.rentalType === "Location nue" || hDetails.rentalType === "Location + logistique";
+  const compositionError = domain === "hahitantsoa" && isBareOrLogistics && hDetails.bareRentalComposition && (
     hDetails.bareRentalComposition.length < 1 || hDetails.bareRentalComposition.length > 50 || hDetails.bareRentalComposition.some(item => !item.label.trim() || item.label.trim().length > 200 || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 9999)
   ) ? "Composition de la location nue : renseignez un libellé et une quantité entière entre 1 et 9999 pour chaque élément (50 éléments maximum)." : null;
 
@@ -2607,7 +2608,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">Remarques</label>
               <textarea className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" rows={2} value={hDetails.remarks} onChange={e => setHDetails({...hDetails, remarks: e.target.value})} placeholder="Notes spécifiques..."></textarea>
-              {hDetails.rentalType === "Location nue" && <BareRentalCompositionEditor value={hDetails.bareRentalComposition || []} onChange={value => setHDetails(current => ({ ...current, bareRentalComposition: value }))} />}
+              {(hDetails.rentalType === "Location nue" || hDetails.rentalType === "Location + logistique") && <BareRentalCompositionEditor value={hDetails.bareRentalComposition || []} onChange={value => setHDetails(current => ({ ...current, bareRentalComposition: value }))} />}
             </div>
           </div>
 
@@ -3746,6 +3747,18 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
                 <p className="mt-1">Du {hDetails.startDate} à {hDetails.startTime} au {hDetails.endDate} à {hDetails.endTime}</p>
                 <p className="mt-1 font-medium">{hDetails.rentalType}</p>
                 <p className="text-xs">{hDetails.durationOption}</p>
+                {hDetails.bareRentalComposition && hDetails.bareRentalComposition.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-slate-200">
+                    <p className="text-xs font-semibold text-slate-700">Composition de la location nue :</p>
+                    <ul className="mt-1 text-xs text-slate-500 list-disc list-inside space-y-0.5">
+                      {hDetails.bareRentalComposition.map((item, idx) => (
+                        <li key={idx}>
+                          {item.quantity === 1 ? item.label : `${String(item.quantity).padStart(3, "0")} ${item.label}`}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </>
             ) : (
               <>

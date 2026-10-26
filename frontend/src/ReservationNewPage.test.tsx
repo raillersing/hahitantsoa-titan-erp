@@ -1896,6 +1896,62 @@ describe('ReservationNewPage', () => {
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
   });
 
+  it("affiche la composition de la location nue en mode Location + logistique et dans le récapitulatif", async () => {
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify({
+      step: 3,
+      maxReachedStep: 6,
+      domain: 'hahitantsoa',
+      path: 'client_first',
+      selectedClientId: 'CUST-001',
+      hDetails: {
+        rentalType: 'Location + logistique',
+        startDate: '2027-11-20',
+        endDate: '2027-11-20',
+        startTime: '08:00',
+        endTime: '20:00',
+        venue: 'Salle des fêtes + jardin',
+        bareRentalComposition: [
+          { label: 'Salle prestige', quantity: 1 },
+          { label: 'Chaises dorées', quantity: 50 },
+        ],
+      },
+    }));
+    const { unmount } = render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    // Step 3 shows BareRentalCompositionEditor even in Location + logistique mode
+    expect(await screen.findByDisplayValue('Salle prestige')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('50')).toBeInTheDocument();
+    unmount();
+
+    // Verify Step 6 (Summary)
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify({
+      step: 6,
+      maxReachedStep: 6,
+      domain: 'hahitantsoa',
+      path: 'client_first',
+      selectedClientId: 'CUST-001',
+      hDetails: {
+        rentalType: 'Location + logistique',
+        startDate: '2027-11-20',
+        endDate: '2027-11-20',
+        startTime: '08:00',
+        endTime: '20:00',
+        venue: 'Salle des fêtes + jardin',
+        bareRentalComposition: [
+          { label: 'Salle prestige', quantity: 1 },
+          { label: 'Chaises dorées', quantity: 50 },
+        ],
+      },
+    }));
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+
+    // Step 6 shows composition under Location nue
+    expect(await screen.findByText('Composition de la location nue :')).toBeInTheDocument();
+    expect(screen.getByText('Salle prestige')).toBeInTheDocument();
+    expect(screen.getByText('050 Chaises dorées')).toBeInTheDocument();
+  });
+
   it("33. Lot 6: permet un saut direct vers l'étape Proforma depuis le mode modification de devis sans valider chaque étape intermédiaire", async () => {
     vi.mocked(getReservationDraft).mockResolvedValue({
       id: 'DRAFT-TITAN-100',
