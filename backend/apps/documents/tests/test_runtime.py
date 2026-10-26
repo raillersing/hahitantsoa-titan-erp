@@ -549,9 +549,11 @@ def test_hahitantsoa_proforma_and_contract_includes_venue_services_and_materials
 
     assert "PROFORMA Hahitantsoa" in proforma_html
     assert "Rakoto Jean & Rasoa Marie" in proforma_html
-    assert "Location de l'espace" in proforma_html
+    assert "Location nue" in proforma_html
     assert "Domaine Hahitantsoa Bypass" in proforma_html
     assert "6 500 000,00" in proforma_html
+    for item in ("Salle", "Estrades", "Table mariés", "Table DJ", "010 Chaises pliables"):
+        assert item in proforma_html
     assert "Traiteur prestige" in proforma_html
     assert "1 500 000,00" in proforma_html
     assert "Ciel étoilé / Guinguette" in proforma_html
@@ -572,8 +574,10 @@ def test_hahitantsoa_proforma_and_contract_includes_venue_services_and_materials
     )
     assert "FACTURE" in invoice_html
     assert "Rakoto Jean & Rasoa Marie" in invoice_html
-    assert "Location de l'espace" in invoice_html
+    assert "Location nue" in invoice_html
     assert "6 500 000,00" in invoice_html
+    for item in ("Salle", "Estrades", "Table mariés", "Table DJ", "010 Chaises pliables"):
+        assert item in invoice_html
     assert "Traiteur prestige" in invoice_html
     assert "1 500 000,00" in invoice_html
     assert "Ciel étoilé / Guinguette" in invoice_html
@@ -752,7 +756,7 @@ def test_hahitantsoa_bare_space_includes_detailed_contents_in_proforma_and_invoi
     for item in ("Salle", "Estrades", "Table mariés", "Table DJ", "010 Chaises pliables"):
         assert item in delivery_note_html
 
-    # 4. In logistics mode, bare space sub-items should not be attached
+    # 4. In logistics mode, venue line is Location nue and bare space sub-items are included
     event_draft.rental_type = "logistics"
     event_draft.save(update_fields=["rental_type"])
 
@@ -762,8 +766,9 @@ def test_hahitantsoa_bare_space_includes_detailed_contents_in_proforma_and_invoi
             template_key="hahitantsoa.proforma.v1",
         )
     )
-    assert "Location de l'espace" in logistics_proforma
-    assert "010 Chaises pliables" not in logistics_proforma
+    assert "Location nue" in logistics_proforma
+    assert "010 Chaises pliables" in logistics_proforma
+    assert "Location de l'espace" not in logistics_proforma
 
 
 @pytest.mark.django_db

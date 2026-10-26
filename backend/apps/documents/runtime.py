@@ -28,7 +28,10 @@ from apps.documents.payment_receipts import (
     payment_receipt_template_key,
 )
 from apps.documents.rendering import resolve_document_template_path
-from apps.hahitantsoa.composition import BARE_RENTAL_LABEL
+from apps.hahitantsoa.composition import (
+    BARE_RENTAL_LABEL,
+    default_bare_rental_composition,
+)
 
 
 class DocumentRuntimeGenerationError(ValueError):
@@ -271,22 +274,25 @@ def _build_hahitantsoa_contract_runtime_context(
     )
 
     venue_name = linked_event_draft.venue_name or "Salle de réception Hahitantsoa"
-    is_bare_rental = linked_event_draft.rental_type in {"bare", "Location nue"}
     snapshot = document_instance.bare_rental_composition_snapshot
-    venue_line_name = BARE_RENTAL_LABEL if is_bare_rental else "Location de l'espace"
-    venue_sub_items = ()
-    if is_bare_rental:
-        if snapshot and snapshot.get("legacy"):
-            venue_line_name = snapshot["label"]
-            venue_sub_items = tuple(snapshot["items"])
-        else:
-            composition = (
-                snapshot["items"] if snapshot else linked_event_draft.bare_rental_composition
+    if snapshot and snapshot.get("legacy"):
+        venue_line_name = snapshot["label"]
+        venue_sub_items = tuple(snapshot["items"])
+    else:
+        venue_line_name = BARE_RENTAL_LABEL
+        composition = (
+            snapshot["items"]
+            if snapshot
+            else (
+                linked_event_draft.bare_rental_composition
+                if linked_event_draft.bare_rental_composition is not None
+                else default_bare_rental_composition()
             )
-            venue_sub_items = tuple(
-                row["label"] if row["quantity"] == 1 else f"{row['quantity']:03d} {row['label']}"
-                for row in composition
-            )
+        )
+        venue_sub_items = tuple(
+            row["label"] if row["quantity"] == 1 else f"{row['quantity']:03d} {row['label']}"
+            for row in composition
+        )
     venue_line = {
         "inventory_item_name": venue_line_name,
         "inventory_item_kind": "venue",
