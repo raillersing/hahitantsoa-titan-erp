@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { saveDraftFiles, readDraftFiles, clearDraftFiles } from "./wizardDraftFiles";
-import { AvailabilityDatePicker } from "../components/AvailabilityDatePicker";
+import { AvailabilityDatePicker, parseAndNormalizeDate } from "../components/AvailabilityDatePicker";
 import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
 import OfficialPaymentReceipt from "./OfficialPaymentReceipt";
 import BareRentalCompositionEditor from "./BareRentalCompositionEditor";
@@ -121,7 +121,7 @@ const TITAN_TRANSPORT_REQUIREMENT = "Un véhicule fourgon est exigé pour le tra
 const TITAN_MOVEMENT_MODES = ["Livraison par Titan", "Prélèvement par le client"];
 
 function formatDateFr(dateStr: string | undefined): string {
-  if (!dateStr) return "Date non renseignée";
+  if (!dateStr || parseAndNormalizeDate(dateStr) !== dateStr) return "Date non renseignée";
   try {
     const [year, month, day] = dateStr.split("-").map(Number);
     const months = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
@@ -135,7 +135,7 @@ export function calculateHahitantsoaPaymentSchedule(totalAmount: number, deposit
   const remaining = Math.max(0, totalAmount - depositAmount);
   const firstInstallment = Math.round((remaining / 2) * 100) / 100;
   const secondInstallment = Math.round((remaining - firstInstallment) * 100) / 100;
-  const date = eventDate ? new Date(`${eventDate}T12:00:00Z`) : null;
+  const date = parseAndNormalizeDate(eventDate) === eventDate ? new Date(`${eventDate}T12:00:00Z`) : null;
   const firstDue = date ? new Date(date) : null;
   const secondDue = date ? new Date(date) : null;
   if (firstDue) firstDue.setUTCMonth(firstDue.getUTCMonth() - 1);
@@ -158,7 +158,7 @@ function toTimezoneAwareIso(date: string, time: string): string {
 }
 
 function reservationPeriodError(startDate: string, startTime: string, endDate: string, endTime: string): string | null {
-  const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value + "T12:00:00Z").toISOString().slice(0, 10) === value;
+  const validDate = (value: string) => Boolean(value) && parseAndNormalizeDate(value) === value;
   if (!validDate(startDate) || !validDate(endDate) || !/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) return "Renseignez des dates et heures valides pour la réservation.";
   const start = Date.parse(toTimezoneAwareIso(startDate, startTime));
   const end = Date.parse(toTimezoneAwareIso(endDate, endTime));
@@ -166,6 +166,7 @@ function reservationPeriodError(startDate: string, startTime: string, endDate: s
 }
 
 function calendarDate(date: Date): string {
+  if (!Number.isFinite(date.getTime())) return "";
   return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
 }
 
@@ -402,8 +403,9 @@ interface TitanDetails {
 export function resolveHahitantsoaEventName(
   details: HahitantsoaDetails,
   fallbackCustomerName?: string,
+  company = false,
 ): string {
-  if (details.eventType === "Mariage") {
+  if (details.eventType === "Mariage" && !company) {
     const groom = details.mariageGroomName?.trim();
     const bride = details.mariageBrideName?.trim();
     if (groom && bride) return `${groom} & ${bride}`;
@@ -691,6 +693,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
   const [prospectProformaEmission, setProspectProformaEmission] = useState<ProspectProformaEmission | null>(null);
   const [documentReference, setDocumentReference] = useState("");
   const [serverDraftSaving, setServerDraftSaving] = useState(false);
+  const navigationSavingRef = useRef(false);
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [discountIsPercentage, setDiscountIsPercentage] = useState<boolean>(true);
   const [discountReason, setDiscountReason] = useState<string>("");
@@ -846,6 +849,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
   const [selectedMaterials, setSelectedMaterials] = useState<SelectedMaterial[]>([]);
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
   const [serviceCategoryFilter, setServiceCategoryFilter] = useState<string>("all");
+  const [serviceSearch, setServiceSearch] = useState("");
   const [deliveryFee, setDeliveryFee] = useState<string>("");
 
   const [payment, setPayment] = useState<PaymentData>({ method: "Espèces", amount: "", percent: (TITAN_DEFAULT_ADVANCE_RATE * 100).toString() });
@@ -1305,8 +1309,12 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       setClientMode(data.clientMode === "new" ? "new" : "existing"); setSelectedClientId(data.selectedClientId || "");
       setNewClient({ ...newClient, ...data.newClient, additionalEmails: Array.isArray(data.newClient?.additionalEmails) ? data.newClient.additionalEmails : [], additionalPhones: Array.isArray(data.newClient?.additionalPhones) ? data.newClient.additionalPhones : [] });
       setDomain(data.domain === "titan" || data.domain === "hahitantsoa" ? data.domain : null);
-      setHDetails({ ...hDetails, ...data.hDetails, bareRentalComposition: data.hDetails?.bareRentalComposition ?? (persistedSnapshot && "bare_rental_composition" in persistedSnapshot ? persistedSnapshot.bare_rental_composition : hDetails.bareRentalComposition) });
-      setTDetails({ ...tDetails, ...data.tDetails, startTime: data.tDetails?.startTime || "08:00", endTime: data.tDetails?.endTime || "22:00" });
+      const restoredDate = (value: unknown): string => typeof value === "string" && parseAndNormalizeDate(value) === value ? value : "";
+      const restoredH = data.hDetails && typeof data.hDetails === "object" ? data.hDetails : {};
+      const restoredT = data.tDetails && typeof data.tDetails === "object" ? data.tDetails : {};
+      if ([restoredH.startDate, restoredH.endDate, restoredT.startDate, restoredT.endDate].some(value => value && !restoredDate(value))) setDraftWarning("Les informations sont conservées. Corrigez les dates incomplètes du brouillon pour continuer.");
+      setHDetails({ ...hDetails, ...restoredH, startDate: restoredDate(restoredH.startDate), endDate: restoredDate(restoredH.endDate), bareRentalComposition: data.hDetails?.bareRentalComposition ?? (persistedSnapshot && "bare_rental_composition" in persistedSnapshot ? persistedSnapshot.bare_rental_composition : hDetails.bareRentalComposition) });
+      setTDetails({ ...tDetails, ...restoredT, startDate: restoredDate(restoredT.startDate), endDate: restoredDate(restoredT.endDate), pickupDate: restoredDate(restoredT.pickupDate), returnDate: restoredDate(restoredT.returnDate), startTime: restoredT.startTime || "08:00", endTime: restoredT.endTime || "22:00" });
       setSelectedMaterials(Array.isArray(data.selectedMaterials) ? data.selectedMaterials : []); setSelectedServices(Array.isArray(data.selectedServices) ? data.selectedServices : []);
       setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment || { method: "Espèces", amount: "", percent: (TITAN_DEFAULT_ADVANCE_RATE * 100).toString() });
       setClientAttachments((data.clientAttachments || []).map(restorePage));
@@ -1480,7 +1488,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           customer_id: customerId,
           public_reference: customRef,
           event_type: toHahitantsoaEventType(hDetails.eventType),
-          event_name: resolveHahitantsoaEventName(hDetails, activeClient?.name),
+          event_name: resolveHahitantsoaEventName(hDetails, activeClient?.name, activeClient?.type === "Entreprise"),
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
           service_notes: formatHahitantsoaServiceNotes(selectedServices),
@@ -1523,7 +1531,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
 
   // Navigation
   const goNext = async () => {
-    if (serverDraftSaving) return;
+    if (serverDraftSaving || navigationSavingRef.current) return;
     setSubmitError(null);
     const clientStep = path === "client_first" ? 1 : 2;
     if (step === clientStep && !(clientMode === "existing" ? selectedClientId : newClient.name.trim())) { setSubmitError("Sélectionnez un client ou renseignez son nom."); return; }
@@ -1537,8 +1545,12 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       setSubmitError("Impossible de continuer : les conditions tarifaires officielles n'ont pas pu être chargées depuis le serveur. Veuillez réessayer le chargement des tarifs.");
       return;
     }
+    navigationSavingRef.current = true;
     try {
-      if (step === clientStep && isEditingClient) await ensureCustomerId();
+      if (step === clientStep) {
+        setServerDraftSaving(true);
+        await ensureCustomerId();
+      }
       const details = domain === "hahitantsoa" ? hDetails : tDetails;
       const reachesPersistableOfferCompletion = step === 5
         && domain !== null
@@ -1551,6 +1563,9 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     } catch (error: any) {
       setSubmitError(error?.message || "Impossible d’enregistrer le dossier.");
       return;
+    } finally {
+      navigationSavingRef.current = false;
+      setServerDraftSaving(false);
     }
     let nextStep = step + 1;
     if (step === 3 && domain === 'hahitantsoa' && hDetails.rentalType === 'Location nue') {
@@ -1724,7 +1739,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           customer_id: customerId,
           public_reference: customRef,
           event_type: toHahitantsoaEventType(hDetails.eventType),
-          event_name: resolveHahitantsoaEventName(hDetails, activeClient?.name),
+          event_name: resolveHahitantsoaEventName(hDetails, activeClient?.name, activeClient?.type === "Entreprise"),
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
           service_notes: formatHahitantsoaServiceNotes(selectedServices),
@@ -1764,7 +1779,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           customer_id: customerId,
           public_reference: customRef,
           event_type: toHahitantsoaEventType(hDetails.eventType),
-          event_name: resolveHahitantsoaEventName(hDetails, activeClient?.name),
+          event_name: resolveHahitantsoaEventName(hDetails, activeClient?.name, activeClient?.type === "Entreprise"),
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
           service_notes: formatHahitantsoaServiceNotes(selectedServices),
@@ -2268,7 +2283,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
         <button 
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm disabled:opacity-50"
           onClick={goNext}
-          disabled={!activeClient}
+          disabled={!activeClient || serverDraftSaving}
         >
           Continuer
         </button>
@@ -2402,7 +2417,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
             <div className="md:col-span-2 pt-4 border-t border-slate-100">
               <h4 className="font-bold text-slate-800 mb-4">Personnes concernées / Référents</h4>
             </div>
-            {hDetails.eventType === 'Mariage' ? (
+            {hDetails.eventType === 'Mariage' && activeClient?.type !== 'Entreprise' ? (
               <>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Marié(e) 1</label>
@@ -3472,7 +3487,11 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
 
       const displayedServices = hahitantsoaServices
         .filter(s => s.active !== false)
-        .filter(s => serviceCategoryFilter === 'all' || s.category === serviceCategoryFilter);
+        .filter(s => serviceCategoryFilter === 'all' || s.category === serviceCategoryFilter)
+        .filter(s => {
+          const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr').trim();
+          return normalize(`${s.name} ${s.desc || ''}`).includes(normalize(serviceSearch));
+        });
 
       return (
         <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in space-y-6">
@@ -3486,6 +3505,11 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
             </span>
           </div>
 
+          <div>
+            <label htmlFor="wizard-service-search" className="block text-sm font-medium text-slate-700 mb-1">Rechercher un service</label>
+            <input id="wizard-service-search" type="search" value={serviceSearch} onChange={event => setServiceSearch(event.target.value)} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" placeholder="Nom ou description du service…" />
+            <p role="status" className="text-xs text-slate-500 mt-1">{displayedServices.length} prestation(s) trouvée(s). Les sélections restent conservées.</p>
+          </div>
           {/* Category Pills */}
           <div className="flex flex-wrap gap-2">
             {serviceCategories.map(cat => {
@@ -3508,6 +3532,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
 
           {/* Services Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {displayedServices.length === 0 && <p className="text-sm text-slate-500">Aucun service ne correspond à cette recherche.</p>}
             {displayedServices.map(srv => {
               const selected = selectedServices.find(s => s.id === srv.id);
               const isSelected = !!selected;

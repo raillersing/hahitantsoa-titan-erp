@@ -423,7 +423,7 @@ export function AvailabilityDatePicker({
 
   // Titan availability check for selected day
   useEffect(() => {
-    if (!showAvailabilityPreview || !effectiveSelectedDate) {
+    if (!showAvailabilityPreview || !effectiveSelectedDate || parseAndNormalizeDate(effectiveSelectedDate) !== effectiveSelectedDate) {
       setAvailability({ status: "idle" });
       return;
     }
@@ -967,7 +967,7 @@ export function AvailabilityDatePicker({
       )}
 
       {/* Live Titan Availability Info */}
-      {showAvailabilityPreview && effectiveSelectedDate && (
+      {showAvailabilityPreview && effectiveSelectedDate && parseAndNormalizeDate(effectiveSelectedDate) === effectiveSelectedDate && (
         <div
           aria-live="polite"
           className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-3 text-xs text-slate-700 dark:text-slate-300 space-y-2"
