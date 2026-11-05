@@ -11,7 +11,8 @@ from decimal import Decimal
 import pytest
 
 from apps.inventory.models import InventoryItem
-from apps.material_package.models import MaterialPackage
+from apps.material_package.models import MaterialPackage, MaterialPackageLine
+from apps.material_package.services import save_material_package
 
 pytestmark = pytest.mark.django_db
 
@@ -507,3 +508,252 @@ def test_create_package_rejects_inactive_item(authenticated_client):
         MATERIAL_PACKAGE_LIST_URL, payload, content_type="application/json"
     )
     assert response.status_code == 400
+
+
+@pytest.mark.parametrize("change", [{"description": "Historique corrigé"}, {"is_active": False}])
+def test_maintain_historical_composition_with_inactive_item(authenticated_client, change):
+    item = InventoryItem.objects.create(name="Chaise retirée", kind="material", is_active=False)
+    package = _create_package("Ancien pack")
+    line = MaterialPackageLine.objects.create(package=package, inventory_item=item, quantity=3)
+
+    response = authenticated_client.patch(
+        f"{MATERIAL_PACKAGE_LIST_URL}{package.id}/", change, content_type="application/json"
+    )
+
+    assert response.status_code == 200
+    package.refresh_from_db()
+    line.refresh_from_db()
+    assert package.description == change.get("description", "")
+    assert package.is_active is change.get("is_active", True)
+    assert line.inventory_item_id == item.pk
+    assert line.quantity == 3
+
+
+def test_reactivate_historical_composition_rejects_inactive_item(authenticated_client):
+    item = InventoryItem.objects.create(name="Ancien article", kind="material", is_active=False)
+    package = _create_package("Pack inactif", is_active=False)
+    line = MaterialPackageLine.objects.create(package=package, inventory_item=item, quantity=2)
+
+    response = authenticated_client.patch(
+        f"{MATERIAL_PACKAGE_LIST_URL}{package.id}/",
+        {"is_active": True, "name": "Ne doit pas changer"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    package.refresh_from_db()
+    assert package.is_active is False
+    assert package.name == "Pack inactif"
+    assert package.lines.get().pk == line.pk
+
+
+@pytest.mark.parametrize("method", ["post", "patch"])
+def test_composition_quantity_defaults_to_one(authenticated_client, method):
+    item = InventoryItem.objects.create(name="Article à l'unité", kind="material")
+    url = MATERIAL_PACKAGE_LIST_URL
+    payload = {"name": "Pack quantité implicite", "lines": [{"inventory_item": str(item.pk)}]}
+    if method == "patch":
+        package = _create_package("Pack existant")
+        url += f"{package.pk}/"
+
+    response = getattr(authenticated_client, method)(url, payload, content_type="application/json")
+
+    assert response.status_code == (201 if method == "post" else 200)
+    assert response.json()["lines"][0]["quantity"] == 1
+
+
+@pytest.mark.parametrize("kind", ["deleted", "missing"])
+def test_composition_rejects_deleted_or_missing_reference(authenticated_client, kind):
+    from uuid import uuid4
+
+    item_id = uuid4()
+    if kind == "deleted":
+        item_id = InventoryItem.objects.create(
+            name="Supprimé", kind="material", is_active=True, is_deleted=True
+        ).pk
+
+    response = authenticated_client.post(
+        MATERIAL_PACKAGE_LIST_URL,
+        {"name": "Pack invalide", "lines": [{"inventory_item": str(item_id), "quantity": 1}]},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert not MaterialPackage.objects.filter(name="Pack invalide").exists()
+
+
+def test_replace_composition_rolls_back_attributes_and_lines_on_write_failure(
+    authenticated_client, monkeypatch
+):
+    item = InventoryItem.objects.create(name="Article conservé", kind="material")
+    replacement = InventoryItem.objects.create(name="Article nouveau", kind="article")
+    package = _create_package("Pack conservé")
+    original = MaterialPackageLine.objects.create(package=package, inventory_item=item, quantity=4)
+
+    def fail_after_delete(*args, **kwargs):
+        raise RuntimeError("Synthetic composition write failure")
+
+    monkeypatch.setattr(MaterialPackageLine.objects, "bulk_create", fail_after_delete)
+    with pytest.raises(RuntimeError, match="Synthetic composition write failure"):
+        authenticated_client.patch(
+            f"{MATERIAL_PACKAGE_LIST_URL}{package.pk}/",
+            {
+                "name": "Ne doit pas persister",
+                "lines": [{"inventory_item": str(replacement.pk), "quantity": 2}],
+            },
+            content_type="application/json",
+        )
+
+    package.refresh_from_db()
+    assert package.name == "Pack conservé"
+    assert package.lines.get().pk == original.pk
+    assert package.lines.get().quantity == 4
+
+
+def test_package_write_attributes_actor(authenticated_client, django_user_model):
+    actor = django_user_model.objects.get(username="material-package-tester")
+    response = authenticated_client.post(
+        MATERIAL_PACKAGE_LIST_URL, {"name": "Pack attribué"}, content_type="application/json"
+    )
+    assert response.status_code == 201
+    package = MaterialPackage.objects.get(pk=response.json()["id"])
+    assert package.created_by_id == actor.pk
+    assert package.updated_by_id == actor.pk
+
+    package.updated_by = None
+    package.save(update_fields=["updated_by"])
+    response = authenticated_client.patch(
+        f"{MATERIAL_PACKAGE_LIST_URL}{package.pk}/",
+        {"description": "Modification attribuée"},
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    package.refresh_from_db()
+    assert package.updated_by_id == actor.pk
+    assert package.created_by_id == actor.pk
+
+
+@pytest.mark.parametrize("quantity", [0, -1, True])
+def test_package_service_enforces_positive_integer_quantity(quantity):
+    from rest_framework.exceptions import ValidationError
+
+    item = InventoryItem.objects.create(name="Article direct", kind="material")
+    with pytest.raises(ValidationError):
+        save_material_package(
+            attributes={"name": "Pack service invalide"},
+            lines=[{"inventory_item": item, "quantity": quantity}],
+        )
+    assert not MaterialPackage.objects.filter(name="Pack service invalide").exists()
+
+
+def test_package_service_revalidates_inventory_after_serializer_check():
+    from rest_framework.exceptions import ValidationError
+
+    from apps.material_package.serializers import MaterialPackageCreateSerializer
+
+    item = InventoryItem.objects.create(name="Article devenu inactif", kind="material")
+    serializer = MaterialPackageCreateSerializer(
+        data={"name": "Pack concurrent", "lines": [{"inventory_item": str(item.pk)}]}
+    )
+    assert serializer.is_valid(), serializer.errors
+    InventoryItem.objects.filter(pk=item.pk).update(is_active=False)
+
+    with pytest.raises(ValidationError):
+        serializer.save()
+    assert not MaterialPackage.objects.filter(name="Pack concurrent").exists()
+
+
+def test_package_service_rejects_duplicate_composition():
+    from rest_framework.exceptions import ValidationError
+
+    item = InventoryItem.objects.create(name="Article en double", kind="material")
+    with pytest.raises(ValidationError):
+        save_material_package(
+            attributes={"name": "Doublon direct"},
+            lines=[{"inventory_item": item, "quantity": 1}] * 2,
+        )
+    assert not MaterialPackage.objects.filter(name="Doublon direct").exists()
+
+
+def test_reactivate_package_after_inventory_reference_is_restored(authenticated_client):
+    item = InventoryItem.objects.create(name="Article rétabli", kind="material")
+    package = _create_package("Pack à réactiver", is_active=False)
+    line = MaterialPackageLine.objects.create(package=package, inventory_item=item, quantity=2)
+
+    response = authenticated_client.patch(
+        f"{MATERIAL_PACKAGE_LIST_URL}{package.pk}/",
+        {"is_active": True},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    package.refresh_from_db()
+    assert package.is_active is True
+    assert package.lines.get().pk == line.pk
+
+
+@pytest.mark.parametrize("violation", ["quantity", "duplicate"])
+def test_composition_database_constraints(violation):
+    from django.db import IntegrityError, transaction
+
+    item = InventoryItem.objects.create(name="Article contraint", kind="material")
+    package = _create_package("Pack contraint")
+    MaterialPackageLine.objects.create(package=package, inventory_item=item, quantity=1)
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        MaterialPackageLine.objects.create(
+            package=package,
+            inventory_item=(
+                item
+                if violation == "duplicate"
+                else InventoryItem.objects.create(name="Autre article", kind="article")
+            ),
+            quantity=0 if violation == "quantity" else 1,
+        )
+    assert package.lines.count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("violation", ["quantity", "duplicate"])
+def test_composition_migration_rejects_invalid_history_without_modifying_it(violation):
+    from django.db import connection
+    from django.db.migrations.executor import MigrationExecutor
+
+    old_target = ("material_package", "0002_add_materialpackage_image_url")
+    new_target = ("material_package", "0003_composition_constraints")
+    executor = MigrationExecutor(connection)
+    executor.migrate([old_target])
+    state = executor.loader.project_state([old_target]).apps
+    HistoricalLine = state.get_model("material_package", "MaterialPackageLine")
+    package = _create_package("Historique à examiner")
+    item = InventoryItem.objects.create(name="Article historique", kind="material")
+    try:
+        HistoricalLine.objects.create(
+            package_id=package.pk,
+            inventory_item_id=item.pk,
+            quantity=0 if violation == "quantity" else 1,
+        )
+        if violation == "duplicate":
+            HistoricalLine.objects.create(
+                package_id=package.pk, inventory_item_id=item.pk, quantity=2
+            )
+        before = list(
+            HistoricalLine.objects.filter(package_id=package.pk)
+            .order_by("pk")
+            .values_list("id", "inventory_item_id", "quantity")
+        )
+
+        with pytest.raises(RuntimeError, match="No historical composition has been modified"):
+            MigrationExecutor(connection).migrate([new_target])
+
+        after = list(
+            HistoricalLine.objects.filter(package_id=package.pk)
+            .order_by("pk")
+            .values_list("id", "inventory_item_id", "quantity")
+        )
+        assert after == before
+    finally:
+        # Only disposable records created by this test are removed to restore the
+        # schema for subsequent tests; the migration itself never repairs rows.
+        HistoricalLine.objects.filter(package_id=package.pk).delete()
+        MigrationExecutor(connection).migrate([new_target])

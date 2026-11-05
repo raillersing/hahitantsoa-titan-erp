@@ -10,14 +10,22 @@ def save_material_package(*, attributes, lines, instance=None):
     """Replace a composition atomically after checking the locked inventory."""
     if instance is not None:
         instance = MaterialPackage.objects.select_for_update().get(pk=instance.pk)
-    if lines is None and instance is not None:
+    activating = (
+        instance is not None and not instance.is_active and attributes.get("is_active", False)
+    )
+    if lines is not None:
+        lines = [dict(line, quantity=line.get("quantity", 1)) for line in lines]
+        checked_lines = lines
+    elif activating:
         checked_lines = list(instance.lines.select_related("inventory_item"))
         checked_lines = [
             {"inventory_item": line.inventory_item, "quantity": line.quantity}
             for line in checked_lines
         ]
     else:
-        checked_lines = lines or []
+        # Historical compositions remain maintainable without making an inactive
+        # inventory reference admissible for a new composition or reactivation.
+        checked_lines = []
 
     item_ids = [line["inventory_item"].pk for line in checked_lines]
     if len(item_ids) != len(set(item_ids)):
@@ -37,7 +45,7 @@ def save_material_package(*, attributes, lines, instance=None):
         raise serializers.ValidationError(
             {"lines": "Sélectionnez uniquement des articles actifs de l'inventaire."}
         )
-    if any(line["quantity"] < 1 for line in checked_lines):
+    if any(type(line["quantity"]) is not int or line["quantity"] < 1 for line in checked_lines):
         raise serializers.ValidationError({"lines": "Les quantités doivent être positives."})
 
     if instance is None:

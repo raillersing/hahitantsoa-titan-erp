@@ -13,7 +13,7 @@ class MaterialPackageLineSerializer(serializers.ModelSerializer):
             is_active=True, is_deleted=False, kind__in=INVENTORY_ITEM_KIND_VALUES
         )
     )
-    quantity = serializers.IntegerField(min_value=1)
+    quantity = serializers.IntegerField(min_value=1, required=False, default=1)
 
     class Meta:
         model = MaterialPackageLine
