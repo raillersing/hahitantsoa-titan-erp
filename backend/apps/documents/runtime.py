@@ -10,6 +10,7 @@ from django.core.files.storage import default_storage
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from apps.documents.commercial import (
     CommercialDocumentCustomerContactPointContext,
@@ -347,12 +348,38 @@ def _build_hahitantsoa_contract_runtime_context(
         if match:
             custom_event_type = match.group(1).strip()
 
+    period_snapshot = document_instance.event_period_snapshot
+    period_start = (
+        parse_datetime(period_snapshot["start_at"])
+        if period_snapshot
+        else linked_event_draft.start_at
+    )
+    period_end = (
+        parse_datetime(period_snapshot["end_at"]) if period_snapshot else linked_event_draft.end_at
+    )
+    duration_minutes = int((period_end - period_start).total_seconds() // 60)
+    duration_hours, duration_remainder = divmod(duration_minutes, 60)
+
     return {
         "template": {
             "label": document_instance.template_label,
             "key": document_instance.template_key,
         },
         "event_draft": {
+            "invoice_period": {
+                "start_at": period_start,
+                "end_at": period_end,
+                "duration_label": (
+                    period_snapshot["duration_label"]
+                    if period_snapshot
+                    else linked_event_draft.get_duration_option_display()
+                ),
+                "duration_hours": duration_hours,
+                "duration_minutes": duration_remainder,
+                "ends_next_day": (
+                    timezone.localtime(period_end).date() > timezone.localtime(period_start).date()
+                ),
+            },
             "customer_id": document_instance.customer_id,
             "public_reference": linked_event_draft.public_reference,
             "party_type": document_instance.customer_party_type,

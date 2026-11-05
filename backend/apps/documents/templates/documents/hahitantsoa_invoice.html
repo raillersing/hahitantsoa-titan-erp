@@ -266,7 +266,19 @@
         </div>
         <div class="identity-row">
           <strong>EVENEMENT DU :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y" }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.invoice_period.start_at|date:"d/m/Y" }}{% endif %}</span>
+        </div>
+        <div class="identity-row">
+          <strong>FORMULE :</strong>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.duration_option {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.invoice_period.duration_label }}{% endif %}</span>
+        </div>
+        <div class="identity-row">
+          <strong>PÉRIODE :</strong>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.start_at {% templatetag closevariable %} — {% templatetag openvariable %} event.end_at {% templatetag closevariable %}</span>{% else %}Du {{ context.event_draft.invoice_period.start_at|date:"d/m/Y à H:i" }} au {{ context.event_draft.invoice_period.end_at|date:"d/m/Y à H:i" }}{% if context.event_draft.invoice_period.ends_next_day %} (fin le lendemain ou après){% endif %}{% endif %}</span>
+        </div>
+        <div class="identity-row">
+          <strong>DURÉE :</strong>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.duration {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.invoice_period.duration_hours }} h{% if context.event_draft.invoice_period.duration_minutes %} {{ context.event_draft.invoice_period.duration_minutes }} min{% endif %}{% endif %}</span>
         </div>
       </section>
 
