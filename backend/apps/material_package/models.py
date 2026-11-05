@@ -43,6 +43,14 @@ class MaterialPackageLine(UUIDModel, TimestampedModel):
 
     class Meta:
         ordering = ["created_at", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0), name="material_package_line_quantity_positive"
+            ),
+            models.UniqueConstraint(
+                fields=("package", "inventory_item"), name="material_package_line_item_unique"
+            ),
+        ]
         verbose_name = "Material Package Line"
         verbose_name_plural = "Material Package Lines"
 

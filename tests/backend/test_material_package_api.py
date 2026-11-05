@@ -10,6 +10,7 @@ from decimal import Decimal
 
 import pytest
 
+from apps.inventory.models import InventoryItem
 from apps.material_package.models import MaterialPackage
 
 pytestmark = pytest.mark.django_db
@@ -432,3 +433,77 @@ def test_delete_nonexistent_returns_404(authenticated_client):
 
     response = authenticated_client.delete(f"{MATERIAL_PACKAGE_LIST_URL}{uuid4()}/")
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Lot 4A / R3: Composition Constraints & Validation
+# ---------------------------------------------------------------------------
+
+
+def test_create_package_with_valid_composition(authenticated_client):
+    item1 = InventoryItem.objects.create(name="Table ronde 150cm", kind="material")
+    item2 = InventoryItem.objects.create(name="Chaise Napoléon", kind="material")
+
+    payload = {
+        "name": "Pack Banquet",
+        "description": "Tables et chaises",
+        "price": "500000.00",
+        "lines": [
+            {"inventory_item": str(item1.id), "quantity": 5},
+            {"inventory_item": str(item2.id), "quantity": 40},
+        ],
+    }
+    response = authenticated_client.post(
+        MATERIAL_PACKAGE_LIST_URL, payload, content_type="application/json"
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert len(data["lines"]) == 2
+    assert {line["inventory_item"] for line in data["lines"]} == {str(item1.id), str(item2.id)}
+
+
+def test_create_package_rejects_duplicate_items_in_composition(authenticated_client):
+    item = InventoryItem.objects.create(name="Chaise Chiavari", kind="material")
+
+    payload = {
+        "name": "Pack Doublon",
+        "lines": [
+            {"inventory_item": str(item.id), "quantity": 10},
+            {"inventory_item": str(item.id), "quantity": 5},
+        ],
+    }
+    response = authenticated_client.post(
+        MATERIAL_PACKAGE_LIST_URL, payload, content_type="application/json"
+    )
+    assert response.status_code == 400
+    assert "lines" in response.json()
+
+
+def test_create_package_rejects_nonpositive_quantity(authenticated_client):
+    item = InventoryItem.objects.create(name="Nappe blanche", kind="material")
+
+    payload = {
+        "name": "Pack Quantité Nulle",
+        "lines": [
+            {"inventory_item": str(item.id), "quantity": 0},
+        ],
+    }
+    response = authenticated_client.post(
+        MATERIAL_PACKAGE_LIST_URL, payload, content_type="application/json"
+    )
+    assert response.status_code == 400
+
+
+def test_create_package_rejects_inactive_item(authenticated_client):
+    item = InventoryItem.objects.create(name="Article Déclassé", kind="material", is_active=False)
+
+    payload = {
+        "name": "Pack Article Inactif",
+        "lines": [
+            {"inventory_item": str(item.id), "quantity": 2},
+        ],
+    }
+    response = authenticated_client.post(
+        MATERIAL_PACKAGE_LIST_URL, payload, content_type="application/json"
+    )
+    assert response.status_code == 400
