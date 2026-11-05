@@ -54,6 +54,9 @@ class CustomerSerializer(serializers.ModelSerializer):
     document_count = serializers.SerializerMethodField()
     last_activity_at = serializers.SerializerMethodField()
     contact_points = CustomerContactPointSerializer(many=True, required=False)
+    idempotency_key = serializers.CharField(
+        max_length=128, required=False, allow_blank=True, default=""
+    )
 
     def get_reservation_count(self, obj):
         return getattr(obj, "reservation_count", 0)
@@ -106,6 +109,7 @@ class CustomerSerializer(serializers.ModelSerializer):
             "representative_name",
             "representative_role",
             "notes",
+            "idempotency_key",
             "is_active",
             "prospect_request_type",
             "prospect_interest_domain",
