@@ -75,6 +75,80 @@ def test_generate_document_instance_html_success(isolated_document_storage) -> N
     assert "2 x" in result.html_content
 
 
+@pytest.mark.parametrize("option", ["day", "night_1", "night_2"])
+def test_invoice_period_snapshot_survives_event_changes(option):
+    draft = _hahitantsoa_event_draft_with_line()
+    draft.duration_option = option
+    draft.save(update_fields=["duration_option"])
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft, template_key="hahitantsoa.invoice.v1"
+    )
+    original = instance.event_period_snapshot.copy()
+    draft.start_at += timedelta(days=5)
+    draft.end_at += timedelta(days=5)
+    draft.save(update_fields=["start_at", "end_at"])
+    result = generate_document_instance_html(document_instance=instance)
+    instance.refresh_from_db()
+    assert instance.event_period_snapshot == original
+    expected = timezone.localtime(timezone.datetime.fromisoformat(original["start_at"]))
+    assert expected.strftime("%d/%m/%Y") in result.html_content
+    assert original["duration_label"] in result.html_content
+
+
+def test_unrendered_legacy_invoice_captures_period_only_on_first_generation():
+    draft = _hahitantsoa_event_draft_with_line()
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft, template_key="hahitantsoa.invoice.v1"
+    )
+    instance.event_period_snapshot = None
+    instance.save(update_fields=["event_period_snapshot"])
+    generate_document_instance_html(document_instance=instance)
+    instance.refresh_from_db()
+    original = instance.event_period_snapshot.copy()
+    draft.start_at += timedelta(days=5)
+    draft.end_at += timedelta(days=5)
+    draft.save(update_fields=["start_at", "end_at"])
+    generate_document_instance_html(document_instance=instance, force=True)
+    instance.refresh_from_db()
+    assert instance.event_period_snapshot == original
+
+
+def test_rendered_legacy_invoice_does_not_fabricate_historical_period():
+    draft = _hahitantsoa_event_draft_with_line()
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft, template_key="hahitantsoa.invoice.v1"
+    )
+    generate_document_instance_html(document_instance=instance)
+    instance.event_period_snapshot = None
+    instance.save(update_fields=["event_period_snapshot"])
+    original_checksum = instance.content_checksum
+    with pytest.raises(DocumentRuntimeGenerationError):
+        generate_document_instance_html(document_instance=instance)
+    instance.refresh_from_db()
+    assert instance.content_checksum == original_checksum
+    assert instance.event_period_snapshot is None
+    result = generate_document_instance_html(document_instance=instance, force=True)
+    assert "document ancien sans instantané" in result.html_content
+    instance.refresh_from_db()
+    assert instance.event_period_snapshot is None
+
+
+@pytest.mark.parametrize(
+    "snapshot",
+    [[], {}, {"start_at": "bad", "end_at": "bad", "duration_label": "Jour"}],
+)
+def test_malformed_invoice_period_returns_controlled_generation_error(snapshot):
+    draft = _hahitantsoa_event_draft_with_line()
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft, template_key="hahitantsoa.invoice.v1"
+    )
+    instance.event_period_snapshot = snapshot
+    instance.save(update_fields=["event_period_snapshot"])
+    with pytest.raises(DocumentRuntimeGenerationError) as caught:
+        generate_document_instance_html(document_instance=instance)
+    assert caught.value.code == "invalid_event_period_snapshot"
+
+
 def test_generate_document_instance_html_determinism() -> None:
     draft = _draft_with_line()
     instance1 = create_document_instance_from_reservation_draft(
