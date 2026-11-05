@@ -4,8 +4,8 @@ export type PaperSize = "A4" | "THERMAL_80MM";
 
 export const PAPER_DIMENSIONS: Record<PaperSize, { width: number; height: number }> = {
   A4: { width: 794, height: 1123 },
-  // CSS pixels at 96 dpi: 80 mm x 120 mm thermal receipt.
-  THERMAL_80MM: { width: 302, height: 454 },
+  // CSS pixels at 96 dpi: the client's fixed 80 mm x 104 mm thermal paper.
+  THERMAL_80MM: { width: 302, height: 393 },
 };
 
 export const PAPER_LABELS: Record<PaperSize, string> = {
@@ -18,11 +18,15 @@ export function detectPaperSize(html: string): PaperSize {
   return "A4";
 }
 
+function countExplicitPages(html: string): number {
+  const pageClasses = new Set(["page", "document-page", "contract-page", "receipt-page"]);
+  const pageMarkers = [...html.matchAll(/class=["']([^"']*)["']/g)]
+    .filter((match) => match[1].split(/\s+/).some((name) => pageClasses.has(name)));
+  return pageMarkers.length;
+}
+
 export function detectPageCount(html: string): number {
-  const pageMarkers = html.match(
-    /class=["'][^"']*\b(?:document-page|contract-page|page)\b[^"']*["']/g,
-  );
-  return Math.max(1, pageMarkers?.length ?? 1);
+  return Math.max(1, countExplicitPages(html));
 }
 
 export function detectLandscapeCount(html: string): number {
@@ -120,10 +124,17 @@ export function DocumentCanvasViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const paperSize = initialPaperSize || detectPaperSize(html);
-  const pageCount = detectPageCount(html);
+  const explicitPageCount = countExplicitPages(html);
+  const pageCount = Math.max(1, explicitPageCount);
+  const unknownPagination = (paperSize === "THERMAL_80MM" && explicitPageCount === 0)
+    || /<body\b[^>]*\bdata-pagination=["']native["']/i.test(html);
   const landscapeCount = detectLandscapeCount(html);
   const isLandscapeDocument = paperSize === "A4" && landscapeCount > 0;
-  const dimensions = PAPER_DIMENSIONS[paperSize];
+  const declaredThermalHeight = /@page\s*\{[^}]*size:\s*80mm\s+([\d.]+)mm/i.exec(html);
+  const heightMillimeters = Number(declaredThermalHeight?.[1]);
+  const dimensions = paperSize === "THERMAL_80MM" && Number.isFinite(heightMillimeters) && heightMillimeters > 0
+    ? { ...PAPER_DIMENSIONS.THERMAL_80MM, height: Math.round(heightMillimeters * 96 / 25.4) }
+    : PAPER_DIMENSIONS[paperSize];
 
   const contentWidth = isLandscapeDocument ? PAPER_DIMENSIONS.A4.height : dimensions.width;
   const portraitCount = Math.max(0, pageCount - landscapeCount);
@@ -171,7 +182,7 @@ export function DocumentCanvasViewer({
         ref={containerRef}
         data-testid="document-canvas-container"
         data-paper-size={paperSize}
-        data-page-count={pageCount}
+        data-page-count={unknownPagination ? undefined : pageCount}
         data-landscape-count={landscapeCount}
         className={`relative mx-auto flex justify-center overflow-hidden rounded-xl border border-slate-300/80 bg-white shadow-2xl transition-all ${className}`}
         style={{
@@ -197,6 +208,13 @@ export function DocumentCanvasViewer({
           }}
         />
       </div>
+      {unknownPagination && (
+        <p className="mt-3 text-xs text-slate-600" role="note" style={{ maxWidth: `${contentWidth}px` }}>
+          {paperSize === "THERMAL_80MM"
+            ? "Pour consulter la pagination complète, téléchargez le reçu PDF."
+            : "Pour consulter la pagination complète, téléchargez le document PDF."}
+        </p>
+      )}
     </div>
   );
 }

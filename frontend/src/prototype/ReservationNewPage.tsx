@@ -1541,7 +1541,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       const periodError = reservationPeriodError(details.startDate, details.startTime, details.endDate, details.endTime);
       if (periodError) { setSubmitError(periodError); return; }
     }
-    if (domain === "hahitantsoa" && (errorHahitantsoaTerms || !hahitantsoaTerms)) {
+    if (step > clientStep && domain === "hahitantsoa" && (errorHahitantsoaTerms || !hahitantsoaTerms)) {
       setSubmitError("Impossible de continuer : les conditions tarifaires officielles n'ont pas pu être chargées depuis le serveur. Veuillez réessayer le chargement des tarifs.");
       return;
     }
@@ -1575,13 +1575,33 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     setMaxReachedStep(Math.max(maxReachedStep, nextStep));
   };
   const goBack = () => {
+    if (serverDraftSaving || navigationSavingRef.current) return;
     let prevStep = step - 1;
     if (step === 5 && domain === 'hahitantsoa' && hDetails.rentalType === 'Location nue') {
       prevStep = 3;
     }
     setStep(Math.max(0, prevStep));
   };
-  const jumpTo = (targetStep: number) => {
+  const jumpTo = async (targetStep: number) => {
+    if (targetStep > maxReachedStep || serverDraftSaving || navigationSavingRef.current) return;
+    const clientStep = path === "client_first" ? 1 : 2;
+    if (targetStep > step && step === clientStep) {
+      if (!(clientMode === "existing" && !isEditingClient ? selectedClientId : newClient.name.trim())) {
+        setSubmitError("Sélectionnez un client ou renseignez son nom.");
+        return;
+      }
+      navigationSavingRef.current = true;
+      setServerDraftSaving(true);
+      try {
+        await ensureCustomerId();
+      } catch (error) {
+        setSubmitError(error instanceof Error ? error.message : "Impossible d’enregistrer le client.");
+        return;
+      } finally {
+        navigationSavingRef.current = false;
+        setServerDraftSaving(false);
+      }
+    }
     if (targetStep > step && step === 3) {
       if (compositionError) { setSubmitError(compositionError); return; }
       const details = domain === "hahitantsoa" ? hDetails : tDetails;
@@ -1989,7 +2009,24 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     </div>
   );
 
+  const startNewClient = () => {
+    if (navigationSavingRef.current || serverDraftSaving) return;
+    if (clientMode === "new" && !isEditingClient) return;
+    const startsFreshIdentity = Boolean(createdClientIdRef.current || selectedClientId || isEditingClient);
+    createdClientIdRef.current = null;
+    setSelectedClientId("");
+    setIsEditingClient(false);
+    setClientMode("new");
+    if (startsFreshIdentity) {
+      setNewClient({ name: "", phone: "", email: "", additionalEmails: [], additionalPhones: [], type: "Particulier", notes: "", civilite: "", idType: "CIN" });
+      setClientAttachments([]);
+      setDedicatedAttachments({});
+    }
+    setSubmitError(null);
+  };
+
   const startClientCorrection = () => {
+    if (serverDraftSaving || navigationSavingRef.current) return;
     const customer = apiCustomers.find(item => item.id === selectedClientId);
     if (!customer) return;
     const mapped = mapCustomerToClient(customer);
@@ -2001,7 +2038,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
   };
 
   const renderClientStep = () => (
-    <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
+    <fieldset disabled={serverDraftSaving} className="m-0 min-w-0 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
       <h3 className="text-lg font-bold text-slate-800 mb-4">Sélection ou création du client</h3>
       {isReservationClientParam(param) && (
         <div className="mb-4">
@@ -2030,13 +2067,14 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       <div className="flex gap-4 mb-6">
         <button 
           className={`px-4 py-2 rounded-lg text-sm font-medium ${clientMode === 'existing' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-600 border border-transparent'}`}
-          onClick={() => { setClientMode("existing"); setIsEditingClient(false); }}
+          onClick={() => { if (serverDraftSaving || navigationSavingRef.current) return; setClientMode("existing"); setIsEditingClient(false); }}
         >
           Client existant
         </button>
         <button 
           className={`px-4 py-2 rounded-lg text-sm font-medium ${clientMode === 'new' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-600 border border-transparent'}`}
-          onClick={() => { setClientMode("new"); setIsEditingClient(false); createdClientIdRef.current = null; }}
+          onClick={startNewClient}
+          disabled={serverDraftSaving}
         >
           Nouveau client
         </button>
@@ -2064,7 +2102,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
              ) : null}
              {!loadingClients && !errorClients && (<>
              {clients.filter(c => c.name.toLowerCase().includes(clientSearchStr.toLowerCase()) || c.phone.includes(clientSearchStr) || (c.email && c.email.toLowerCase().includes(clientSearchStr.toLowerCase())) || c.id.toLowerCase().includes(clientSearchStr.toLowerCase())).map(c => (
-                <div key={c.id} data-testid={`client-select-${c.id}`} className={`p-3 border-b border-slate-100 cursor-pointer hover:bg-indigo-50 flex items-center justify-between ${selectedClientId === c.id ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : ''}`} onClick={() => { setSelectedClientId(c.id); setIsEditingClient(false); }}>
+                <div key={c.id} data-testid={`client-select-${c.id}`} className={`p-3 border-b border-slate-100 cursor-pointer hover:bg-indigo-50 flex items-center justify-between ${selectedClientId === c.id ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : ''}`} onClick={() => { if (serverDraftSaving || navigationSavingRef.current) return; setSelectedClientId(c.id); setIsEditingClient(false); }}>
                    <div>
                      <p className="font-bold text-slate-800 text-sm">{c.name} <span className="text-xs font-normal text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded ml-2">{c.type}</span></p>
                      <p className="text-xs text-slate-500 mt-0.5">{c.phone} {c.email ? `• ${c.email}` : ''}</p>
@@ -2075,9 +2113,9 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
              {clients.filter(c => c.name.toLowerCase().includes(clientSearchStr.toLowerCase()) || c.phone.includes(clientSearchStr) || (c.email && c.email.toLowerCase().includes(clientSearchStr.toLowerCase())) || c.id.toLowerCase().includes(clientSearchStr.toLowerCase())).length === 0 && (
                 <div className="p-4 text-center text-sm text-slate-500">Aucun client trouvé.</div>
              )}
-             <div className="p-3 text-center text-sm font-medium text-indigo-600 cursor-pointer hover:bg-slate-100 bg-white sticky bottom-0 border-t border-slate-200" onClick={() => setClientMode("new")}>
+             <button type="button" className="w-full p-3 text-center text-sm font-medium text-indigo-600 cursor-pointer hover:bg-slate-100 bg-white sticky bottom-0 border-t border-slate-200 disabled:opacity-50" onClick={startNewClient} disabled={serverDraftSaving}>
                 + Créer un nouveau client
-             </div>
+             </button>
              </>)}
           </div>
         </div>
@@ -2288,7 +2326,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           Continuer
         </button>
       </div>
-    </div>
+    </fieldset>
   );
 
   const renderDomainStep = () => (
