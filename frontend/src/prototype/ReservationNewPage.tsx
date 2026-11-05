@@ -131,6 +131,10 @@ function formatDateFr(dateStr: string | undefined): string {
   }
 }
 
+function formatMoney(amount: number | string | undefined | null): string {
+  return `${(Number(amount) || 0).toLocaleString("fr-FR")} Ar`;
+}
+
 export function calculateHahitantsoaPaymentSchedule(totalAmount: number, depositAmount: number, eventDate: string) {
   const remaining = Math.max(0, totalAmount - depositAmount);
   const firstInstallment = Math.round((remaining / 2) * 100) / 100;
@@ -705,6 +709,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     loading: false,
     error: null,
   });
+  const [showSummaryBreakdown, setShowSummaryBreakdown] = useState(false);
 
   const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "08:00", endDate: "", endTime: "20:00", rentalType: "Location nue", durationOption: "day", venuePrice: HAHITANTSOA_BASE_SPACE_RENTAL, logisticsPrice: 0 });
 
@@ -4105,6 +4110,124 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           <p className="text-xs opacity-80 mt-1">À verser en plus du total. Restituée après l'événement en l'absence de casse.</p>
         </div>
         <i className="fa-solid fa-shield-halved text-2xl opacity-50"></i>
+      </div>
+
+      {/* ── Bloc Dépliable : Détail des compositions sous la synthèse financière (R10) ── */}
+      <div data-testid="summary-financial-breakdown" className="mt-4 rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowSummaryBreakdown(!showSummaryBreakdown)}
+          className="w-full text-left font-bold text-xs uppercase text-slate-700 p-3.5 bg-slate-50 hover:bg-slate-100 flex items-center justify-between select-none cursor-pointer"
+        >
+          <span className="flex items-center gap-2">
+            <i className="fa-solid fa-list-check text-indigo-600"></i>
+            Détail des compositions & lignes de l'offre
+          </span>
+          <span className="text-[11px] text-indigo-600 lowercase font-medium">
+            {showSummaryBreakdown ? "masquer le détail ▲" : "afficher le détail ▼"}
+          </span>
+        </button>
+        {showSummaryBreakdown && (
+          <div className="p-4 space-y-4 text-xs divide-y divide-slate-100">
+            {domain === 'hahitantsoa' && (
+              <div className="space-y-1.5">
+                <span className="font-bold text-slate-800 uppercase block">Espace & Lieu de réception</span>
+                <div className="flex justify-between items-center text-slate-700">
+                  <span>{hDetails.venue || "Salle"} ({hDetails.rentalType})</span>
+                  <span className="font-semibold">{formatMoney(hDetails.venuePrice || 0)}</span>
+                </div>
+                {hDetails.bareRentalComposition && hDetails.bareRentalComposition.length > 0 && (
+                  <div className="mt-1 pl-3 border-l-2 border-indigo-200 text-slate-500 space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Inclusions location nue :</span>
+                    {hDetails.bareRentalComposition.map((item, idx) => (
+                      <div key={idx} className="flex justify-between">
+                        <span>• {item.quantity === 1 ? item.label : `${item.quantity} ${item.label}`}</span>
+                        <span className="text-emerald-600 italic">Inclus</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {domain === 'hahitantsoa' && hDetails.packageId && (
+              <div className="pt-3 space-y-1.5">
+                <span className="font-bold text-slate-800 uppercase block">
+                  Pack sélectionné : {packages.find(p => p.id === hDetails.packageId)?.name || "Pack"}
+                </span>
+                {(() => {
+                  const pkg = packages.find(p => p.id === hDetails.packageId);
+                  const pkgLines = pkg?.lines || [];
+                  if (pkgLines.length === 0) {
+                    return <p className="text-slate-400 italic">Détail non archivé pour ce dossier</p>;
+                  }
+                  return (
+                    <div className="pl-3 border-l-2 border-indigo-200 text-slate-500 space-y-0.5">
+                      {pkgLines.map((line, idx) => (
+                        <div key={idx} className="flex justify-between">
+                          <span>• {line.inventory_item_name || `Article ${line.inventory_item}`} (x{line.quantity})</span>
+                          <span className="text-emerald-600 italic">Inclus</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {selectedMaterials.length > 0 && (
+              <div className="pt-3 space-y-1.5">
+                <span className="font-bold text-slate-800 uppercase block">Articles & Matériels</span>
+                <div className="space-y-1">
+                  {selectedMaterials.map((m) => (
+                    <div key={m.id} className="flex justify-between items-center text-slate-700">
+                      <span>{m.name} <span className="text-slate-400">x{m.quantity}</span></span>
+                      <span className="font-semibold">{formatMoney(m.price * m.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedServices.length > 0 && (
+              <div className="pt-3 space-y-1.5">
+                <span className="font-bold text-slate-800 uppercase block">Prestations de services</span>
+                <div className="space-y-1">
+                  {selectedServices.map((s) => (
+                    <div key={s.id} className="flex justify-between items-center text-slate-700">
+                      <span>{s.name} {s.quantity && s.quantity > 1 ? `(x${s.quantity})` : ""}</span>
+                      <span className="font-semibold">{formatMoney(s.price * (s.quantity || 1))}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {deliveryFee && parseInt(deliveryFee, 10) > 0 && (
+              <div className="pt-3 flex justify-between items-center text-slate-700">
+                <span className="font-bold uppercase">Frais de livraison / transport</span>
+                <span className="font-semibold">{formatMoney(parseInt(deliveryFee, 10))}</span>
+              </div>
+            )}
+
+            {discountAmount > 0 && (
+              <div className="pt-3 flex justify-between items-center text-emerald-700">
+                <span className="font-bold uppercase">Remise commerciale déduite</span>
+                <span className="font-semibold">-{formatMoney(discountAmount)}</span>
+              </div>
+            )}
+
+            <div className="pt-3 border-t-2 border-slate-200 bg-slate-50 -mx-4 -mb-4 p-3 space-y-1 text-slate-600">
+              <span className="text-[10px] font-bold text-slate-400 uppercase block">Séquestres & Éléments hors CA :</span>
+              <div className="flex justify-between items-center text-slate-700">
+                <span>Dépôt de garantie (Caution restituable)</span>
+                <span className="font-bold text-amber-700">
+                  {formatMoney(domain === 'hahitantsoa' ? hahitantsoaCautionAmount : calculateTitanCautionAmount(totalAmount))}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-between mt-8 pt-4 border-t border-slate-100">

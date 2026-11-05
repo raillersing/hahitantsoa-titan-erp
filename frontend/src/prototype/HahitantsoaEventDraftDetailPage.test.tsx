@@ -1594,4 +1594,36 @@ describe("HahitantsoaEventDraftDetailPage", () => {
       expect(screen.getByText(/465\s*000\s*Ar/)).toBeInTheDocument(); // 500 000 - 35 000 = 465 000
       expect(screen.getByTestId("generate-refund-receipt-btn")).toBeInTheDocument();
     });
+
+    it("affiche le détail dépliable des compositions sous la synthèse financière avec mention pour les packs historiques (R10)", async () => {
+      currentDraft = {
+        ...DRAFT,
+        lines: [
+          {
+            id: "line-pack-1",
+            inventory_item_id: "pack-1",
+            inventory_item_name: "Pack Prestige Mariage",
+            inventory_item_kind: "material_pack",
+            quantity: 1,
+            notes: "",
+          },
+          {
+            id: "line-item-2",
+            inventory_item_id: "item-2",
+            inventory_item_name: "Guirlande LED",
+            inventory_item_kind: "material",
+            quantity: 4,
+            notes: "",
+          },
+        ],
+      };
+      render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+      const breakdown = await screen.findByTestId("hahitantsoa-financial-summary-breakdown");
+      expect(breakdown).toBeInTheDocument();
+      const toggleBtn = screen.getByRole("button", { name: /Détail complet des compositions de l'offre/i });
+      fireEvent.click(toggleBtn);
+      expect(await screen.findByText("Détail non archivé pour ce dossier")).toBeInTheDocument();
+      expect(screen.getByText("Inclusions location nue :")).toBeInTheDocument();
+    });
   });

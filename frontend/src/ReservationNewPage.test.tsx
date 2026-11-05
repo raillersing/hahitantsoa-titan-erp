@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
 import ReservationNewPage, {
@@ -2135,6 +2135,35 @@ describe('ReservationNewPage', () => {
     expect(createCustomer).toHaveBeenCalledWith(expect.objectContaining({ display_name: 'Client soumis' }));
     expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).selectedClientId).toBe('SERVER-SUBMITTED-CLIENT');
     expect(updateCustomer).not.toHaveBeenCalled();
+  });
+
+  it('affiche le bloc dépliable de composition sous la synthèse financière au résumé (R10)', async () => {
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify({
+      step: 6,
+      maxReachedStep: 6,
+      domain: 'hahitantsoa',
+      path: 'client_first',
+      selectedClientId: 'CUST-001',
+      selectedMaterials: [{ id: 'MAT-001', name: 'Tente 10x10', price: 150000, quantity: 2 }],
+      hDetails: {
+        rentalType: 'Location nue',
+        startDate: '2027-11-20',
+        endDate: '2027-11-20',
+        startTime: '08:00',
+        endTime: '20:00',
+        venue: 'Grande Salle',
+        spaceRentalAmount: 2000000,
+        bareRentalComposition: [{ label: 'Tables rondes', quantity: 10 }],
+      },
+    }));
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+
+    const breakdown = await screen.findByTestId('summary-financial-breakdown');
+    expect(breakdown).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Détail des compositions & lignes de l'offre/i }));
+    expect(within(breakdown).getByText(/10 Tables rondes/i)).toBeInTheDocument();
+    expect(within(breakdown).getByText(/Caution restituable/i)).toBeInTheDocument();
   });
 
 });

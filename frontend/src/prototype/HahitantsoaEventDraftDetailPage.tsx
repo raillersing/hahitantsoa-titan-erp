@@ -400,6 +400,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [showSummaryBreakdown, setShowSummaryBreakdown] = useState(false);
 
   // Reference modification modal states
   const [showEditRefModal, setShowEditRefModal] = useState(false);
@@ -2508,6 +2509,92 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Bloc Dépliable : Détail des compositions sous la synthèse financière (R10) ── */}
+      <div data-testid="hahitantsoa-financial-summary-breakdown" className="rounded-2xl border border-indigo-100 bg-white mb-6 p-4 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setShowSummaryBreakdown(!showSummaryBreakdown)}
+          className="w-full text-left font-bold text-xs uppercase text-indigo-950 flex items-center justify-between select-none cursor-pointer"
+        >
+          <span className="flex items-center gap-2">
+            <i className="fa-solid fa-list-check text-indigo-600"></i>
+            Détail complet des compositions de l'offre
+          </span>
+          <span className="text-[11px] text-indigo-600 lowercase font-medium">
+            {showSummaryBreakdown ? "masquer le détail ▲" : "afficher le détail ▼"}
+          </span>
+        </button>
+        {showSummaryBreakdown && (
+          <div className="mt-4 pt-3 border-t border-slate-100 space-y-4 text-xs">
+            {/* Espace & Location nue */}
+            <div className="space-y-1.5">
+              <span className="font-bold text-slate-800 uppercase block">Espace & Lieu de réception</span>
+              <div className="flex justify-between items-center text-slate-700">
+                <span>{draft.venue_name || "Lieu non spécifié"} ({draft.rental_type || "Location"})</span>
+                <span className="font-semibold">{formatMoney(draft.space_rental_amount || 0)}</span>
+              </div>
+              {bareRentalItems.length > 0 && (
+                <div className="mt-1 pl-3 border-l-2 border-indigo-200 text-slate-500 space-y-0.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Inclusions location nue :</span>
+                  {bareRentalItems.map((item, idx) => (
+                    <div key={idx} className="flex justify-between">
+                      <span>• {item.quantity === 1 ? item.label : `${item.quantity} ${item.label}`}</span>
+                      <span className="text-emerald-600 italic">Inclus</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Lignes d'articles et packs */}
+            <div className="pt-3 border-t border-slate-100 space-y-1.5">
+              <span className="font-bold text-slate-800 uppercase block">Articles & Prestations</span>
+              {draft.lines.length === 0 ? (
+                <p className="text-slate-400 italic">Aucun matériel ou article inventorié.</p>
+              ) : (
+                <div className="space-y-1">
+                  {draft.lines.map((line) => (
+                    <div key={line.id} className="space-y-0.5">
+                      <div className="flex justify-between items-center text-slate-700">
+                        <span>{line.inventory_item_name} <span className="text-slate-400">x{line.quantity}</span></span>
+                        {line.inventory_item_kind === "material_pack" ? (
+                          <span className="text-slate-400 italic text-[11px]">Détail non archivé pour ce dossier</span>
+                        ) : (
+                          <span className="font-semibold text-slate-900">—</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Services */}
+            {draft.service_notes && (
+              <div className="pt-3 border-t border-slate-100 space-y-1.5">
+                <span className="font-bold text-slate-800 uppercase block">Prestations de services associées</span>
+                <p className="text-slate-600 whitespace-pre-line">{draft.service_notes}</p>
+              </div>
+            )}
+
+            {/* Séquestres hors CA */}
+            <div className="pt-3 border-t border-slate-200 bg-amber-50/40 -mx-4 -mb-4 p-3 rounded-b-xl space-y-1 text-slate-600">
+              <span className="text-[10px] font-bold text-amber-900 uppercase block">Séquestres & Éléments hors CA :</span>
+              <div className="flex justify-between items-center text-slate-700">
+                <span>Dépôt de garantie (Caution Article 7)</span>
+                <span className="font-bold text-amber-800">{formatMoney(cautionAmount)}</span>
+              </div>
+              {nightSecurityRequiredAmount > 0 && (
+                <div className="flex justify-between items-center text-purple-900">
+                  <span>Sécurité nocturne obligatoire (Nuit 2)</span>
+                  <span className="font-bold">{formatMoney(nightSecurityRequiredAmount)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Section 2 : Tableau Détaillé des Articles & Lignes Événement ────── */}
