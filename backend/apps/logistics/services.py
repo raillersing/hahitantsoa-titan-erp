@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
 from apps.documents.services import create_document_instance_from_reservation_draft
-from apps.identity.authorization import is_reservation_sensitive_actor
+from apps.identity.authorization import is_logistics_operator_actor
 from apps.logistics.models import (
     LogisticsEvent,
     LogisticsEventItemLine,
@@ -95,7 +95,7 @@ def default_logistics_scheduled_at(
 
 
 def _require_logistics_actor(*, actor: object | None) -> None:
-    if not is_reservation_sensitive_actor(actor=actor):
+    if not is_logistics_operator_actor(actor=actor):
         raise LogisticsServiceError(
             "Actor is not authorized to manage logistics events.",
             code=UNAUTHORIZED_LOGISTICS_WRITE,

@@ -203,7 +203,7 @@ def test_sync_company_role_catalog_rejects_conflicting_slug_without_mutation_or_
     assert not ApplicationRole.objects.filter(slug=CompanyRole.OWNER_MANAGER).exists()
 
 
-def test_company_roles_allow_multiple_assignments_and_do_not_elevate_privileges(
+def test_company_roles_combine_business_permissions_without_identity_administration(
     admin_user,
     regular_user,
 ):
@@ -222,7 +222,7 @@ def test_company_roles_allow_multiple_assignments_and_do_not_elevate_privileges(
     assert manager_assignment.is_active is True
     assert accountant_assignment.is_active is True
     assert is_identity_admin_actor(actor=regular_user) is False
-    assert is_reservation_sensitive_actor(actor=regular_user) is False
+    assert is_reservation_sensitive_actor(actor=regular_user) is True
 
     revoked = revoke_role(
         actor=admin_user,
@@ -232,6 +232,8 @@ def test_company_roles_allow_multiple_assignments_and_do_not_elevate_privileges(
 
     assert revoked.is_active is False
     assert UserRoleAssignment.objects.get(pk=accountant_assignment.pk).is_active is True
+
+    assert is_reservation_sensitive_actor(actor=regular_user) is False
 
 
 def test_assign_role_requires_admin(regular_user, sample_role):

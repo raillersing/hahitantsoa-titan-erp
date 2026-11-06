@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.hahitantsoa.models import HahitantsoaEventDraft
-from apps.identity.permissions import HasReservationSensitiveAccess
+from apps.identity.permissions import HasLogisticsOperationAccess
 from apps.inventory.models import InventoryItem
 from apps.logistics.models import TitanClosedDay
 from apps.logistics.selectors import (
@@ -42,7 +42,7 @@ from apps.reservations.models import ReservationDraft
 
 class TitanClosedDayListAPIView(generics.ListAPIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasLogisticsOperationAccess]
     serializer_class = TitanClosedDaySerializer
 
     def get_queryset(self):
@@ -55,7 +55,7 @@ class TitanClosedDayListAPIView(generics.ListAPIView):
 
 class LogisticsEventListAPIView(generics.ListAPIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasLogisticsOperationAccess]
     serializer_class = LogisticsEventSerializer
 
     def get_queryset(self):
@@ -89,7 +89,7 @@ class LogisticsEventListAPIView(generics.ListAPIView):
 
 class LogisticsEventRetrieveAPIView(generics.RetrieveAPIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasLogisticsOperationAccess]
     serializer_class = LogisticsEventSerializer
     lookup_field = "id"
 
@@ -99,7 +99,7 @@ class LogisticsEventRetrieveAPIView(generics.RetrieveAPIView):
 
 class LogisticsEventCreateAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasLogisticsOperationAccess]
 
     @extend_schema(
         request=LogisticsEventCreateSerializer,
@@ -154,7 +154,7 @@ class LogisticsEventCreateAPIView(APIView):
 
 class LogisticsEventUpdateAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasLogisticsOperationAccess]
 
     @extend_schema(
         request=LogisticsEventUpdateSerializer,
@@ -194,7 +194,7 @@ class LogisticsEventUpdateAPIView(APIView):
 
 class LogisticsEventTransitionAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasLogisticsOperationAccess]
 
     @extend_schema(
         request=LogisticsEventStatusTransitionSerializer,
@@ -233,7 +233,7 @@ class LogisticsEventTransitionAPIView(APIView):
 
 class LogisticsEventItemLineListAPIView(generics.ListAPIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasLogisticsOperationAccess]
     serializer_class = LogisticsEventItemLineSerializer
 
     def get_queryset(self):
@@ -243,7 +243,7 @@ class LogisticsEventItemLineListAPIView(generics.ListAPIView):
 
 class LogisticsEventItemLineAddAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasLogisticsOperationAccess]
 
     @extend_schema(
         request=LogisticsEventItemLineCreateSerializer,
@@ -288,7 +288,7 @@ class LogisticsEventItemLineAddAPIView(APIView):
 
 class LogisticsEventItemLineRemoveAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasLogisticsOperationAccess]
 
     @extend_schema(
         responses={
@@ -319,7 +319,7 @@ class LogisticsEventItemLineRemoveAPIView(APIView):
 
 class LogisticsEventCompletePassationAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasLogisticsOperationAccess]
 
     @extend_schema(
         request=LogisticsEventCompletePassationSerializer,
@@ -361,7 +361,7 @@ class LogisticsEventCompletePassationAPIView(APIView):
 
 class LogisticsEventSignatureUpdateAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasLogisticsOperationAccess]
 
     @extend_schema(
         request=LogisticsEventSignatureUpdateSerializer,

@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.identity.authorization import is_cashbox_supervisor_actor
-from apps.identity.permissions import HasReservationSensitiveAccess
+from apps.identity.permissions import HasCashboxOperationAccess
 
 from .serializers import (
     CashboxCountSubmitSerializer,
@@ -42,7 +42,7 @@ def _sessions_visible_to_actor(actor):
 
 class CashboxSessionListAPIView(generics.ListAPIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasCashboxOperationAccess]
     serializer_class = CashboxSessionSerializer
 
     def get_queryset(self):
@@ -56,7 +56,7 @@ class CashboxSessionListAPIView(generics.ListAPIView):
 
 class CashboxSessionRetrieveAPIView(generics.RetrieveAPIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasCashboxOperationAccess]
     serializer_class = CashboxSessionSerializer
     lookup_field = "id"
 
@@ -66,7 +66,7 @@ class CashboxSessionRetrieveAPIView(generics.RetrieveAPIView):
 
 class CashboxSessionOpenAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasCashboxOperationAccess]
 
     @extend_schema(request=CashboxSessionOpenSerializer, responses={201: CashboxSessionSerializer})
     def post(self, request):
@@ -94,7 +94,7 @@ class CashboxSessionLegacyCloseAPIView(APIView):
     """Preserve the retired endpoint without allowing a direct close bypass."""
 
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasCashboxOperationAccess]
 
     def post(self, request, id):
         if not _sessions_visible_to_actor(request.user).filter(id=id).exists():
@@ -113,7 +113,7 @@ class CashboxSessionLegacyCloseAPIView(APIView):
 
 class CashboxSessionCountSubmitAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasCashboxOperationAccess]
 
     @extend_schema(request=CashboxCountSubmitSerializer, responses={200: CashboxSessionSerializer})
     def post(self, request, id):
@@ -132,7 +132,7 @@ class CashboxSessionCountSubmitAPIView(APIView):
 
 class CashboxSessionCountValidateAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasCashboxOperationAccess]
 
     @extend_schema(
         request=CashboxCountValidateSerializer, responses={200: CashboxSessionSerializer}
@@ -168,7 +168,7 @@ class CashboxSessionCountValidateAPIView(APIView):
 
 class CashboxSessionReopenAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasCashboxOperationAccess]
 
     @extend_schema(
         request=CashboxSessionReopenSerializer, responses={200: CashboxSessionSerializer}
@@ -192,7 +192,7 @@ class CashboxSessionReopenAPIView(APIView):
 
 class CashboxMovementListAPIView(generics.ListAPIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasCashboxOperationAccess]
     serializer_class = CashboxMovementSerializer
 
     def get_queryset(self):
@@ -211,7 +211,7 @@ class CashboxMovementListAPIView(generics.ListAPIView):
 
 class CashboxMovementCreateAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasCashboxOperationAccess]
 
     @extend_schema(
         request=CashboxMovementCreateSerializer, responses={201: CashboxMovementSerializer}
