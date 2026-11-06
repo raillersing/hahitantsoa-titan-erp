@@ -64,3 +64,49 @@ assignments, enforced through DRF permission classes.
   staff credentials carefully.
 - Future: Granular roles (inventory_manager, billing_operator) can be added
   when the team grows without changing the authorization architecture.
+
+## Accepted amendment — 2026-11-06 user-access audit
+
+The client explicitly approved the user-access audit and its implementation on
+2026-11-06. This amendment supersedes the original two-role restrictions where
+specified below; all confirmation and financial lifecycle prerequisites remain.
+
+- Company dossiers are shared across authorized employees. Creator attribution
+  is audit information, not dossier ownership. Existing authenticated draft
+  consultation/editing remains; private notifications and import jobs retain
+  their separate user scopes.
+- `owner_manager` grants full business management: commercial actions, inventory,
+  finance, logistics, cashbox supervision/overrides and collaborator management.
+  It never sets Django `is_staff` or `is_superuser`, grants technical cleanup, or
+  permits takeover of platform accounts. Only staff may manage staff targets;
+  only a superuser may manage superuser targets. Delegated identity administrators
+  cannot reset or suspend a more privileged administrator.
+- `manager` grants commercial operations, inventory and finance, with no identity
+  administration or implicit cashbox supervision/override.
+- `storekeeper` and `logistics_manager` grant physical stock and logistics actions
+  without granting payment, contract confirmation or financial damage settlement.
+  Other company roles do not inherit these rights merely by their descriptions.
+- Cashbox operators and supervisors may reach their relevant routes without the
+  commercial role; operator/supervisor service checks and peer-cashbox boundaries
+  remain mandatory. Supported legacy groups and active application assignments
+  use the same effective-role source.
+- Reserved platform roles, `owner_manager`, `manager` and `logistics_override` cannot be
+  created or renamed by a delegated identity administrator. The owner may assign
+  existing business capabilities through audited services, subject to protected
+  account checks. Role descriptions and custom role names grant nothing by themselves.
+- Revoking an effective supported role removes both the application assignment
+  and its supported legacy group grant. The administration shows effective roles
+  and their source. Suspension invalidates existing database sessions durably;
+  subsequent reactivation requires login again.
+- The server exposes computed capabilities in session, user and role responses.
+  Frontend labels, summaries and navigation consume them; they are presentation
+  hints, never authorization. Inactive users have no effective capabilities.
+- Private document access must be consistent across HTML/PDF. Generating an
+  outbound delivery note checks physical-operation authority in its service.
+  Document configuration writes require explicit authorization, attribution,
+  transactions and an audited activation serialized by parent template.
+
+No bulk role reassignment or production data migration is authorized by this
+amendment. Existing records are preserved. Passwords must not be described as
+expiring unless the backend actually implements expiration. Deployment and merge
+remain separate human-controlled operations.

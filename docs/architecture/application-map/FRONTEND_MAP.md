@@ -88,7 +88,7 @@ Etat global:
 | Hahitantsoa | `#hahitantsoa` | `HahitantsoaDiscoveryPanel.tsx` + `HahitantsoaEventDraftsPanel.tsx` | current |
 | Customers | `#customers` | `CustomerPanel.tsx` | current |
 | Commercial Ops | `#commercial-ops` | `HahitantsoaCommercialOpsPanel.tsx` | current |
-| Identity | `#identity` | `IdentityPanel.tsx` | partial |
+| Administration | `#admin` | `prototype/AdminPage.tsx` | current |
 | Audit | `#audit` | `AuditPanel.tsx` | current |
 | Cashbox | `#cashbox` | `CashboxPanel.tsx` | current |
 | Caution / Refund | `#caution-refund` | `CautionRefundPanel.tsx` | current |
@@ -159,7 +159,7 @@ Etat global:
 
 | Fichier | Rôle | APIs | Permission gating | Statut |
 |---|---|---|---|---|
-| `IdentityPanel.tsx` | roles + assignments read, write stubs | identity | oui | partial |
+| `prototype/AdminPage.tsx` | utilisateurs, profils, droits effectifs, suspension, mots de passe | identity | serveur + session | current |
 | `AuditPanel.tsx` | audit log read-only avec filtres | audit | oui | current |
 | `CashboxPanel.tsx` | open/close sessions, list sessions, movements | cashbox | oui | current |
 | `CautionRefundPanel.tsx` | caution deposits + refund touchpoints | payments + damage/loss | oui | current |
@@ -313,3 +313,18 @@ Bundles suivants plausibles:
 
 ---
 *Fin de la cartographie frontend*
+
+
+### User-access amendment — 2026-11-06
+
+The current commercial shell routes administration through `#admin` and
+`prototype/AdminPage.tsx`; references to `IdentityPanel`/`#identity` above describe
+an earlier interface. The approved access implementation exposes server-derived
+capabilities through session, user and role responses. `AuthContext` revalidates
+on focus/visibility; backend permission checks remain authoritative on each
+request. `AdminDialog` handles focus containment/restoration and Escape; account
+creation/editing retains existing fields and shows accumulated permissions,
+shared-dossier scope and role changes before saving. Password reset is labelled
+separately from profile/rights editing. No expiration is promised for passwords.
+Suspended accounts keep role attribution but cannot log in; reactivation requires
+a new session. See ADR-011's accepted amendment for the role/action policy.
