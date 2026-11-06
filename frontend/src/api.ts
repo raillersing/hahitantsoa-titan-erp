@@ -2281,6 +2281,7 @@ export type SessionUser = {
   display_name: string;
   is_staff: boolean;
   roles: string[];
+  capabilities?: Record<string, boolean>;
 };
 
 export type SessionStateResponse =

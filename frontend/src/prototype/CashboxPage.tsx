@@ -453,15 +453,9 @@ export default function CashboxPage({ onNavigate }: CashboxPageProps) {
     };
   }, [selectedSession, sessionMovements]);
 
-  // Check supervisor rights
-  const isSupervisor = useMemo(() => {
-    if (!authUser) return true; // default lenient in prototype
-    return Boolean(
-      authUser.is_staff ||
-      authUser.is_superuser ||
-      authUser.roles?.some((r: string) => ["superadmin", "supervisor", "gerant", "admin"].includes(r.toLowerCase())),
-    );
-  }, [authUser]);
+  // The backend's computed capability is authoritative; staff and role labels
+  // do not by themselves imply cashbox supervision.
+  const isSupervisor = authUser?.capabilities?.canSuperviseCashbox === true;
 
   // Operator display helper
   const getOperatorName = (operatorId: string | number | undefined | null) => {

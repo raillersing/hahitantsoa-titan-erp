@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { AdminDialog } from "./AdminDialog";
 import { AppScope } from "../App";
 import { LoadingSpinner } from "../components";
 import {
@@ -12,7 +13,7 @@ import {
   configureNumberingSequence,
 } from "../api";
 import type { User, ApplicationRole, NumberingSequence, NumberingSequenceBrand, NumberingSequenceType } from "../types";
-import { getRolePresentation, type RolePresentationInfo } from "./rolePresentation";
+import { getRolePresentation, ROLE_PRESENTATION_CATALOG, type RolePresentationInfo } from "./rolePresentation";
 
 const DEFAULT_SUFFIX_BY_TYPE: Record<NumberingSequenceType, string> = {
   proforma: "/{year}",
@@ -52,6 +53,47 @@ const SEQUENCE_TYPE_INFO: Record<NumberingSequenceType, {
 
 interface AdminPageProps {
   onNavigate: (scope: any, param?: string) => void;
+}
+
+function editableRoleSlugs(user: User, catalog: ApplicationRole[]): string[] {
+  const assigned = user.assigned_role_slugs ?? user.role_slugs ?? catalog.filter(role => user.role_names.includes(role.name)).map(role => role.slug);
+  return Array.from(new Set([...assigned, ...(user.group_role_slugs ?? [])]));
+}
+
+function AccessSummary({ slugs, catalog, base = {}, active = true }: { slugs: string[]; catalog: ApplicationRole[]; base?: Record<string, boolean>; active?: boolean }) {
+  const granted = { ...base };
+  for (const slug of slugs) {
+    for (const [key, value] of Object.entries(catalog.find(role => role.slug === slug)?.capabilities ?? {})) {
+      granted[key] = granted[key] || value;
+    }
+  }
+  const known = slugs.every(slug => catalog.find(role => role.slug === slug)?.capabilities !== undefined);
+  const actions = [
+    ["canSensitiveWrite", "Confirmer les réservations et enregistrer les paiements"],
+    ["canManageIdentity", "Gérer les collaborateurs et leurs rôles"],
+    ["canOperateLogistics", "Préparer les locations et enregistrer sorties et retours"],
+    ["canManageInventory", "Gérer les articles et ensembles de l’inventaire"],
+    ["canOperateCashbox", "Utiliser une caisse"],
+    ["canManageFinance", "Gérer les achats et les dépenses"],
+    ["canViewPayroll", "Consulter les dossiers RH et la paie"],
+    ["canEditPayroll", "Modifier les dossiers RH et préparer la paie"],
+    ["canActivatePayroll", "Valider la paie et activer ses règles"],
+    ["canSuperviseCashbox", "Superviser les caisses des collègues"],
+    ["canOverrideLogistics", "Autoriser les dérogations logistiques"],
+    ["canSuperAdminDelete", "Supprimer les données métier"],
+  ];
+  if (!active) return <section aria-label="Résumé des droits" className="rounded-xl border border-amber-200 p-4 text-xs">
+    <h4 className="font-bold">Compte suspendu : aucun accès autorisé</h4>
+    <p>Les profils affichés sont conservés. Réactivez le compte pour consulter ses droits effectifs et les modifier.</p>
+  </section>;
+  return <section aria-label="Résumé des droits" className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-xs space-y-2">
+    <h4 className="font-bold">Vérifiez les accès avant d’enregistrer</h4>
+    <p>{active ? "Dossiers partagés de l’entreprise : ce compte peut consulter et reprendre les brouillons créés par ses collègues." : "Compte suspendu : aucune connexion autorisée. Les droits indiqués seront disponibles après réactivation."}</p>
+    {!known && <p role="status">Le serveur ne fournit pas encore le détail de certains profils. Vérifiez leurs autorisations avant attribution.</p>}
+    <ul className="space-y-1">{actions.map(([key, label]) => <li key={key}>{granted[key] ? "Autorisé" : known ? "Non autorisé" : "À vérifier"} : {label}.</li>)}</ul>
+    {!slugs.length && <p className="font-semibold">Sans rôle, le compte conserve ces accès aux brouillons. Pour bloquer toute connexion, suspendez le compte.</p>}
+    <p>Toute confirmation reste soumise au contrat signé, à l’acompte et à la disponibilité.</p>
+  </section>;
 }
 
 export default function AdminPage({ onNavigate }: AdminPageProps) {
@@ -229,16 +271,10 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   }, []);
 
   const generateSecurePassword = () => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*";
-    let pwd = "";
-    pwd += "ABCDEFGHJKLMNPQRSTUVWXYZ"[Math.floor(Math.random() * 24)];
-    pwd += "abcdefghijkmnpqrstuvwxyz"[Math.floor(Math.random() * 24)];
-    pwd += "23456789"[Math.floor(Math.random() * 8)];
-    pwd += "!@#$%&*"[Math.floor(Math.random() * 7)];
-    for (let i = 0; i < 8; i++) {
-      pwd += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return pwd;
+    if (!globalThis.crypto?.getRandomValues) return "";
+    // ponytail: native cryptographic bytes; no dependency or insecure fallback.
+    const bytes = crypto.getRandomValues(new Uint8Array(20));
+    return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("") + "Aa1!";
   };
 
   const suggestUsername = (first: string, last: string) => {
@@ -272,7 +308,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
     setNewUserPassword(generateSecurePassword());
     setNewUserRoleSlugs([]);
     setNewUserError(null);
-    setShowNewUserPassword(true);
+    setShowNewUserPassword(false);
   };
 
   const openEditUser = (u: User) => {
@@ -280,10 +316,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
     setEditUserFirstName(u.first_name || "");
     setEditUserLastName(u.last_name || "");
     setEditUserEmail(u.email || "");
-    const initialSlugs =
-      u.role_slugs && u.role_slugs.length > 0
-        ? u.role_slugs
-        : roles.filter((r) => u.role_names?.includes(r.name)).map((r) => r.slug);
+    const initialSlugs = editableRoleSlugs(u, roles);
     setEditUserRoleSlugs(initialSlugs);
     setEditUserError(null);
   };
@@ -292,11 +325,12 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
     setResetPasswordUser(u);
     setResetNewPassword(generateSecurePassword());
     setResetPasswordError(null);
-    setShowResetPassword(true);
+    setShowResetPassword(false);
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (newUserSubmitting || rolesLoading || rolesError) return;
     if (!newUserUsername.trim() || !newUserPassword.trim()) {
       setNewUserError("L'identifiant et le mot de passe sont obligatoires.");
       return;
@@ -327,6 +361,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
 
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (editUserSubmitting || rolesLoading || rolesError) return;
     if (!editingUser) return;
     setEditUserSubmitting(true);
     setEditUserError(null);
@@ -335,7 +370,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
         first_name: editUserFirstName.trim(),
         last_name: editUserLastName.trim(),
         email: editUserEmail.trim(),
-        role_slugs: editUserRoleSlugs,
+        ...(JSON.stringify([...editUserRoleSlugs].sort()) !== JSON.stringify(editableRoleSlugs(editingUser, roles).sort()) ? { role_slugs: editUserRoleSlugs } : {}),
       });
       showToast("Profil collaborateur mis à jour avec succès.");
       setEditingUser(null);
@@ -641,7 +676,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                                     title="Modifier le profil et les rôles"
                                   >
                                     <i className="fas fa-user-pen text-[11px]"></i>
-                                    <span>Modifier</span>
+                                    <span>Profil & droits</span>
                                   </button>
                                   <button
                                     type="button"
@@ -650,7 +685,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                                     title="Définir un nouveau mot de passe"
                                   >
                                     <i className="fas fa-key text-[11px]"></i>
-                                    <span>Accès</span>
+                                    <span>Mot de passe</span>
                                   </button>
                                   <button
                                     type="button"
@@ -723,7 +758,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                     onChange={(e) => setRoleSearch(e.target.value)}
                   />
                   {roleSearch && (
-                    <button
+                    <button aria-label="Fermer"
                       type="button"
                       onClick={() => setRoleSearch("")}
                       className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs"
@@ -1179,13 +1214,13 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
       </div>
 
       {isRoleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="modal-role-title">
+        <AdminDialog className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in" titleId="modal-role-title" onClose={() => setIsRoleModalOpen(false)} busy={roleSubmitting}>
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700">
             <div className="flex justify-between items-center mb-4">
               <h3 id="modal-role-title" className="text-lg font-bold text-slate-900 dark:text-slate-100">
                 Nouveau rôle applicatif
               </h3>
-              <button
+              <button aria-label="Fermer"
                 type="button"
                 onClick={() => setIsRoleModalOpen(false)}
                 className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
@@ -1201,19 +1236,18 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
               </div>
             )}
 
-            <form onSubmit={handleCreateRole} className="space-y-4">
+            <form onSubmit={handleCreateRole} className="space-y-4"><fieldset disabled={roleSubmitting} className="space-y-4 min-w-0">
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Nom du rôle
+                <label htmlFor="admin-role-name" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Nom du profil
                 </label>
                 <input
                   type="text"
+                  id="admin-role-name"
                   value={newRoleName}
                   onChange={(e) => {
                     setNewRoleName(e.target.value);
-                    if (!newRoleSlug) {
-                      setNewRoleSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
-                    }
+                    setNewRoleSlug(e.target.value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
                   }}
                   placeholder="Ex: Responsable Planning"
                   className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -1221,11 +1255,12 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                 />
               </div>
 
+              <details><summary className="text-xs cursor-pointer">Réglages avancés du profil</summary>
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1" htmlFor="admin-newRoleSlug">
                   Identifiant technique (slug)
                 </label>
-                <input
+                <input id="admin-newRoleSlug"
                   type="text"
                   value={newRoleSlug}
                   onChange={(e) => setNewRoleSlug(e.target.value)}
@@ -1233,13 +1268,15 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
                   required
                 />
-              </div>
+              </div>              </details>
+              <p className="text-xs text-slate-600">Créer un nom de profil ne lui accorde aucune autorisation supplémentaire. Les droits disponibles restent ceux définis par le serveur.</p>
+
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1" htmlFor="admin-newRoleDescription">
                   Description
                 </label>
-                <textarea
+                <textarea id="admin-newRoleDescription"
                   value={newRoleDescription}
                   onChange={(e) => setNewRoleDescription(e.target.value)}
                   placeholder="Rôle et responsabilités métier..."
@@ -1273,15 +1310,15 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   )}
                 </button>
               </div>
-            </form>
+            </fieldset></form>
           </div>
-        </div>
+        </AdminDialog>
       )}
 
       {selectedRoleDetail && (() => {
         const info = getRolePresentation(selectedRoleDetail, users);
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="modal-role-detail-title">
+          <AdminDialog className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in" titleId="modal-role-detail-title" onClose={() => setSelectedRoleDetail(null)} busy={false}>
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-slate-200 dark:border-slate-700 overflow-hidden">
               {/* Entête du modal */}
               <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-start justify-between bg-slate-50 dark:bg-slate-900/40">
@@ -1303,7 +1340,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                     </p>
                   </div>
                 </div>
-                <button
+                <button aria-label="Fermer"
                   type="button"
                   onClick={() => setSelectedRoleDetail(null)}
                   className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg p-1"
@@ -1382,7 +1419,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                                 : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400"
                             }`}
                           >
-                            {item.allowed ? "Autorisé" : "Restreint"}
+                            {item.allowed === null ? "À vérifier" : item.allowed ? "Autorisé" : "Restreint"}
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-600 dark:text-slate-400">
@@ -1470,13 +1507,13 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                 </button>
               </div>
             </div>
-          </div>
+          </AdminDialog>
         );
       })()}
 
       {/* MODAL 1: Nouveau Collaborateur */}
       {isNewUserModalOpen && (
-        <div role="dialog" aria-modal="true" aria-labelledby="new-user-title" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+        <AdminDialog className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto" titleId="new-user-title" onClose={() => setIsNewUserModalOpen(false)} busy={newUserSubmitting}>
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-2xl w-full overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
             {/* En-tête */}
             <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-gradient-to-r from-indigo-50/50 to-transparent">
@@ -1493,7 +1530,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   </p>
                 </div>
               </div>
-              <button
+              <button aria-label="Fermer"
                 type="button"
                 onClick={() => {
                   setIsNewUserModalOpen(false);
@@ -1506,7 +1543,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
               </button>
             </div>
 
-            <form onSubmit={handleCreateUser} className="p-6 space-y-5 max-h-[calc(85vh-130px)] overflow-y-auto">
+            <form onSubmit={handleCreateUser} className="p-6 space-y-5 max-h-[calc(85vh-130px)] overflow-y-auto"><fieldset disabled={newUserSubmitting} className="space-y-4 min-w-0">
               {newUserError && (
                 <div className="p-3.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-700 dark:text-red-300 flex items-start gap-2.5">
                   <i className="fas fa-triangle-exclamation mt-0.5 shrink-0"></i>
@@ -1522,10 +1559,10 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="admin-newUserFirstName">
                       Prénom
                     </label>
-                    <input
+                    <input id="admin-newUserFirstName"
                       type="text"
                       placeholder="Ex: Jean"
                       className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
@@ -1534,10 +1571,10 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="admin-newUserLastName">
                       Nom
                     </label>
-                    <input
+                    <input id="admin-newUserLastName"
                       type="text"
                       placeholder="Ex: Dupont"
                       className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
@@ -1556,10 +1593,10 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="admin-newUserUsername">
                       Identifiant de connexion <span className="text-red-500">*</span>
                     </label>
-                    <input
+                    <input id="admin-newUserUsername"
                       type="text"
                       required
                       placeholder="ex: jean.dupont"
@@ -1572,10 +1609,10 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                     </span>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="admin-newUserEmail">
                       Adresse email
                     </label>
-                    <input
+                    <input id="admin-newUserEmail"
                       type="email"
                       placeholder="jean.dupont@entreprise.com"
                       className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
@@ -1590,8 +1627,8 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Mot de passe temporaire <span className="text-red-500">*</span>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300" htmlFor="admin-newUserPassword">
+                      Mot de passe initial <span className="text-red-500">*</span>
                     </label>
                     <button
                       type="button"
@@ -1603,7 +1640,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                     </button>
                   </div>
                   <div className="relative">
-                    <input
+                    <input id="admin-newUserPassword"
                       type={showNewUserPassword ? "text" : "password"}
                       required
                       minLength={8}
@@ -1613,7 +1650,8 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                     />
                     <button
                       type="button"
-                      onClick={() => setShowNewUserPassword(!showNewUserPassword)}
+                      aria-label={showNewUserPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                        onClick={() => setShowNewUserPassword(!showNewUserPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-xs"
                       title={showNewUserPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                     >
@@ -1635,24 +1673,19 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                     Attribution des rôles ({newUserRoleSlugs.length} sélectionné{newUserRoleSlugs.length > 1 ? "s" : ""})
                   </h4>
                   <span className="text-[11px] text-slate-400">
-                    Cochez les rôles métiers accordés
+                    Choisissez les profils et vérifiez les droits ci-dessous
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto pr-1">
+                  {rolesLoading && <p role="status">Chargement des profils…</p>}
+                  {rolesError && <div role="alert"><p>Impossible de charger les profils. Votre saisie est conservée.</p><button type="button" className="underline min-h-11" onClick={() => fetchRoles()}>Réessayer le chargement des profils</button></div>}
                   {roles.map((r) => {
                     const info = getRolePresentation(r, users);
                     const isSelected = newUserRoleSlugs.includes(r.slug);
                     return (
-                      <div
+                      <label
                         key={r.slug}
-                        onClick={() => {
-                          setNewUserRoleSlugs((prev) =>
-                            prev.includes(r.slug)
-                              ? prev.filter((s) => s !== r.slug)
-                              : [...prev, r.slug]
-                          );
-                        }}
                         className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 select-none ${
                           isSelected
                             ? "border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30 ring-1 ring-indigo-600"
@@ -1661,9 +1694,10 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                       >
                         <input
                           type="checkbox"
+                          disabled={r.assignable === false}
                           checked={isSelected}
-                          onChange={() => {}}
-                          className="mt-1 h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 pointer-events-none"
+                          onChange={() => setNewUserRoleSlugs(prev => prev.includes(r.slug) ? prev.filter(slug => slug !== r.slug) : [...prev, r.slug])}
+                          className="mt-1 h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 mb-1">
@@ -1677,12 +1711,15 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-snug">
                             {info.summary}
                           </p>
+                          {r.assignable === false && <p className="text-xs text-amber-800">Attribution réservée à la direction ou à l’administrateur de plateforme.</p>}
                         </div>
-                      </div>
+                      </label>
                     );
                   })}
                 </div>
               </div>
+
+              <AccessSummary slugs={newUserRoleSlugs} catalog={roles} />
 
               {/* Boutons d'action */}
               <div className="pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
@@ -1698,7 +1735,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                 </button>
                 <button
                   type="submit"
-                  disabled={newUserSubmitting}
+                  disabled={newUserSubmitting || rolesLoading || !!rolesError}
                   className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors shadow-sm inline-flex items-center gap-2 disabled:opacity-50"
                 >
                   {newUserSubmitting ? (
@@ -1714,14 +1751,14 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   )}
                 </button>
               </div>
-            </form>
+            </fieldset></form>
           </div>
-        </div>
+        </AdminDialog>
       )}
 
       {/* MODAL 2: Modifier le Collaborateur */}
       {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+        <AdminDialog className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto" titleId="edit-user-title" onClose={() => setEditingUser(null)} busy={editUserSubmitting}>
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-2xl w-full overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
             {/* En-tête */}
             <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-gradient-to-r from-indigo-50/50 to-transparent">
@@ -1730,15 +1767,15 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   <i className="fas fa-user-pen"></i>
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                    Modifier le profil collaborateur
+                  <h3 id="edit-user-title" className="text-lg font-bold text-slate-900 dark:text-white">
+                    Modifier le profil et les droits
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {editingUser.display_name} — <span className="font-mono">@{editingUser.username}</span>
                   </p>
                 </div>
               </div>
-              <button
+              <button aria-label="Fermer"
                 type="button"
                 onClick={() => setEditingUser(null)}
                 className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -1748,7 +1785,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
               </button>
             </div>
 
-            <form onSubmit={handleUpdateUser} className="p-6 space-y-5 max-h-[calc(85vh-130px)] overflow-y-auto">
+            <form onSubmit={handleUpdateUser} className="p-6 space-y-5 max-h-[calc(85vh-130px)] overflow-y-auto"><fieldset disabled={editUserSubmitting} className="space-y-4 min-w-0">
               {editUserError && (
                 <div className="p-3.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-700 dark:text-red-300 flex items-start gap-2.5">
                   <i className="fas fa-triangle-exclamation mt-0.5 shrink-0"></i>
@@ -1759,10 +1796,10 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
               {/* Nom & Prénom */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="admin-editUserFirstName">
                     Prénom
                   </label>
-                  <input
+                  <input id="admin-editUserFirstName"
                     type="text"
                     className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
                     value={editUserFirstName}
@@ -1770,10 +1807,10 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="admin-editUserLastName">
                     Nom
                   </label>
-                  <input
+                  <input id="admin-editUserLastName"
                     type="text"
                     className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
                     value={editUserLastName}
@@ -1783,10 +1820,10 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" htmlFor="admin-editUserEmail">
                   Adresse email
                 </label>
-                <input
+                <input id="admin-editUserEmail"
                   type="email"
                   className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
                   value={editUserEmail}
@@ -1807,19 +1844,14 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto pr-1">
+                  {rolesLoading && <p role="status">Chargement des profils…</p>}
+                  {rolesError && <div role="alert"><p>Impossible de charger les profils. Votre saisie est conservée.</p><button type="button" className="underline min-h-11" onClick={() => fetchRoles()}>Réessayer le chargement des profils</button></div>}
                   {roles.map((r) => {
                     const info = getRolePresentation(r, users);
                     const isSelected = editUserRoleSlugs.includes(r.slug);
                     return (
-                      <div
+                      <label
                         key={r.slug}
-                        onClick={() => {
-                          setEditUserRoleSlugs((prev) =>
-                            prev.includes(r.slug)
-                              ? prev.filter((s) => s !== r.slug)
-                              : [...prev, r.slug]
-                          );
-                        }}
                         className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 select-none ${
                           isSelected
                             ? "border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30 ring-1 ring-indigo-600"
@@ -1828,9 +1860,10 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                       >
                         <input
                           type="checkbox"
+                          disabled={r.assignable === false || !editingUser.is_active}
                           checked={isSelected}
-                          onChange={() => {}}
-                          className="mt-1 h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 pointer-events-none"
+                          onChange={() => setEditUserRoleSlugs(prev => prev.includes(r.slug) ? prev.filter(slug => slug !== r.slug) : [...prev, r.slug])}
+                          className="mt-1 h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 mb-1">
@@ -1844,12 +1877,28 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-snug">
                             {info.summary}
                           </p>
+                          {r.assignable === false && <p className="text-xs text-amber-800">Attribution réservée à la direction ou à l’administrateur de plateforme.</p>}
                         </div>
-                      </div>
+                      </label>
                     );
                   })}
                 </div>
               </div>
+
+              {(editingUser.group_role_slugs ?? []).some(slug => !roles.some(role => role.slug === slug)) && <fieldset className="space-y-2 text-xs">
+                <legend className="font-semibold">Autorisations héritées à vérifier</legend>
+                <p>Ces accès existants restent actifs même si leur profil manque au catalogue. Décochez-les pour les retirer ; le serveur vérifie votre autorisation.</p>
+                {(editingUser.group_role_slugs ?? []).filter(slug => !roles.some(role => role.slug === slug)).map(slug => <label key={slug} className="flex items-center gap-2">
+                  <input type="checkbox" checked={editUserRoleSlugs.includes(slug)} disabled={!editingUser.is_active} onChange={() => setEditUserRoleSlugs(previous => previous.includes(slug) ? previous.filter(value => value !== slug) : [...previous, slug])} />
+                  {ROLE_PRESENTATION_CATALOG[slug]?.title ?? "Autorisation héritée"}
+                </label>)}
+              </fieldset>}
+              <p className="text-xs text-slate-600">
+                Profils ajoutés : {editUserRoleSlugs.filter(slug => !editableRoleSlugs(editingUser, roles).includes(slug)).map(slug => roles.find(role => role.slug === slug)?.name ?? slug).join(", ") || "aucun"}.
+                {" "}Profils retirés : {editableRoleSlugs(editingUser, roles).filter(slug => !editUserRoleSlugs.includes(slug)).map(slug => roles.find(role => role.slug === slug)?.name ?? slug).join(", ") || "aucun"}.
+              </p>
+              {!editingUser.is_active && <p className="text-xs text-amber-800">Réactivez ce compte pour modifier ses profils. Ses attributions sont conservées pendant la suspension.</p>}
+              <AccessSummary slugs={editUserRoleSlugs} catalog={roles} base={editingUser.base_capabilities} active={editingUser.is_active} />
 
               {/* Boutons d'action */}
               <div className="pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
@@ -1862,7 +1911,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                 </button>
                 <button
                   type="submit"
-                  disabled={editUserSubmitting}
+                  disabled={editUserSubmitting || rolesLoading || !!rolesError}
                   className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors shadow-sm inline-flex items-center gap-2 disabled:opacity-50"
                 >
                   {editUserSubmitting ? (
@@ -1878,14 +1927,14 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   )}
                 </button>
               </div>
-            </form>
+            </fieldset></form>
           </div>
-        </div>
+        </AdminDialog>
       )}
 
       {/* MODAL 3: Réinitialiser le Mot de Passe */}
       {resetPasswordUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <AdminDialog className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs" titleId="reset-password-title" onClose={() => setResetPasswordUser(null)} busy={resetPasswordSubmitting}>
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* En-tête */}
             <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-gradient-to-r from-amber-50/50 to-transparent">
@@ -1894,7 +1943,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   <i className="fas fa-key"></i>
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  <h3 id="reset-password-title" className="text-lg font-bold text-slate-900 dark:text-white">
                     Réinitialiser le mot de passe
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -1902,7 +1951,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   </p>
                 </div>
               </div>
-              <button
+              <button aria-label="Fermer"
                 type="button"
                 onClick={() => setResetPasswordUser(null)}
                 className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -1912,7 +1961,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
               </button>
             </div>
 
-            <form onSubmit={handleResetPassword} className="p-6 space-y-4">
+            <form onSubmit={handleResetPassword} className="p-6 space-y-4"><fieldset disabled={resetPasswordSubmitting} className="space-y-4 min-w-0">
               {resetPasswordError && (
                 <div className="p-3.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-700 dark:text-red-300 flex items-start gap-2.5">
                   <i className="fas fa-triangle-exclamation mt-0.5 shrink-0"></i>
@@ -1925,12 +1974,12 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   <i className="fas fa-shield-halved mr-1.5"></i>
                   Action administrative tracée
                 </p>
-                Définissez un nouveau mot de passe temporaire pour ce collaborateur. Cette réinitialisation sera consignée dans l'audit système.
+                Définissez un nouveau mot de passe pour ce collaborateur. Cette réinitialisation sera consignée dans l'audit système.
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300" htmlFor="admin-resetNewPassword">
                     Nouveau mot de passe <span className="text-red-500">*</span>
                   </label>
                   <button
@@ -1943,7 +1992,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   </button>
                 </div>
                 <div className="relative">
-                  <input
+                  <input id="admin-resetNewPassword"
                     type={showResetPassword ? "text" : "password"}
                     required
                     minLength={8}
@@ -1953,7 +2002,8 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   />
                   <button
                     type="button"
-                    onClick={() => setShowResetPassword(!showResetPassword)}
+                    aria-label={showResetPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                      onClick={() => setShowResetPassword(!showResetPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-xs"
                     title={showResetPassword ? "Masquer" : "Afficher"}
                   >
@@ -1988,9 +2038,9 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   )}
                 </button>
               </div>
-            </form>
+            </fieldset></form>
           </div>
-        </div>
+        </AdminDialog>
       )}
 
       {toast && (

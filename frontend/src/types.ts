@@ -1611,6 +1611,10 @@ export type User = {
   date_joined: string;
   role_names: string[];
   role_slugs?: string[];
+  capabilities?: Record<string, boolean>;
+  base_capabilities?: Record<string, boolean>;
+  assigned_role_slugs?: string[];
+  group_role_slugs?: string[];
 };
 
 export type UserCreatePayload = {
@@ -1634,6 +1638,8 @@ export type ApplicationRole = {
   id: string;
   name: string;
   slug: string;
+  capabilities?: Record<string, boolean>;
+  assignable?: boolean;
   description: string;
   is_system_managed: boolean;
   is_active: boolean;

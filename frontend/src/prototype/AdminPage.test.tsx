@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { describe, beforeEach, afterEach, it, expect, vi } from "vitest";
 import AdminPage from "./AdminPage";
 import type { User, ApplicationRole, NumberingSequence } from "../types";
@@ -177,6 +177,55 @@ describe("AdminPage", () => {
     vi.restoreAllMocks();
   });
 
+  it("affiche les droits reçus du serveur et restaure le focus", async () => {
+    mockGetRoles.mockResolvedValue([{ ...mockRoles[0], slug: "owner_manager", name: "Gérant", capabilities: { canSensitiveWrite: true, canManageIdentity: true } }]);
+    render(<AdminPage onNavigate={vi.fn()} />);
+    await screen.findByText("Admin User");
+    const trigger = screen.getByRole("button", { name: /Nouveau Collaborateur/i });
+    trigger.focus();
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    const checkbox = within(dialog).getByRole("checkbox", { name: /Gérant/ });
+    fireEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
+    expect(within(dialog).getByLabelText("Résumé des droits")).toHaveTextContent("Autorisé : Confirmer les réservations");
+    expect(within(dialog).getByLabelText(/Mot de passe/)).toHaveAttribute("type", "password");
+    const globalEscape = vi.fn();
+    document.addEventListener("keydown", globalEscape);
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(globalEscape).not.toHaveBeenCalled();
+    document.removeEventListener("keydown", globalEscape);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("permet de réessayer le catalogue sans perdre la saisie", async () => {
+    mockGetRoles.mockRejectedValueOnce(new Error("indisponible")).mockResolvedValue(mockRoles);
+    render(<AdminPage onNavigate={vi.fn()} />);
+    await screen.findByText("Admin User");
+    fireEvent.click(screen.getByRole("button", { name: /Nouveau Collaborateur/i }));
+    fireEvent.change(screen.getByPlaceholderText("Ex: Jean"), { target: { value: "Alice" } });
+    const retry = await screen.findByRole("button", { name: /Réessayer le chargement/ });
+    expect(retry).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Créer le collaborateur/i })).toBeDisabled();
+    fireEvent.click(retry);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Créer le collaborateur/i })).toBeEnabled());
+    expect(screen.getByPlaceholderText("Ex: Jean")).toHaveValue("Alice");
+  });
+
+  it("permet de retirer un accès hérité absent du catalogue", async () => {
+    mockGetUsers.mockResolvedValue([{ ...mockUsers[0], role_slugs: ["cashbox_operator"], assigned_role_slugs: [], group_role_slugs: ["cashbox_operator"] }]);
+    render(<AdminPage onNavigate={vi.fn()} />);
+    await screen.findByText("Admin User");
+    fireEvent.click(screen.getByRole("button", { name: /Profil & droits/ }));
+    const inherited = screen.getByRole("checkbox", { name: /Caissier/ });
+    expect(inherited).toBeChecked();
+    fireEvent.click(inherited);
+    fireEvent.click(screen.getByRole("button", { name: /Enregistrer les modifications/ }));
+    await waitFor(() => expect(mockUpdateUser).toHaveBeenCalledWith("user-1", expect.objectContaining({ role_slugs: [] })));
+  });
+
   it("affiche les collaborateurs avec rôles et aucun lien vers Django admin", async () => {
     render(<AdminPage onNavigate={vi.fn()} />);
     expect(await screen.findByText("Admin User")).toBeInTheDocument();
@@ -234,10 +283,10 @@ describe("AdminPage", () => {
     render(<AdminPage onNavigate={vi.fn()} />);
     await screen.findByText("Admin User");
 
-    const editBtn = screen.getByRole("button", { name: /Modifier/i });
+    const editBtn = screen.getByRole("button", { name: /Profil & droits/i });
     fireEvent.click(editBtn);
 
-    expect(screen.getByRole("heading", { name: /Modifier le profil collaborateur/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Modifier le profil et les droits/i })).toBeInTheDocument();
 
     const emailInput = screen.getByDisplayValue("admin@example.com");
     fireEvent.change(emailInput, { target: { value: "nouveau.mail@example.com" } });
@@ -259,7 +308,7 @@ describe("AdminPage", () => {
     render(<AdminPage onNavigate={vi.fn()} />);
     await screen.findByText("Admin User");
 
-    const accessBtn = screen.getByRole("button", { name: /Accès/i });
+    const accessBtn = screen.getByRole("button", { name: /Mot de passe/i });
     fireEvent.click(accessBtn);
 
     expect(screen.getByRole("heading", { name: /Réinitialiser le mot de passe/i })).toBeInTheDocument();
@@ -298,7 +347,7 @@ describe("AdminPage", () => {
     expect(screen.getByText("administrateur-metier")).toBeInTheDocument();
     expect(screen.getByText("Rôle système managé")).toBeInTheDocument();
 
-    const closeBtn = screen.getByRole("button", { name: /^Fermer$/i });
+    const closeBtn = screen.getByText("Fermer", { selector: "button" });
     fireEvent.click(closeBtn);
 
     await waitFor(() => {

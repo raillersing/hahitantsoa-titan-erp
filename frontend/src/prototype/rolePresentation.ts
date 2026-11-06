@@ -3,7 +3,7 @@ import type { ApplicationRole, User } from "../types";
 export interface PermissionMatrixItem {
   domain: string;
   icon: string;
-  allowed: boolean;
+  allowed: boolean | null;
   actionText: string;
 }
 
@@ -385,14 +385,9 @@ export function getRolePresentation(role: ApplicationRole, users: User[] = []): 
   const catalogEntry = ROLE_PRESENTATION_CATALOG[slug];
 
   // Calcul dynamique des membres affectés à ce rôle
-  const matchingUsers = users.filter((u) => {
-    // Vérifier si le rôle correspond par slug ou nom
-    return (
-      (u.role_names && u.role_names.some((rn) => rn.toLowerCase() === role.name.toLowerCase() || rn.toLowerCase() === role.slug.toLowerCase())) ||
-      (role.slug === "identity_admin" && u.is_staff) ||
-      (role.slug === "owner_manager" && u.is_staff)
-    );
-  });
+  const matchingUsers = users.filter((u) =>
+    (u.assigned_role_slugs ?? u.role_slugs ?? []).includes(role.slug)
+  );
 
   const memberNames = matchingUsers.map((u) => u.display_name || u.username);
   const memberCount = matchingUsers.length;
@@ -405,6 +400,14 @@ export function getRolePresentation(role: ApplicationRole, users: User[] = []): 
       ...catalogEntry,
       // Si le rôle en base a une description plus personnalisée que le catalogue par défaut, la respecter si approprié
       title: catalogEntry.title,
+      summary: catalogEntry.targetAudience + " Vérifiez les opérations autorisées dans le résumé des accès.",
+      keyRights: ["Les droits effectifs dépendent des capacités attribuées au compte."],
+      restrictions: ["La fiche métier ne remplace pas les autorisations vérifiées par le serveur."],
+      matrix: catalogEntry.matrix.map(row => {
+        const key = ({ "Confirmation & Contrats": "canSensitiveWrite", "Logistique & Entrepôt": "canOperateLogistics", "Caisse & Règlements": "canOperateCashbox", "Accès & Paramètres": "canManageIdentity" } as Record<string, string>)[row.domain];
+        const allowed = key && role.capabilities ? Boolean(role.capabilities[key]) : null;
+        return { ...row, allowed, actionText: allowed === null ? "Consultez les droits effectifs du collaborateur" : allowed ? "Capacité accordée par ce rôle" : "Capacité non accordée par ce rôle" };
+      }),
     };
   }
 
@@ -428,9 +431,9 @@ export function getRolePresentation(role: ApplicationRole, users: User[] = []): 
       "Ne peut effectuer que les actions expressément allouées",
     ],
     matrix: [
-      { domain: "Devis & Proformas", icon: "fa-file-lines", allowed: true, actionText: "Accès standard selon permissions" },
+      { domain: "Devis & Proformas", icon: "fa-file-lines", allowed: false, actionText: "Aucun droit supplémentaire configuré" },
       { domain: "Confirmation & Contrats", icon: "fa-lock", allowed: false, actionText: "Restreint par défaut" },
-      { domain: "Logistique & Entrepôt", icon: "fa-truck-ramp-box", allowed: true, actionText: "Accès opérationnel" },
+      { domain: "Logistique & Entrepôt", icon: "fa-truck-ramp-box", allowed: false, actionText: "Aucun droit supplémentaire configuré" },
       { domain: "Caisse & Règlements", icon: "fa-cash-register", allowed: false, actionText: "Restreint par défaut" },
       { domain: "Factures & Exports", icon: "fa-file-invoice-dollar", allowed: false, actionText: "Restreint par défaut" },
       { domain: "Accès & Paramètres", icon: "fa-sliders", allowed: false, actionText: "Restreint par défaut" },
