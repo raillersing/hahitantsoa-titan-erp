@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.identity.models import ApplicationRole, UserRoleAssignment
-from apps.identity.roles import ROLE_GROUP_NAME_BY_ROLE
+from apps.identity.roles import PROTECTED_ROLE_SLUGS
 from apps.identity.serializers import (
     ApplicationRoleSerializer,
     ApplicationRoleWriteSerializer,
@@ -61,8 +61,11 @@ class ApplicationRoleListCreateAPIView(generics.ListCreateAPIView):
         return queryset
 
     def create(self, request, *args, **kwargs):
-        reserved_slugs = set(ROLE_GROUP_NAME_BY_ROLE.values())
-        if request.data.get("slug") in reserved_slugs and not request.user.is_staff:
+        reserved_slugs = PROTECTED_ROLE_SLUGS
+        raw_slug = request.data.get("slug")
+        # DRF CharField trims whitespace before validating a SlugField.
+        normalized_slug = raw_slug.strip() if isinstance(raw_slug, str) else None
+        if normalized_slug in reserved_slugs and not request.user.is_staff:
             return Response(
                 {
                     "detail": "Only a platform administrator may manage reserved roles.",
@@ -84,8 +87,9 @@ class ApplicationRoleDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return ApplicationRoleSerializer
 
     def _platform_mutation_guard(self, request, instance):
-        reserved_slugs = set(ROLE_GROUP_NAME_BY_ROLE.values())
-        requested_slug = request.data.get("slug", instance.slug)
+        reserved_slugs = PROTECTED_ROLE_SLUGS
+        raw_slug = request.data.get("slug", instance.slug)
+        requested_slug = raw_slug.strip() if isinstance(raw_slug, str) else None
         if not request.user.is_staff and (
             instance.is_system_managed
             or instance.slug in reserved_slugs

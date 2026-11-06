@@ -7,7 +7,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.documents.serializers import DocumentInstanceSerializer
-from apps.identity.permissions import HasInventoryManagementAccess, HasReservationSensitiveAccess
+from apps.identity.permissions import (
+    HasInventoryManagementAccess,
+    HasLogisticsOperationAccess,
+    HasReservationSensitiveAccess,
+)
 from apps.inventory.models import (
     InventoryDamageLossExcessReceivable,
     InventoryItem,
@@ -155,7 +159,7 @@ class InventoryStockMovementListCreateAPIView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method.lower() == "post":
-            return [HasReservationSensitiveAccess()]
+            return [HasLogisticsOperationAccess()]
         return [permission() for permission in self.permission_classes]
 
     def get_serializer_class(self):
@@ -230,7 +234,7 @@ class InventoryReturnOperationListCreateAPIView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method.lower() == "post":
-            return [HasReservationSensitiveAccess()]
+            return [HasLogisticsOperationAccess()]
         return [permission() for permission in self.permission_classes]
 
     def get_serializer_class(self):
@@ -292,7 +296,7 @@ class InventoryReturnOperationRetrieveAPIView(APIView):
 
 class InventoryReturnOperationValidateAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasLogisticsOperationAccess]
 
     @extend_schema(
         request=None,

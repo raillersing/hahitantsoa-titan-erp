@@ -2,14 +2,25 @@ from __future__ import annotations
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.sessions.models import Session
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
-from apps.identity.authorization import is_identity_admin_actor
+from apps.identity.authorization import (
+    actor_has_application_role,
+    can_assign_application_role,
+    is_identity_admin_actor,
+)
 from apps.identity.models import ApplicationRole, UserRoleAssignment
-from apps.identity.roles import COMPANY_ROLE_CATALOG, ROLE_GROUP_NAME_BY_ROLE, IdentityRole
+from apps.identity.roles import (
+    COMPANY_ROLE_CATALOG,
+    PROTECTED_ROLE_SLUGS,
+    ROLE_GROUP_NAME_BY_ROLE,
+    IdentityRole,
+)
 
 UNAUTHORIZED_ROLE_ASSIGNMENT = "unauthorized_role_assignment"
 ROLE_ASSIGNMENT_NOT_FOUND = "role_assignment_not_found"
@@ -52,6 +63,50 @@ def _require_platform_identity_admin(*, actor: object | None) -> None:
         )
 
 
+def _lock_managed_user(*, actor: object | None, user_id: int | str) -> User:
+    # Lock administrators in one order so competing suspensions cannot remove
+    # each other's authority using stale request.user objects.
+    users = list(
+        User.objects.select_for_update()
+        .filter(Q(pk=user_id) | Q(pk=getattr(actor, "pk", None)) | Q(is_active=True, is_staff=True))
+        .order_by("pk")
+    )
+    current_actor = next((u for u in users if u.pk == getattr(actor, "pk", None)), None)
+    _require_identity_admin(actor=current_actor)
+    target = next((u for u in users if str(u.pk) == str(user_id)), None)
+    if target is None:
+        raise IdentityServiceError("Utilisateur introuvable.", code=USER_NOT_FOUND)
+    if target.is_superuser and not current_actor.is_superuser:
+        raise IdentityServiceError(
+            "Seul un super-utilisateur peut modifier ce compte protégé.",
+            code=UNAUTHORIZED_PLATFORM_ROLE,
+        )
+    if target.is_staff and not current_actor.is_staff:
+        raise IdentityServiceError("Compte technique protégé.", code=UNAUTHORIZED_PLATFORM_ROLE)
+    if (
+        target.pk != current_actor.pk
+        and is_identity_admin_actor(actor=target)
+        and not current_actor.is_staff
+        and not actor_has_application_role(actor=current_actor, role_slug="owner_manager")
+    ):
+        raise IdentityServiceError(
+            "Seul un administrateur de plateforme peut modifier ce compte protégé.",
+            code=UNAUTHORIZED_PLATFORM_ROLE,
+        )
+    return target
+
+
+def _invalidate_user_sessions(*, user: User) -> None:
+    # The application uses Django database sessions. Delete only this user's
+    # sessions inside the same transaction as suspension; never log session data.
+    keys = [
+        session.session_key
+        for session in Session.objects.filter(expire_date__gt=timezone.now()).iterator()
+        if str(session.get_decoded().get("_auth_user_id", "")) == str(user.pk)
+    ]
+    Session.objects.filter(session_key__in=keys).delete()
+
+
 def sync_system_roles(*, actor: object | None) -> list[ApplicationRole]:
     _require_platform_identity_admin(actor=actor)
     roles: list[ApplicationRole] = []
@@ -75,9 +130,9 @@ def sync_company_role_catalog() -> list[ApplicationRole]:
     """Create missing operational roles without changing existing records.
 
     The catalogue deliberately uses regular application roles.  It is not a
-    platform capability registry and therefore does not affect endpoint
-    permissions; identity administrators can assign and revoke these roles
-    through the existing assignment lifecycle.  Catalog seeding has no human
+    platform capability registry. Their business capabilities are declared in
+    roles.py; protected business grants use the existing audited assignment
+    lifecycle and never promote a Django platform account.  Catalog seeding has no human
     actor, so audit events intentionally use ``actor=None`` and identify the
     system executor through the ``system_actor`` metadata field.
     """
@@ -144,7 +199,7 @@ def assign_role(
     _require_identity_admin(actor=actor)
 
     with transaction.atomic():
-        locked_user = User.objects.select_for_update().get(pk=user.pk)
+        locked_user = _lock_managed_user(actor=actor, user_id=user.pk)
         locked_role = ApplicationRole.objects.select_for_update().get(pk=role.pk)
         if not locked_user.is_active:
             raise IdentityServiceError(
@@ -156,8 +211,11 @@ def assign_role(
                 "Cannot assign an inactive role.",
                 code=ROLE_INACTIVE,
             )
-        if locked_role.is_system_managed or locked_role.slug in ROLE_GROUP_NAME_BY_ROLE.values():
-            _require_platform_identity_admin(actor=actor)
+        if not can_assign_application_role(actor=actor, role=locked_role):
+            raise IdentityServiceError(
+                "Only a platform administrator or owner may assign this protected role.",
+                code=UNAUTHORIZED_PLATFORM_ROLE,
+            )
 
         existing = (
             UserRoleAssignment.objects.filter(
@@ -213,6 +271,13 @@ def revoke_role(
     _require_identity_admin(actor=actor)
 
     with transaction.atomic():
+        user_id = (
+            UserRoleAssignment.objects.filter(pk=assignment_id)
+            .values_list("user_id", flat=True)
+            .first()
+        )
+        if user_id is not None:
+            _lock_managed_user(actor=actor, user_id=user_id)
         assignment = UserRoleAssignment.objects.select_for_update().filter(pk=assignment_id).first()
         if assignment is None:
             raise IdentityServiceError(
@@ -220,16 +285,31 @@ def revoke_role(
                 code=ROLE_ASSIGNMENT_NOT_FOUND,
             )
 
+        if (
+            assignment.user_id == getattr(actor, "pk", None)
+            and assignment.role.slug in {"identity_admin", "owner_manager"}
+            and not getattr(actor, "is_staff", False)
+        ):
+            raise IdentityServiceError(
+                "Vous ne pouvez pas retirer votre propre accès d’administration.",
+                code="cannot_remove_own_admin_access",
+            )
+
         if not assignment.is_active:
             raise IdentityServiceError(
                 "Role assignment is already revoked.",
                 code=ROLE_ALREADY_REVOKED,
             )
-        if assignment.role.is_system_managed or assignment.role.slug in (
-            ROLE_GROUP_NAME_BY_ROLE.values()
-        ):
-            _require_platform_identity_admin(actor=actor)
+        if assignment.role.is_system_managed or assignment.role.slug in PROTECTED_ROLE_SLUGS:
+            if not actor_has_application_role(actor=actor, role_slug="owner_manager"):
+                _require_platform_identity_admin(actor=actor)
 
+        assignment.user.groups.remove(
+            *assignment.user.groups.filter(
+                name=assignment.role.slug,
+                name__in=ROLE_GROUP_NAME_BY_ROLE.values(),
+            )
+        )
         assignment.is_active = False
         assignment.revoked_at = timezone.now()
         if notes:
@@ -350,13 +430,7 @@ def update_user(
     _require_identity_admin(actor=actor)
 
     with transaction.atomic():
-        try:
-            target_user = User.objects.select_for_update().get(pk=user_id)
-        except User.DoesNotExist as exc:
-            raise IdentityServiceError(
-                f"Utilisateur introuvable avec l'ID {user_id}.",
-                code=USER_NOT_FOUND,
-            ) from exc
+        target_user = _lock_managed_user(actor=actor, user_id=user_id)
 
         actor_pk = getattr(actor, "pk", None)
         if is_active is False and actor_pk is not None and str(actor_pk) == str(target_user.pk):
@@ -392,9 +466,20 @@ def update_user(
 
         if update_fields:
             target_user.save(update_fields=update_fields)
+        if is_active is False:
+            _invalidate_user_sessions(user=target_user)
 
         if role_slugs is not None:
             target_slugs = {s.strip() for s in role_slugs if s.strip()}
+            if (
+                target_user.pk == getattr(actor, "pk", None)
+                and not target_user.is_staff
+                and not target_slugs.intersection({"identity_admin", "owner_manager"})
+            ):
+                raise IdentityServiceError(
+                    "Vous ne pouvez pas retirer votre propre accès d’administration.",
+                    code="cannot_remove_own_admin_access",
+                )
             current_assignments = {
                 a.role.slug: a
                 for a in UserRoleAssignment.objects.filter(
@@ -402,6 +487,22 @@ def update_user(
                     is_active=True,
                 ).select_related("role")
             }
+
+            group_slugs = set(target_user.groups.values_list("name", flat=True)) & set(
+                ROLE_GROUP_NAME_BY_ROLE.values()
+            )
+            removed_groups = group_slugs - target_slugs
+            if removed_groups:
+                if not actor_has_application_role(actor=actor, role_slug="owner_manager"):
+                    _require_platform_identity_admin(actor=actor)
+                target_user.groups.remove(*target_user.groups.filter(name__in=removed_groups))
+                record_audit_event_on_commit(
+                    actor=actor,
+                    action="identity.legacy_group_roles_revoked",
+                    target_type="user",
+                    target_id=str(target_user.pk),
+                    metadata={"role_slugs": sorted(removed_groups)},
+                )
 
             # Revoke unselected roles
             for slug, assignment in current_assignments.items():
@@ -414,7 +515,7 @@ def update_user(
 
             # Assign newly selected roles
             for slug in target_slugs:
-                if slug not in current_assignments:
+                if slug not in current_assignments and slug not in group_slugs:
                     try:
                         role_obj = ApplicationRole.objects.get(slug=slug)
                     except ApplicationRole.DoesNotExist as exc:
@@ -448,13 +549,7 @@ def reset_user_password(
     _require_identity_admin(actor=actor)
 
     with transaction.atomic():
-        try:
-            target_user = User.objects.select_for_update().get(pk=user_id)
-        except User.DoesNotExist as exc:
-            raise IdentityServiceError(
-                f"Utilisateur introuvable avec l'ID {user_id}.",
-                code=USER_NOT_FOUND,
-            ) from exc
+        target_user = _lock_managed_user(actor=actor, user_id=user_id)
 
         try:
             validate_password(new_password, user=target_user)

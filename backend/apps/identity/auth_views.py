@@ -22,6 +22,7 @@ from apps.identity.auth_services import (
     record_logout_started,
     record_logout_success,
 )
+from apps.identity.authorization import access_capabilities_for_actor
 from apps.identity.selectors import user_effective_role_slugs
 
 
@@ -62,6 +63,7 @@ def _session_payload(user: object) -> dict[str, object]:
             "display_name": display_name,
             "is_staff": bool(getattr(user, "is_staff", False)),
             "roles": sorted(user_effective_role_slugs(user=user)),
+            "capabilities": access_capabilities_for_actor(actor=user),
         },
     }
 

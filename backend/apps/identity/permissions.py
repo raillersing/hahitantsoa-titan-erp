@@ -5,8 +5,10 @@ from rest_framework.permissions import BasePermission
 from apps.identity.authorization import (
     LOGISTICS_OVERRIDE_PERMISSION_DENIED_MESSAGE,
     RESERVATION_SENSITIVE_PERMISSION_DENIED_MESSAGE,
+    is_cashbox_operator_actor,
     is_identity_admin_actor,
     is_inventory_management_actor,
+    is_logistics_operator_actor,
     is_logistics_override_actor,
     is_management_or_finance_actor,
     is_reservation_sensitive_actor,
@@ -56,3 +58,17 @@ class HasSuperAdminAccess(BasePermission):
 
     def has_permission(self, request, view) -> bool:
         return is_super_admin_actor(actor=request.user)
+
+
+class HasLogisticsOperationAccess(BasePermission):
+    message = "Une autorisation logistique est requise."
+
+    def has_permission(self, request, view) -> bool:
+        return is_logistics_operator_actor(actor=request.user)
+
+
+class HasCashboxOperationAccess(BasePermission):
+    message = "Une autorisation de caisse est requise."
+
+    def has_permission(self, request, view) -> bool:
+        return is_cashbox_operator_actor(actor=request.user)

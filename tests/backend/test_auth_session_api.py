@@ -83,7 +83,12 @@ def test_session_returns_minimal_authenticated_user_and_sorted_active_roles(
     response = csrf_client.get(SESSION_URL)
 
     assert response.status_code == 200
-    assert response.json() == {
+    payload = response.json()
+    capabilities = payload["user"].pop("capabilities")
+    assert capabilities["canManageIdentity"] is True
+    assert capabilities["canSensitiveWrite"] is False
+    assert capabilities["canSuperAdminDelete"] is False
+    assert payload == {
         "authenticated": True,
         "user": {
             "id": str(user.pk),

@@ -11,6 +11,7 @@ class SessionUserSerializer(serializers.Serializer):
     username = serializers.CharField()
     display_name = serializers.CharField()
     is_staff = serializers.BooleanField()
+    capabilities = serializers.DictField(child=serializers.BooleanField(), read_only=True)
     roles = serializers.ListField(child=serializers.CharField())
 
 
