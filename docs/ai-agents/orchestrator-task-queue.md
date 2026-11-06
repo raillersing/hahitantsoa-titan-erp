@@ -2,11 +2,19 @@
 
 ## Current State
 
-- `origin/main` HEAD is `b2339de`.
-- `main` CI is green as verified on 2026-07-21 (run 29844073781).
-- **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
+- `origin/main` HEAD is `ed4ea2fcdeae2d1bdc1a5ce5cd354d431ce27d37`.
+- `main` CI is green as verified on 2026-11-06 (run 42148530177).
+- **Transformation complete**: All 12 prototype-to-production transformation phases are fully implemented, tested, and commercially accepted (`docs/audits/PHASE_12_COMMERCIAL_ACCEPTANCE_AUDIT.md`, PR #830).
+- **Client Corrections Plan (2026-11-05) complete**: All 5 sequential correction lots are merged and verified on `main`:
+  - PR #897: Lot 2A (R5) — Idempotence création client
+  - PR #898: Lot 3A (R8) — Modification partagée collègues
+  - PR #899: Lot 4A (R3, R10) — Intégrité DB ensembles & packs
+  - PR #900: Lot 6A (R4, R7) — Reçus thermiques 80×104 mm & snapshot facture
+  - PR #901: Lots 1, 2B, 6B, 7B (R1, R2, R4, R5, R6, R10) — UI client & aperçu
+- No open PRs. Active worktree: canonical repository root on clean `main`.
+- Current active/planned bundle: **Lot 8 — Physical & Hardware Acceptance** (impression Xprinter thermique 80 mm, tests réseau local sur Raspberry Pi).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
-- No open backend PRs. No new backend feature bundles shall be started without explicit human authorization.
+- No new backend feature bundles shall be started without explicit human authorization.
 - F145A through F145H are merged on `main`.
 - F153A is merged and provides the backend local CI wrappers and fast validation workflow.
 - F153B is merged and provides the backend specialist skills pack and selection guidance.
@@ -263,6 +271,24 @@ Remaining gaps (documented in audit):
 - F181A-HAH-8/CUST-2: Prospect status tag in notes → needs backend column (post-F175A)
 - F181A-LOG-3/5/6: Logistics HAH, backward transitions → needs business decisions
 - F181A-AVAIL-5: Commercial Ops tab navigation → needs prototype implementation
+
+### Client Corrections Plan (2026-11-05) — Lots 0-7
+
+Status: **COMPLETE** — 5 Pull Requests merged successively on `main`, exact-SHA CI verified, clean task worktrees purged.
+
+Scope: Resolution of client arbitrations from Lot 0 (R1, R2, R3, R4, R5, R6, R7, R8, R10).
+
+| Lot | PR | Remarques Client | Scope | Merged SHA | Main CI Run | Résultat CI |
+|:---:|:---:|:---:|---|:---:|:---:|:---:|
+| **Lot 2A** | **#897** | R5 | Persistance & Idempotence création client (`idempotency_key` unique en DB, replay idempotent, gestion 409) | `49e5232` | 42145431796 | 🟢 SUCCESS |
+| **Lot 3A** | **#898** | R8 | Visibilité & Modification collègues des dossiers brouillons (même niveau privilège staff, attribution `updated_by`) | `2df1be3` | 42146901684 | 🟢 SUCCESS |
+| **Lot 4A** | **#899** | R3, R10 | Intégrité DB ensembles (`quantity > 0`, contrainte unique `(package, inventory_item)`) et gestion des packs historiques sans composition archivée | `58e0587` | 42147421939 | 🟢 SUCCESS |
+| **Lot 6A** | **#900** | R4, R7 | Reçus thermiques paginés 80×104 mm avec compteurs de page WeasyPrint et snapshot immuable de période d'événement (`event_period_snapshot`) sur les factures confirmées | `48b8d49` | 42147960098 | 🟢 SUCCESS |
+| **Lots 1, 2B, 6B, 7B** | **#901** | R1, R2, R4, R5, R6, R10 | Frontend assistant création client (persistance de sélection étape 1→2), aperçu canvas interactif 80×104 mm du reçu thermique, ventilation pliable des ensembles et packs historiques | `ed4ea2f` | 42148530177 | 🟢 SUCCESS |
+
+Validation : 638 tests Vitest frontend, tests backend Django/DRF, CI 4 shards + Gate verts sur chaque commit squash sur `main`.
+
+Next planned operational gate: **Lot 8 — Physical Acceptance & Hardware Validation** (impression Xprinter thermique 80 mm et tests multi-terminaux LAN).
 
 ### Active workflow improvement bundle
 
