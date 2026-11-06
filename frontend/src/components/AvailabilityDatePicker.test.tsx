@@ -37,6 +37,40 @@ describe("AvailabilityDatePicker Component", () => {
     vi.restoreAllMocks();
   });
 
+  it.each(["2027-11-", "2027-02-30", "NaN-NaN-NaN"])("ignores an incomplete or invalid external date %s before availability conversion", (value) => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    render(<AvailabilityDatePicker selectedDate={value} showAvailabilityPreview allowPast />);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(screen.queryByText(/ressource\(s\) Titan disponible/)).not.toBeInTheDocument();
+  });
+
+  it("keeps progressive year typing safe and only checks availability once the date is complete", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      return Promise.resolve(jsonResponse(url.includes("summary")
+        ? { available_item_count: 0, available_preview_count: 0, available_item_kinds: [] }
+        : []));
+    });
+    function Form() {
+      const [value, setValue] = useState("");
+      return <AvailabilityDatePicker label="Saisie progressive" value={value} onChange={setValue} showAvailabilityPreview allowPast />;
+    }
+    render(<Form />);
+    const input = screen.getByRole("textbox", { name: "Saisie progressive" });
+    for (const value of ["20/11/2", "20/11/20", "20/11/202"]) {
+      fireEvent.change(input, { target: { value } });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    }
+    fireEvent.change(input, { target: { value: "20/11/2027" } });
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
+    expect(fetchSpy.mock.calls.every(([url]) => String(url).includes("2027-11-20"))).toBe(true);
+    fetchSpy.mockClear();
+    fireEvent.change(input, { target: { value: "30/02/2027" } });
+    fireEvent.blur(input);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/invalide/i);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("renders with manual input and calls onChange when a valid date is typed", async () => {
     const onChange = vi.fn();
     const futureYear = new Date().getFullYear() + 1;

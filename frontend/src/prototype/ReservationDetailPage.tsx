@@ -2061,6 +2061,62 @@ export default function ReservationDetailPage({
         </div>
       </div>
 
+      {/* ── Bloc Dépliable : Détail des compositions sous la synthèse financière (R10) ── */}
+      <details data-testid="titan-financial-summary-breakdown" className="group rounded-2xl border border-indigo-100 bg-white mt-6 p-4 shadow-sm">
+        <summary className="cursor-pointer font-bold text-xs uppercase text-indigo-950 flex items-center justify-between select-none">
+          <span className="flex items-center gap-2">
+            <i className="fa-solid fa-list-check text-indigo-600"></i>
+            Détail des compositions & matériels loués
+          </span>
+          <span className="text-[11px] text-indigo-600 lowercase group-open:hidden">afficher le détail ▼</span>
+          <span className="text-[11px] text-indigo-600 lowercase hidden group-open:inline">masquer le détail ▲</span>
+        </summary>
+        <div className="mt-4 pt-3 border-t border-slate-100 space-y-4 text-xs">
+          {/* Matériels loués */}
+          <div className="space-y-1.5">
+            <span className="font-bold text-slate-800 uppercase block">Lignes de location</span>
+            {draft.lines.length === 0 ? (
+              <p className="text-slate-400 italic">Aucun matériel sélectionné.</p>
+            ) : (
+              <div className="space-y-1">
+                {draft.lines.map((line) => (
+                  <div key={line.id} className="flex justify-between items-center text-slate-700">
+                    <span>{line.inventory_item_name} <span className="text-slate-400">x{line.quantity}</span></span>
+                    <span className="font-semibold text-slate-900">
+                      {line.unit_rental_price == null ? "Prix non archivé" : formatMoney(Number(line.unit_rental_price) * line.quantity)}
+                      {line.inventory_item_kind === "material_pack" && <span className="block text-slate-400 italic text-[11px]">Détail non archivé pour ce dossier</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {deliveryFeeAmount > 0 && (
+            <div className="pt-3 border-t border-slate-100 flex justify-between items-center text-slate-700">
+              <span className="font-bold uppercase">Livraison par Titan</span>
+              <span className="font-semibold">{formatMoney(deliveryFeeAmount)}</span>
+            </div>
+          )}
+
+          {discountAmount > 0 && (
+            <div className="pt-3 border-t border-slate-100 flex justify-between items-center text-emerald-700">
+              <span className="font-bold uppercase">Remise commerciale</span>
+              <span className="font-semibold">-{formatMoney(discountAmount)}</span>
+            </div>
+          )}
+
+          {/* Caution hors CA */}
+          <div className="pt-3 border-t border-slate-200 bg-amber-50/40 -mx-4 -mb-4 p-3 rounded-b-xl space-y-1 text-slate-600">
+            <span className="text-[10px] font-bold text-amber-900 uppercase block">Séquestres & Caution hors CA :</span>
+            <div className="flex justify-between items-center text-slate-700">
+              <span>Dépôt de garantie (Caution Article 7)</span>
+              <span className="font-bold text-amber-800">{formatMoney(cautionAmount)}</span>
+            </div>
+          </div>
+        </div>
+      </details>
+
       {/* ── Payments table ────────────────────────────────────────── */}
       {payments.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-100 p-6 mt-6 shadow-xs">

@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import HahitantsoaEventDraftDetailPage, { parseHahitantsoaServiceNotes } from "./HahitantsoaEventDraftDetailPage";
 import type {
@@ -1594,4 +1594,66 @@ describe("HahitantsoaEventDraftDetailPage", () => {
       expect(screen.getByText(/465\s*000\s*Ar/)).toBeInTheDocument(); // 500 000 - 35 000 = 465 000
       expect(screen.getByTestId("generate-refund-receipt-btn")).toBeInTheDocument();
     });
+
+    it("affiche le détail dépliable des compositions sous la synthèse financière avec mention pour les packs historiques (R10)", async () => {
+      currentDraft = {
+        ...DRAFT,
+        lines: [
+          {
+            id: "line-pack-1",
+            inventory_item_id: "pack-1",
+            inventory_item_name: "Pack Prestige Mariage",
+            inventory_item_kind: "material_pack",
+            quantity: 1,
+            notes: "",
+          },
+          {
+            id: "line-item-2",
+            inventory_item_id: "item-2",
+            inventory_item_name: "Guirlande LED",
+            inventory_item_kind: "material",
+            quantity: 4,
+            notes: "",
+          },
+        ],
+      };
+      render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+      const breakdown = await screen.findByTestId("hahitantsoa-financial-summary-breakdown");
+      expect(breakdown).toBeInTheDocument();
+      const toggleBtn = screen.getByRole("button", { name: /Détail complet des compositions de l'offre/i });
+      fireEvent.click(toggleBtn);
+      expect(await screen.findByText("Détail non archivé pour ce dossier")).toBeInTheDocument();
+      expect(within(breakdown).getByText("Composition de la location nue non archivée pour ce dossier.")).toBeInTheDocument();
+    });
+  it("restitue les prix, inclusions et notes enregistrés malgré un catalogue modifié sans modifier total et caution", async () => {
+    currentDraft = { ...DRAFT, total_amount: '2000000.00', duration_option: 'night_2', night_security_amount: '130000.00', bare_rental_composition: [{ label: 'Tables archivées', quantity: 9 }], service_notes: 'Guinguette (x3) - 300000 Ar\nNote personnalisée, sans tarif', lines: [{ id: 'line-recorded', inventory_item_id: 'item-1', inventory_item_name: 'Chaise archivée', inventory_item_kind: 'material', quantity: 3, unit_rental_price: '100000.00', notes: '' }, { id: 'pack-recorded', inventory_item_id: 'pack-1', inventory_item_name: 'Pack archivé', inventory_item_kind: 'material_pack', quantity: 1, unit_rental_price: '200000.00', notes: '' }] };
+    mockGetInventoryItems.mockResolvedValue([{ id: 'item-1', name: 'Catalogue changé', kind: 'material', rental_price: '900000.00' }]);
+    mockGetServices.mockResolvedValue([{ id: 'service-new', name: 'Guinguette', price: '999999.00', active: true }]);
+    mockGetCommercialTerms.mockResolvedValue({ base_space_rental_amount: '1500000.00', included_guest_count: 250, excess_guest_amount: '5000.00', bare_deposit_amount: '1000000.00', logistics_deposit_amount: '1500000.00', night_option_1_amount: '300000.00', night_option_2_amount: '500000.00', night_security_amount: '999999.00', caution_amount: '500000.00', bare_rental_composition: [{ label: 'Inclusion actuelle ajoutée', quantity: 99 }], updated_at: '2026-11-06T00:00:00Z' });
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+    const breakdown = await screen.findByTestId('hahitantsoa-financial-summary-breakdown');
+    fireEvent.click(within(breakdown).getByRole('button', { name: /Détail complet/ }));
+    expect(within(breakdown).getByText(/9 Tables archivées/)).toBeInTheDocument();
+    expect(within(breakdown).queryByText(/Inclusion actuelle ajoutée/)).not.toBeInTheDocument();
+    expect(within(breakdown).getByText(/^300\s*000\s*Ar$/)).toBeInTheDocument();
+    expect(within(breakdown).getByText(/^200\s*000\s*Ar$/)).toBeInTheDocument();
+    expect(within(breakdown).getByText(/^130\s*000\s*Ar$/)).toBeInTheDocument();
+    expect(within(breakdown).queryByText(/^150\s*000\s*Ar$/)).not.toBeInTheDocument();
+    expect(within(breakdown).getByText(/^500\s*000\s*Ar$/)).toBeInTheDocument();
+    expect(within(breakdown).getByText(/Guinguette \(x3\) - 300000 Ar/)).toHaveTextContent('Note personnalisée, sans tarif');
+    expect(screen.getAllByText(/2\s*000\s*000\s*Ar/).length).toBeGreaterThan(0);
+    expect(mockUpdateDraft).not.toHaveBeenCalled();
+  });
+
+  it("ne présente pas la composition actuelle comme archivée lorsque le dossier n'a pas de snapshot", async () => {
+    currentDraft = { ...DRAFT, bare_rental_composition: undefined };
+    mockGetCommercialTerms.mockResolvedValue({ caution_amount: '500000.00', bare_rental_composition: [{ label: 'Inclusion actuelle non historique', quantity: 77 }] });
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+    const breakdown = await screen.findByTestId('hahitantsoa-financial-summary-breakdown');
+    fireEvent.click(within(breakdown).getByRole('button', { name: /Détail complet/ }));
+    expect(within(breakdown).getByText('Composition de la location nue non archivée pour ce dossier.')).toBeInTheDocument();
+    expect(within(breakdown).queryByText(/Inclusion actuelle non historique/)).not.toBeInTheDocument();
+  });
+
   });

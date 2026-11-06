@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
 import ReservationDetailPage from './ReservationDetailPage';
 import type { ReservationDraft, Customer } from '../types';
@@ -997,4 +997,18 @@ describe('ReservationDetailPage', () => {
     expect(screen.getByText(/230\s*000\s*Ar/)).toBeInTheDocument();
     expect(screen.getByTestId("preview-refund-receipt-btn")).toBeInTheDocument();
   });
+  it('détaille les lignes Titan au prix enregistré malgré un tarif actuel différent et conserve total/remise/caution', async () => {
+    mockGetInventoryItems.mockResolvedValue([{ id: 'ITEM-01', name: 'Chaise renommée', kind: 'article', rental_price: '9000.00' }]);
+    render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
+    await waitForDraftLoad();
+    const breakdown = screen.getByTestId('titan-financial-summary-breakdown');
+    fireEvent.click(within(breakdown).getByText('Détail des compositions & matériels loués'));
+    expect(within(breakdown).getByText(/^500\s*000\s*Ar$/)).toBeInTheDocument();
+    expect(within(breakdown).queryByText(/^900\s*000\s*Ar$/)).not.toBeInTheDocument();
+    expect(within(within(breakdown).getByText('Livraison par Titan').parentElement!).getByText(/^50\s*000\s*Ar$/)).toBeInTheDocument();
+    expect(within(breakdown).getByText(/^-20\s*000\s*Ar$/)).toBeInTheDocument();
+    expect(within(breakdown).getByText(/^290\s*000\s*Ar$/)).toBeInTheDocument();
+    expect(screen.getAllByText(/^580\s*000\s*Ar$/).length).toBeGreaterThan(0);
+  });
+
 });

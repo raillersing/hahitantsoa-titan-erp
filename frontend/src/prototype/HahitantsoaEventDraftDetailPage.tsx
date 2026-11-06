@@ -400,6 +400,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [showSummaryBreakdown, setShowSummaryBreakdown] = useState(false);
 
   // Reference modification modal states
   const [showEditRefModal, setShowEditRefModal] = useState(false);
@@ -1376,7 +1377,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     );
   }, [payments]);
   const nightSecurityPaidAmount = nightSecurityPayment ? Number(nightSecurityPayment.amount) : 0;
-  const nightSecurityRequiredAmount = draft?.duration_option === "night_2" ? 150000 : 0;
+  const nightSecurityRequiredAmount = draft?.duration_option === "night_2" ? Number(draft.night_security_amount ?? commercialTerms?.night_security_amount ?? 0) : 0;
 
   const currentReturnOp = useMemo(() => {
     return returnOperations.find((r) => r.hahitantsoa_event_draft === draft?.id) || returnOperations[0] || null;
@@ -2508,6 +2509,92 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Bloc Dépliable : Détail des compositions sous la synthèse financière (R10) ── */}
+      <div data-testid="hahitantsoa-financial-summary-breakdown" className="rounded-2xl border border-indigo-100 bg-white mb-6 p-4 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setShowSummaryBreakdown(!showSummaryBreakdown)}
+          aria-expanded={showSummaryBreakdown}
+          aria-controls="hahitantsoa-recorded-financial-breakdown"
+          className="w-full text-left font-bold text-xs uppercase text-indigo-950 flex items-center justify-between select-none cursor-pointer"
+        >
+          <span className="flex items-center gap-2">
+            <i className="fa-solid fa-list-check text-indigo-600"></i>
+            Détail complet des compositions de l'offre
+          </span>
+          <span className="text-[11px] text-indigo-600 lowercase font-medium">
+            {showSummaryBreakdown ? "masquer le détail ▲" : "afficher le détail ▼"}
+          </span>
+        </button>
+        {showSummaryBreakdown && (
+          <div id="hahitantsoa-recorded-financial-breakdown" className="mt-4 pt-3 border-t border-slate-100 space-y-4 text-xs">
+            {/* Espace & Location nue */}
+            <div className="space-y-1.5">
+              <span className="font-bold text-slate-800 uppercase block">Espace & Lieu de réception</span>
+              <div className="flex justify-between items-center text-slate-700">
+                <span>{draft.venue_name || "Lieu non spécifié"} ({draft.rental_type || "Location"})</span>
+                <span className="font-semibold">{formatMoney(draft.space_rental_amount || 0)}</span>
+              </div>
+              {draft.bare_rental_composition && draft.bare_rental_composition.length > 0 ? (
+                <div className="mt-1 pl-3 border-l-2 border-indigo-200 text-slate-500 space-y-0.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Inclusions location nue :</span>
+                  {draft.bare_rental_composition.map((item, idx) => (
+                    <div key={idx} className="flex justify-between">
+                      <span>• {item.quantity === 1 ? item.label : `${item.quantity} ${item.label}`}</span>
+                      <span className="text-emerald-600 italic">Inclus</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-slate-500 italic">Composition de la location nue non archivée pour ce dossier.</p>}
+            </div>
+
+            {/* Lignes d'articles et packs */}
+            <div className="pt-3 border-t border-slate-100 space-y-1.5">
+              <span className="font-bold text-slate-800 uppercase block">Articles & Prestations</span>
+              {draft.lines.length === 0 ? (
+                <p className="text-slate-400 italic">Aucun matériel ou article inventorié.</p>
+              ) : (
+                <div className="space-y-1">
+                  {draft.lines.map((line) => (
+                    <div key={line.id} className="space-y-0.5">
+                      <div className="flex justify-between items-center text-slate-700">
+                        <span>{line.inventory_item_name} <span className="text-slate-400">x{line.quantity}</span></span>
+                        <span className="font-semibold text-slate-900">{line.unit_rental_price == null ? "Prix non archivé" : formatMoney(Number(line.unit_rental_price) * line.quantity)}</span>
+                      </div>
+                      {line.inventory_item_kind === "material_pack" && <p className="text-slate-400 italic text-[11px]">Détail non archivé pour ce dossier</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Services */}
+            {draft.service_notes && (
+              <div className="pt-3 border-t border-slate-100 space-y-1.5">
+                <span className="font-bold text-slate-800 uppercase block">Services enregistrés dans le dossier</span>
+                <p className="text-slate-600 whitespace-pre-line">{draft.service_notes}</p>
+              </div>
+            )}
+
+            {/* Séquestres hors CA */}
+            <div className="pt-3 border-t border-slate-200 bg-amber-50/40 -mx-4 -mb-4 p-3 rounded-b-xl space-y-1 text-slate-600">
+              <span className="text-[10px] font-bold text-amber-900 uppercase block">Montants séparés du loyer :</span>
+              <div className="flex justify-between items-center text-slate-700">
+                <span>Dépôt de garantie (Caution Article 7)</span>
+                <span className="font-bold text-amber-800">{formatMoney(cautionAmount)}</span>
+              </div>
+              {!Number((draft as { caution_amount?: string }).caution_amount) && <p className="text-[11px]">Caution selon la configuration actuelle ; montant historique non archivé.</p>}
+              {nightSecurityRequiredAmount > 0 && (
+                <div className="flex justify-between items-center text-purple-900">
+                  <span>Sécurité nocturne obligatoire (Nuit 2)</span>
+                  <span className="font-bold">{formatMoney(nightSecurityRequiredAmount)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Section 2 : Tableau Détaillé des Articles & Lignes Événement ────── */}

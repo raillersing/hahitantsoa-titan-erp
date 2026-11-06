@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { saveDraftFiles, readDraftFiles, clearDraftFiles } from "./wizardDraftFiles";
-import { AvailabilityDatePicker } from "../components/AvailabilityDatePicker";
+import { AvailabilityDatePicker, parseAndNormalizeDate } from "../components/AvailabilityDatePicker";
 import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
 import OfficialPaymentReceipt from "./OfficialPaymentReceipt";
 import BareRentalCompositionEditor from "./BareRentalCompositionEditor";
@@ -121,7 +121,7 @@ const TITAN_TRANSPORT_REQUIREMENT = "Un véhicule fourgon est exigé pour le tra
 const TITAN_MOVEMENT_MODES = ["Livraison par Titan", "Prélèvement par le client"];
 
 function formatDateFr(dateStr: string | undefined): string {
-  if (!dateStr) return "Date non renseignée";
+  if (!dateStr || parseAndNormalizeDate(dateStr) !== dateStr) return "Date non renseignée";
   try {
     const [year, month, day] = dateStr.split("-").map(Number);
     const months = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
@@ -131,11 +131,15 @@ function formatDateFr(dateStr: string | undefined): string {
   }
 }
 
+function formatMoney(amount: number | string | undefined | null): string {
+  return `${(Number(amount) || 0).toLocaleString("fr-FR")} Ar`;
+}
+
 export function calculateHahitantsoaPaymentSchedule(totalAmount: number, depositAmount: number, eventDate: string) {
   const remaining = Math.max(0, totalAmount - depositAmount);
   const firstInstallment = Math.round((remaining / 2) * 100) / 100;
   const secondInstallment = Math.round((remaining - firstInstallment) * 100) / 100;
-  const date = eventDate ? new Date(`${eventDate}T12:00:00Z`) : null;
+  const date = parseAndNormalizeDate(eventDate) === eventDate ? new Date(`${eventDate}T12:00:00Z`) : null;
   const firstDue = date ? new Date(date) : null;
   const secondDue = date ? new Date(date) : null;
   if (firstDue) firstDue.setUTCMonth(firstDue.getUTCMonth() - 1);
@@ -158,7 +162,7 @@ function toTimezoneAwareIso(date: string, time: string): string {
 }
 
 function reservationPeriodError(startDate: string, startTime: string, endDate: string, endTime: string): string | null {
-  const validDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value + "T12:00:00Z").toISOString().slice(0, 10) === value;
+  const validDate = (value: string) => Boolean(value) && parseAndNormalizeDate(value) === value;
   if (!validDate(startDate) || !validDate(endDate) || !/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) return "Renseignez des dates et heures valides pour la réservation.";
   const start = Date.parse(toTimezoneAwareIso(startDate, startTime));
   const end = Date.parse(toTimezoneAwareIso(endDate, endTime));
@@ -166,6 +170,7 @@ function reservationPeriodError(startDate: string, startTime: string, endDate: s
 }
 
 function calendarDate(date: Date): string {
+  if (!Number.isFinite(date.getTime())) return "";
   return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
 }
 
@@ -402,8 +407,9 @@ interface TitanDetails {
 export function resolveHahitantsoaEventName(
   details: HahitantsoaDetails,
   fallbackCustomerName?: string,
+  company = false,
 ): string {
-  if (details.eventType === "Mariage") {
+  if (details.eventType === "Mariage" && !company) {
     const groom = details.mariageGroomName?.trim();
     const bride = details.mariageBrideName?.trim();
     if (groom && bride) return `${groom} & ${bride}`;
@@ -656,6 +662,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
   const [maxReachedStep, setMaxReachedStep] = useState<number>(0);
   const [isEditingClient, setIsEditingClient] = useState(false);
   const createdClientIdRef = useRef<string | null>(null);
+  const customerCreationKeyRef = useRef<string | null>(null);
   const lastOfferRef = useRef<string | null>(null);
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' | 'warning' } | null>(null);
@@ -691,6 +698,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
   const [prospectProformaEmission, setProspectProformaEmission] = useState<ProspectProformaEmission | null>(null);
   const [documentReference, setDocumentReference] = useState("");
   const [serverDraftSaving, setServerDraftSaving] = useState(false);
+  const navigationSavingRef = useRef(false);
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [discountIsPercentage, setDiscountIsPercentage] = useState<boolean>(true);
   const [discountReason, setDiscountReason] = useState<string>("");
@@ -702,6 +710,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     loading: false,
     error: null,
   });
+  const [showSummaryBreakdown, setShowSummaryBreakdown] = useState(false);
 
   const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "08:00", endDate: "", endTime: "20:00", rentalType: "Location nue", durationOption: "day", venuePrice: HAHITANTSOA_BASE_SPACE_RENTAL, logisticsPrice: 0 });
 
@@ -846,6 +855,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
   const [selectedMaterials, setSelectedMaterials] = useState<SelectedMaterial[]>([]);
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
   const [serviceCategoryFilter, setServiceCategoryFilter] = useState<string>("all");
+  const [serviceSearch, setServiceSearch] = useState("");
   const [deliveryFee, setDeliveryFee] = useState<string>("");
 
   const [payment, setPayment] = useState<PaymentData>({ method: "Espèces", amount: "", percent: (TITAN_DEFAULT_ADVANCE_RATE * 100).toString() });
@@ -1141,7 +1151,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     setDiscountValue(0);
     setDiscountIsPercentage(true);
     setDiscountReason("");
-    setProspectProformaEmission(null); setIsEditingClient(false); createdClientIdRef.current = null; lastOfferRef.current = null;
+    setProspectProformaEmission(null); setIsEditingClient(false); createdClientIdRef.current = null; customerCreationKeyRef.current = null; lastOfferRef.current = null;
     setProformaGenerated(false); setIssuedProspectProformaId(null); setPaymentDone(false); setDocumentReference("");
     setDeliveryModifiedManually(false); setReturnModifiedManually(false); depositRecordingKeyRef.current = null;
   };
@@ -1245,7 +1255,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     const draft = {
       routeParam: param ?? null, editingDraftContext, isEditingClient, documentReference, issuedProspectProformaId, proformaGenerated, proformaValidity,
       deliveryModifiedManually, returnModifiedManually, lastCalculatedDelivery, lastCalculatedReturn,
-      useCustomReference, customPublicReference, depositRecordingKey: depositRecordingKeyRef.current,
+      useCustomReference, customPublicReference, depositRecordingKey: depositRecordingKeyRef.current, customerCreationKey: customerCreationKeyRef.current,
       path, step, maxReachedStep, clientMode, selectedClientId, newClient, domain,
       hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment,
       clientAttachments: clientAttachments.map(({ file: _file, ...attachment }) => attachment),
@@ -1305,8 +1315,12 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       setClientMode(data.clientMode === "new" ? "new" : "existing"); setSelectedClientId(data.selectedClientId || "");
       setNewClient({ ...newClient, ...data.newClient, additionalEmails: Array.isArray(data.newClient?.additionalEmails) ? data.newClient.additionalEmails : [], additionalPhones: Array.isArray(data.newClient?.additionalPhones) ? data.newClient.additionalPhones : [] });
       setDomain(data.domain === "titan" || data.domain === "hahitantsoa" ? data.domain : null);
-      setHDetails({ ...hDetails, ...data.hDetails, bareRentalComposition: data.hDetails?.bareRentalComposition ?? (persistedSnapshot && "bare_rental_composition" in persistedSnapshot ? persistedSnapshot.bare_rental_composition : hDetails.bareRentalComposition) });
-      setTDetails({ ...tDetails, ...data.tDetails, startTime: data.tDetails?.startTime || "08:00", endTime: data.tDetails?.endTime || "22:00" });
+      const restoredDate = (value: unknown): string => typeof value === "string" && parseAndNormalizeDate(value) === value ? value : "";
+      const restoredH = data.hDetails && typeof data.hDetails === "object" ? data.hDetails : {};
+      const restoredT = data.tDetails && typeof data.tDetails === "object" ? data.tDetails : {};
+      if ([restoredH.startDate, restoredH.endDate, restoredT.startDate, restoredT.endDate].some(value => value && !restoredDate(value))) setDraftWarning("Les informations sont conservées. Corrigez les dates incomplètes du brouillon pour continuer.");
+      setHDetails({ ...hDetails, ...restoredH, startDate: restoredDate(restoredH.startDate), endDate: restoredDate(restoredH.endDate), bareRentalComposition: data.hDetails?.bareRentalComposition ?? (persistedSnapshot && "bare_rental_composition" in persistedSnapshot ? persistedSnapshot.bare_rental_composition : hDetails.bareRentalComposition) });
+      setTDetails({ ...tDetails, ...restoredT, startDate: restoredDate(restoredT.startDate), endDate: restoredDate(restoredT.endDate), pickupDate: restoredDate(restoredT.pickupDate), returnDate: restoredDate(restoredT.returnDate), startTime: restoredT.startTime || "08:00", endTime: restoredT.endTime || "22:00" });
       setSelectedMaterials(Array.isArray(data.selectedMaterials) ? data.selectedMaterials : []); setSelectedServices(Array.isArray(data.selectedServices) ? data.selectedServices : []);
       setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment || { method: "Espèces", amount: "", percent: (TITAN_DEFAULT_ADVANCE_RATE * 100).toString() });
       setClientAttachments((data.clientAttachments || []).map(restorePage));
@@ -1328,6 +1342,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
         if (resumedStep === 9 && !covered) setStep(8);
       } else { setRecordedPayments([]); setPaymentDone(false); }
       depositRecordingKeyRef.current = data.depositRecordingKey || null;
+      customerCreationKeyRef.current = typeof data.customerCreationKey === "string" ? data.customerCreationKey : null;
       setDiscountValue(data.discountValue || 0); setDiscountIsPercentage(data.discountIsPercentage ?? true); setDiscountReason(data.discountReason || "");
       setProspectProformaEmission(data.prospectProformaEmission ? { ...data.prospectProformaEmission, ...(persistedSnapshot?.required_deposit_amount !== undefined ? { requiredDepositAmount: Number(persistedSnapshot.required_deposit_amount) } : {}) } : null); setDocumentReference(data.documentReference || "");
       setIssuedProspectProformaId(data.issuedProspectProformaId || null); setProformaGenerated(Boolean(data.proformaGenerated)); setProformaValidity(data.proformaValidity || 15);
@@ -1480,7 +1495,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           customer_id: customerId,
           public_reference: customRef,
           event_type: toHahitantsoaEventType(hDetails.eventType),
-          event_name: resolveHahitantsoaEventName(hDetails, activeClient?.name),
+          event_name: resolveHahitantsoaEventName(hDetails, activeClient?.name, activeClient?.type === "Entreprise"),
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
           service_notes: formatHahitantsoaServiceNotes(selectedServices),
@@ -1523,7 +1538,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
 
   // Navigation
   const goNext = async () => {
-    if (serverDraftSaving) return;
+    if (serverDraftSaving || navigationSavingRef.current) return;
     setSubmitError(null);
     const clientStep = path === "client_first" ? 1 : 2;
     if (step === clientStep && !(clientMode === "existing" ? selectedClientId : newClient.name.trim())) { setSubmitError("Sélectionnez un client ou renseignez son nom."); return; }
@@ -1533,12 +1548,16 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       const periodError = reservationPeriodError(details.startDate, details.startTime, details.endDate, details.endTime);
       if (periodError) { setSubmitError(periodError); return; }
     }
-    if (domain === "hahitantsoa" && (errorHahitantsoaTerms || !hahitantsoaTerms)) {
+    if (step > clientStep && domain === "hahitantsoa" && (errorHahitantsoaTerms || !hahitantsoaTerms)) {
       setSubmitError("Impossible de continuer : les conditions tarifaires officielles n'ont pas pu être chargées depuis le serveur. Veuillez réessayer le chargement des tarifs.");
       return;
     }
+    navigationSavingRef.current = true;
     try {
-      if (step === clientStep && isEditingClient) await ensureCustomerId();
+      if (step === clientStep) {
+        setServerDraftSaving(true);
+        await ensureCustomerId();
+      }
       const details = domain === "hahitantsoa" ? hDetails : tDetails;
       const reachesPersistableOfferCompletion = step === 5
         && domain !== null
@@ -1551,6 +1570,9 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     } catch (error: any) {
       setSubmitError(error?.message || "Impossible d’enregistrer le dossier.");
       return;
+    } finally {
+      navigationSavingRef.current = false;
+      setServerDraftSaving(false);
     }
     let nextStep = step + 1;
     if (step === 3 && domain === 'hahitantsoa' && hDetails.rentalType === 'Location nue') {
@@ -1560,13 +1582,33 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     setMaxReachedStep(Math.max(maxReachedStep, nextStep));
   };
   const goBack = () => {
+    if (serverDraftSaving || navigationSavingRef.current) return;
     let prevStep = step - 1;
     if (step === 5 && domain === 'hahitantsoa' && hDetails.rentalType === 'Location nue') {
       prevStep = 3;
     }
     setStep(Math.max(0, prevStep));
   };
-  const jumpTo = (targetStep: number) => {
+  const jumpTo = async (targetStep: number) => {
+    if (targetStep > maxReachedStep || serverDraftSaving || navigationSavingRef.current) return;
+    const clientStep = path === "client_first" ? 1 : 2;
+    if (targetStep > step && step === clientStep) {
+      if (!(clientMode === "existing" && !isEditingClient ? selectedClientId : newClient.name.trim())) {
+        setSubmitError("Sélectionnez un client ou renseignez son nom.");
+        return;
+      }
+      navigationSavingRef.current = true;
+      setServerDraftSaving(true);
+      try {
+        await ensureCustomerId();
+      } catch (error) {
+        setSubmitError(error instanceof Error ? error.message : "Impossible d’enregistrer le client.");
+        return;
+      } finally {
+        navigationSavingRef.current = false;
+        setServerDraftSaving(false);
+      }
+    }
     if (targetStep > step && step === 3) {
       if (compositionError) { setSubmitError(compositionError); return; }
       const details = domain === "hahitantsoa" ? hDetails : tDetails;
@@ -1632,9 +1674,27 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       representative_role: newClient.repRole || "",
     };
     const { lifecycle_status: _lifecycleStatus, ...customerChanges } = payload;
+    if (!isEditingClient) {
+      if (!customerCreationKeyRef.current) {
+        const random = globalThis.crypto;
+        if (typeof random?.randomUUID !== "function" && typeof random?.getRandomValues !== "function") {
+          throw new Error("Votre navigateur ne peut pas sécuriser la création du client. Ouvrez l’application via son adresse HTTPS puis réessayez.");
+        }
+        customerCreationKeyRef.current = typeof random.randomUUID === "function"
+          ? random.randomUUID()
+          : Array.from(random.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
+      }
+      // Save the operation identity before the request: a lost response must be replayable.
+      try {
+        const saved = JSON.parse(localStorage.getItem(draftKey) || "{}");
+        localStorage.setItem(draftKey, JSON.stringify({ ...saved, customerCreationKey: customerCreationKeyRef.current, newClient }));
+      } catch {
+        throw new Error("Impossible de sécuriser la reprise du client. Réessayez la sauvegarde avant de continuer.");
+      }
+    }
     const customer = isEditingClient && selectedClientId
       ? await updateCustomer(selectedClientId, customerChanges)
-      : await createCustomer(payload);
+      : await createCustomer({ ...payload, idempotency_key: customerCreationKeyRef.current! });
     createdClientIdRef.current = customer.id;
     setIsEditingClient(false);
     setApiCustomers((current) => [...current.filter(item => item.id !== customer.id), customer]);
@@ -1724,7 +1784,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           customer_id: customerId,
           public_reference: customRef,
           event_type: toHahitantsoaEventType(hDetails.eventType),
-          event_name: resolveHahitantsoaEventName(hDetails, activeClient?.name),
+          event_name: resolveHahitantsoaEventName(hDetails, activeClient?.name, activeClient?.type === "Entreprise"),
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
           service_notes: formatHahitantsoaServiceNotes(selectedServices),
@@ -1764,7 +1824,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           customer_id: customerId,
           public_reference: customRef,
           event_type: toHahitantsoaEventType(hDetails.eventType),
-          event_name: resolveHahitantsoaEventName(hDetails, activeClient?.name),
+          event_name: resolveHahitantsoaEventName(hDetails, activeClient?.name, activeClient?.type === "Entreprise"),
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
           service_notes: formatHahitantsoaServiceNotes(selectedServices),
@@ -1974,7 +2034,25 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     </div>
   );
 
+  const startNewClient = () => {
+    if (navigationSavingRef.current || serverDraftSaving) return;
+    if (clientMode === "new" && !isEditingClient) return;
+    const startsFreshIdentity = Boolean(createdClientIdRef.current || selectedClientId || isEditingClient);
+    createdClientIdRef.current = null;
+    setSelectedClientId("");
+    setIsEditingClient(false);
+    setClientMode("new");
+    if (startsFreshIdentity) {
+      customerCreationKeyRef.current = null;
+      setNewClient({ name: "", phone: "", email: "", additionalEmails: [], additionalPhones: [], type: "Particulier", notes: "", civilite: "", idType: "CIN" });
+      setClientAttachments([]);
+      setDedicatedAttachments({});
+    }
+    setSubmitError(null);
+  };
+
   const startClientCorrection = () => {
+    if (serverDraftSaving || navigationSavingRef.current) return;
     const customer = apiCustomers.find(item => item.id === selectedClientId);
     if (!customer) return;
     const mapped = mapCustomerToClient(customer);
@@ -1986,7 +2064,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
   };
 
   const renderClientStep = () => (
-    <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
+    <fieldset disabled={serverDraftSaving} className="m-0 min-w-0 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
       <h3 className="text-lg font-bold text-slate-800 mb-4">Sélection ou création du client</h3>
       {isReservationClientParam(param) && (
         <div className="mb-4">
@@ -2015,13 +2093,14 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       <div className="flex gap-4 mb-6">
         <button 
           className={`px-4 py-2 rounded-lg text-sm font-medium ${clientMode === 'existing' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-600 border border-transparent'}`}
-          onClick={() => { setClientMode("existing"); setIsEditingClient(false); }}
+          onClick={() => { if (serverDraftSaving || navigationSavingRef.current) return; setClientMode("existing"); setIsEditingClient(false); }}
         >
           Client existant
         </button>
         <button 
           className={`px-4 py-2 rounded-lg text-sm font-medium ${clientMode === 'new' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-600 border border-transparent'}`}
-          onClick={() => { setClientMode("new"); setIsEditingClient(false); createdClientIdRef.current = null; }}
+          onClick={startNewClient}
+          disabled={serverDraftSaving}
         >
           Nouveau client
         </button>
@@ -2049,7 +2128,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
              ) : null}
              {!loadingClients && !errorClients && (<>
              {clients.filter(c => c.name.toLowerCase().includes(clientSearchStr.toLowerCase()) || c.phone.includes(clientSearchStr) || (c.email && c.email.toLowerCase().includes(clientSearchStr.toLowerCase())) || c.id.toLowerCase().includes(clientSearchStr.toLowerCase())).map(c => (
-                <div key={c.id} data-testid={`client-select-${c.id}`} className={`p-3 border-b border-slate-100 cursor-pointer hover:bg-indigo-50 flex items-center justify-between ${selectedClientId === c.id ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : ''}`} onClick={() => { setSelectedClientId(c.id); setIsEditingClient(false); }}>
+                <div key={c.id} data-testid={`client-select-${c.id}`} className={`p-3 border-b border-slate-100 cursor-pointer hover:bg-indigo-50 flex items-center justify-between ${selectedClientId === c.id ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : ''}`} onClick={() => { if (serverDraftSaving || navigationSavingRef.current) return; setSelectedClientId(c.id); setIsEditingClient(false); }}>
                    <div>
                      <p className="font-bold text-slate-800 text-sm">{c.name} <span className="text-xs font-normal text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded ml-2">{c.type}</span></p>
                      <p className="text-xs text-slate-500 mt-0.5">{c.phone} {c.email ? `• ${c.email}` : ''}</p>
@@ -2060,9 +2139,9 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
              {clients.filter(c => c.name.toLowerCase().includes(clientSearchStr.toLowerCase()) || c.phone.includes(clientSearchStr) || (c.email && c.email.toLowerCase().includes(clientSearchStr.toLowerCase())) || c.id.toLowerCase().includes(clientSearchStr.toLowerCase())).length === 0 && (
                 <div className="p-4 text-center text-sm text-slate-500">Aucun client trouvé.</div>
              )}
-             <div className="p-3 text-center text-sm font-medium text-indigo-600 cursor-pointer hover:bg-slate-100 bg-white sticky bottom-0 border-t border-slate-200" onClick={() => setClientMode("new")}>
+             <button type="button" className="w-full p-3 text-center text-sm font-medium text-indigo-600 cursor-pointer hover:bg-slate-100 bg-white sticky bottom-0 border-t border-slate-200 disabled:opacity-50" onClick={startNewClient} disabled={serverDraftSaving}>
                 + Créer un nouveau client
-             </div>
+             </button>
              </>)}
           </div>
         </div>
@@ -2268,12 +2347,12 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
         <button 
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm disabled:opacity-50"
           onClick={goNext}
-          disabled={!activeClient}
+          disabled={!activeClient || serverDraftSaving}
         >
           Continuer
         </button>
       </div>
-    </div>
+    </fieldset>
   );
 
   const renderDomainStep = () => (
@@ -2402,7 +2481,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
             <div className="md:col-span-2 pt-4 border-t border-slate-100">
               <h4 className="font-bold text-slate-800 mb-4">Personnes concernées / Référents</h4>
             </div>
-            {hDetails.eventType === 'Mariage' ? (
+            {hDetails.eventType === 'Mariage' && activeClient?.type !== 'Entreprise' ? (
               <>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Marié(e) 1</label>
@@ -3472,7 +3551,11 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
 
       const displayedServices = hahitantsoaServices
         .filter(s => s.active !== false)
-        .filter(s => serviceCategoryFilter === 'all' || s.category === serviceCategoryFilter);
+        .filter(s => serviceCategoryFilter === 'all' || s.category === serviceCategoryFilter)
+        .filter(s => {
+          const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr').trim();
+          return normalize(`${s.name} ${s.desc || ''}`).includes(normalize(serviceSearch));
+        });
 
       return (
         <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in space-y-6">
@@ -3486,6 +3569,11 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
             </span>
           </div>
 
+          <div>
+            <label htmlFor="wizard-service-search" className="block text-sm font-medium text-slate-700 mb-1">Rechercher un service</label>
+            <input id="wizard-service-search" type="search" value={serviceSearch} onChange={event => setServiceSearch(event.target.value)} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" placeholder="Nom ou description du service…" />
+            <p role="status" className="text-xs text-slate-500 mt-1">{displayedServices.length} prestation(s) trouvée(s). Les sélections restent conservées.</p>
+          </div>
           {/* Category Pills */}
           <div className="flex flex-wrap gap-2">
             {serviceCategories.map(cat => {
@@ -3508,6 +3596,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
 
           {/* Services Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {displayedServices.length === 0 && <p className="text-sm text-slate-500">Aucun service ne correspond à cette recherche.</p>}
             {displayedServices.map(srv => {
               const selected = selectedServices.find(s => s.id === srv.id);
               const isSelected = !!selected;
@@ -4042,6 +4131,108 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           <p className="text-xs opacity-80 mt-1">À verser en plus du total. Restituée après l'événement en l'absence de casse.</p>
         </div>
         <i className="fa-solid fa-shield-halved text-2xl opacity-50"></i>
+      </div>
+
+      {/* ── Bloc Dépliable : Détail des compositions sous la synthèse financière (R10) ── */}
+      <div data-testid="summary-financial-breakdown" className="mt-4 rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowSummaryBreakdown(current => !current)}
+          aria-expanded={showSummaryBreakdown}
+          aria-controls="wizard-financial-breakdown"
+          className="w-full text-left font-bold text-xs uppercase text-slate-700 p-3.5 bg-slate-50 hover:bg-slate-100 flex items-center justify-between select-none cursor-pointer"
+        >
+          <span className="flex items-center gap-2">
+            <i className="fa-solid fa-list-check text-indigo-600"></i>
+            Détail des compositions & lignes de l'offre
+          </span>
+          <span className="text-[11px] text-indigo-600 lowercase font-medium">
+            {showSummaryBreakdown ? "masquer le détail ▲" : "afficher le détail ▼"}
+          </span>
+        </button>
+        {showSummaryBreakdown && (
+          <div id="wizard-financial-breakdown" className="p-4 space-y-4 text-xs divide-y divide-slate-100">
+            {domain === 'hahitantsoa' && (
+              <div className="space-y-1.5">
+                <span className="font-bold text-slate-800 uppercase block">Espace & Lieu de réception</span>
+                <div className="flex justify-between items-center text-slate-700">
+                  <span>{hDetails.venue || "Salle"} ({hDetails.rentalType})</span>
+                  <span className="font-semibold">{formatMoney(hDetails.venuePrice || 0)}</span>
+                </div>
+                {hDetails.bareRentalComposition && hDetails.bareRentalComposition.length > 0 && (
+                  <div className="mt-1 pl-3 border-l-2 border-indigo-200 text-slate-500 space-y-0.5">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Inclusions location nue :</span>
+                    {hDetails.bareRentalComposition.map((item, idx) => (
+                      <div key={idx} className="flex justify-between">
+                        <span>• {item.quantity === 1 ? item.label : `${item.quantity} ${item.label}`}</span>
+                        <span className="text-emerald-600 italic">Inclus</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {domain === 'hahitantsoa' && hDetails.packageId && (
+              <div className="pt-3 space-y-1.5">
+                <span className="font-bold text-slate-800 uppercase block">Pack sélectionné</span>
+                <p className="text-slate-500">Ventilation du pack non archivée. Les quantités sélectionnées ci-dessous ne sont pas facturées une seconde fois ; consultez le montant global de l'offre.</p>
+              </div>
+            )}
+
+            {selectedMaterials.length > 0 && (
+              <div className="pt-3 space-y-1.5">
+                <span className="font-bold text-slate-800 uppercase block">Articles & Matériels</span>
+                <div className="space-y-1">
+                  {selectedMaterials.map((m) => (
+                    <div key={m.id} className="flex justify-between items-center text-slate-700">
+                      <span>{m.name} <span className="text-slate-400">x{m.quantity}</span></span>
+                      <span className="font-semibold">{domain === "hahitantsoa" && hDetails.packageId ? "Ventilation non archivée" : formatMoney(m.price * m.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedServices.length > 0 && (
+              <div className="pt-3 space-y-1.5">
+                <span className="font-bold text-slate-800 uppercase block">Prestations de services</span>
+                <div className="space-y-1">
+                  {selectedServices.map((s) => (
+                    <div key={s.id} className="flex justify-between items-center text-slate-700">
+                      <span>{s.name} {s.quantity && s.quantity > 1 ? `(x${s.quantity})` : ""}</span>
+                      <span className="font-semibold">{formatMoney(s.price)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {domain === "titan" && deliveryFee && Number(deliveryFee) > 0 && (
+              <div className="pt-3 flex justify-between items-center text-slate-700">
+                <span className="font-bold uppercase">Frais de livraison / transport</span>
+                <span className="font-semibold">{formatMoney(Number(deliveryFee))}</span>
+              </div>
+            )}
+
+            {discountAmount > 0 && (
+              <div className="pt-3 flex justify-between items-center text-emerald-700">
+                <span className="font-bold uppercase">Remise commerciale déduite</span>
+                <span className="font-semibold">-{formatMoney(discountAmount)}</span>
+              </div>
+            )}
+
+            <div className="pt-3 border-t-2 border-slate-200 bg-slate-50 -mx-4 -mb-4 p-3 space-y-1 text-slate-600">
+              <span className="text-[10px] font-bold text-slate-400 uppercase block">Séquestres & Éléments hors CA :</span>
+              <div className="flex justify-between items-center text-slate-700">
+                <span>Dépôt de garantie (Caution restituable)</span>
+                <span className="font-bold text-amber-700">
+                  {formatMoney(domain === 'hahitantsoa' ? hahitantsoaCautionAmount : calculateTitanCautionAmount(totalAmount))}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-between mt-8 pt-4 border-t border-slate-100">

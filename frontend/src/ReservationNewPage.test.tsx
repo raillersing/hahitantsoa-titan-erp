@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
 import ReservationNewPage, {
   calculateHahitantsoaPaymentSchedule,
@@ -393,6 +394,7 @@ describe('ReservationNewPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
     await waitFor(() => expect(updateCustomer).toHaveBeenCalledWith('CUST-001', expect.objectContaining({ display_name: 'Ando corrigé' })));
     expect(createCustomer).not.toHaveBeenCalled();
+    expect(Object.hasOwn(vi.mocked(updateCustomer).mock.calls[0][1], 'idempotency_key')).toBe(false);
     expect(await screen.findByRole('heading', { name: 'Détails Location (Titan)' })).toBeInTheDocument();
   });
 
@@ -1833,29 +1835,16 @@ describe('ReservationNewPage', () => {
     });
   });
 
-  it('31. affiche une erreur explicite avec réessai si getHahitantsoaCommercialTerms échoue et bloque la progression', async () => {
+  it('31. conserve le client malgré une panne tarifaire et bloque seulement les étapes tarifées', async () => {
     vi.mocked(getHahitantsoaCommercialTerms).mockRejectedValueOnce(new Error('Erreur réseau tarifs'));
-
-    render(<ReservationNewPage onNavigate={mockNavigate} />);
-
-    // Start Hahitantsoa journey
-    await waitFor(() => {
-      expect(screen.getByText('Commencer par le volet')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByText('Commencer par le volet'));
-    fireEvent.click(screen.getByText('Hahitantsoa'));
-
-    // Error banner should be visible for terms failure
-    await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent(/Erreur tarifaire : Erreur réseau tarifs/i);
-    });
-
-    // Progression should be blocked
-    fireEvent.click(screen.getByText('Continuer'));
-
-    await waitFor(() => {
-      expect(screen.getByText(/les conditions tarifaires officielles n'ont pas pu être chargées/i)).toBeInTheDocument();
-    });
+    render(<ReservationNewPage onNavigate={mockNavigate} param="hahitantsoa" />);
+    fireEvent.click(await screen.findByTestId('client-select-CUST-001'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    expect(await screen.findByText('Détails Événement (Hahitantsoa)')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Date début événement'), { target: { value: '2027-11-20' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant (Services)' }));
+    expect(await screen.findByText(/les conditions tarifaires officielles n'ont pas pu être chargées/i)).toBeInTheDocument();
+    expect(screen.getByText('Détails Événement (Hahitantsoa)')).toBeInTheDocument();
   });
 
   it('32. affiche une alerte avec bouton de réessai dans le formulaire si getHahitantsoaVenues échoue', async () => {
@@ -2006,4 +1995,292 @@ describe('ReservationNewPage', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith('reservation-detail', 'DRAFT-TITAN-100');
   });
+  it.each(['Nouveau client', '+ Créer un nouveau client'])('crée B avec son propre identifiant après A et le retour par %s', async (newClientEntry) => {
+    vi.mocked(createCustomer)
+      .mockResolvedValueOnce({ ...mockCustomersData[0], id: 'SERVER-CLIENT-A', display_name: 'Client A' } as never)
+      .mockResolvedValueOnce({ ...mockCustomersData[0], id: 'SERVER-CLIENT-B', display_name: 'Client B' } as never);
+    render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Nouveau client' }));
+    fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client A' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    expect(await screen.findByText('Détails Location (Titan)')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).selectedClientId).toBe('SERVER-CLIENT-A');
+    fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
+    fireEvent.click(await screen.findByRole('button', { name: newClientEntry }));
+    expect(screen.getByPlaceholderText('Ex: Jean Dupont')).toHaveValue('');
+    fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client B' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    expect(await screen.findByText('Détails Location (Titan)')).toBeInTheDocument();
+    expect(createCustomer).toHaveBeenCalledTimes(2);
+    expect(createCustomer).toHaveBeenNthCalledWith(2, expect.objectContaining({ display_name: 'Client B' }));
+    const creationKeys = vi.mocked(createCustomer).mock.calls.map(([payload]) => payload.idempotency_key);
+    expect(creationKeys.every(key => typeof key === 'string' && key.length > 0)).toBe(true);
+    expect(new Set(creationKeys).size).toBe(2);
+    expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).selectedClientId).toBe('SERVER-CLIENT-B');
+  });
+
+  it('sauvegarde un nouveau client Hahitantsoa même si les tarifs sont indisponibles', async () => {
+    vi.mocked(getHahitantsoaCommercialTerms).mockRejectedValueOnce(new Error('Tarifs indisponibles'));
+    vi.mocked(createCustomer).mockResolvedValueOnce({ ...mockCustomersData[0], id: 'SERVER-CLIENT-INDEPENDENT', display_name: 'Client indépendant' } as never);
+    render(<ReservationNewPage onNavigate={mockNavigate} param="hahitantsoa" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Nouveau client' }));
+    fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client indépendant' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    expect(await screen.findByText('Détails Événement (Hahitantsoa)')).toBeInTheDocument();
+    expect(createCustomer).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).selectedClientId).toBe('SERVER-CLIENT-INDEPENDENT');
+    expect(createHahitantsoaEventDraft).not.toHaveBeenCalled();
+  });
+
+  it('valide et sauvegarde la correction client avant un saut vers une étape déjà atteinte', async () => {
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify({ path: 'domain_first', domain: 'titan', step: 2, maxReachedStep: 6, clientMode: 'existing', selectedClientId: 'CUST-001', isEditingClient: true, newClient: { name: '', phone: '', email: '', notes: '', type: 'Particulier' } }));
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    const jump = await screen.findByRole('button', { name: /Vérification & documents/i });
+    fireEvent.click(jump);
+    expect(await screen.findByText(/Sélectionnez un client ou renseignez son nom\./)).toBeInTheDocument();
+    expect(updateCustomer).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client corrigé' } });
+    vi.mocked(updateCustomer).mockRejectedValueOnce(new Error('Enregistrement impossible'));
+    fireEvent.click(jump);
+    expect(await screen.findByText(/Enregistrement impossible/)).toBeInTheDocument();
+    expect(screen.getByText('Sélection ou création du client')).toBeInTheDocument();
+    vi.mocked(updateCustomer).mockResolvedValueOnce({ ...mockCustomersData[0], display_name: 'Client corrigé' } as never);
+    fireEvent.click(jump);
+    expect(await screen.findByText('Résumé modifiable')).toBeInTheDocument();
+    expect(updateCustomer).toHaveBeenLastCalledWith('CUST-001', expect.objectContaining({ display_name: 'Client corrigé' }));
+    expect(createCustomer).not.toHaveBeenCalled();
+  });
+
+  it.each(['titan', 'hahitantsoa'])('reprend un brouillon %s aux dates incomplètes sans requête de disponibilité invalide', async (domain) => {
+    const field = domain === 'titan' ? 'tDetails' : 'hDetails';
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify({ path: 'domain_first', domain, step: 3, maxReachedStep: 3, clientMode: 'existing', selectedClientId: 'CUST-001', [field]: { eventType: 'Mariage', rentalType: 'Location nue', venue: 'Salle des fêtes + jardin', startDate: '2027-11-', endDate: '2027-02-30', startTime: '08:00', endTime: '20:00' } }));
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    expect(await screen.findByText(/Corrigez les dates incomplètes du brouillon/)).toBeInTheDocument();
+    expect(screen.getByLabelText(domain === 'titan' ? 'Date début de location' : 'Date début événement')).toHaveValue('');
+    expect(getReservationAvailabilitySummary).not.toHaveBeenCalled();
+    expect(getReservationAvailableItemPreviews).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Invalid time value/)).not.toBeInTheDocument();
+  });
+
+  it('masque les mariés pour une entreprise et utilise sa raison sociale malgré les anciens noms', async () => {
+    vi.mocked(getCustomers).mockResolvedValue([{ ...mockCustomersData[0], id: 'COMPANY-1', party_type: 'company', display_name: 'Entreprise Test' }] as never);
+    const hDetails = { eventType: 'Mariage', mariageGroomName: 'Ancien marié', mariageBrideName: 'Ancienne mariée', rentalType: 'Location nue', venue: 'Salle des fêtes + jardin', startDate: '2027-11-20', endDate: '2027-11-20', startTime: '08:00', endTime: '20:00' };
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify({ path: 'domain_first', domain: 'hahitantsoa', step: 3, maxReachedStep: 3, selectedClientId: 'COMPANY-1', clientMode: 'existing', hDetails }));
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    expect(await screen.findByText('Détails Événement (Hahitantsoa)')).toBeInTheDocument();
+    expect(screen.queryByText('Marié(e) 1')).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Ancien marié')).not.toBeInTheDocument();
+    expect(resolveHahitantsoaEventName(hDetails as never, 'Entreprise Test', true)).toBe('Entreprise Test');
+  });
+
+  it('recherche les services sans accents et conserve les sélections masquées', async () => {
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify({ path: 'domain_first', domain: 'hahitantsoa', step: 5, maxReachedStep: 5, selectedClientId: 'CUST-001', clientMode: 'existing', selectedServices: [{ id: 'SRV-002', name: 'Décoration', quantity: 1, price: 300000 }], hDetails: { eventType: 'Mariage', rentalType: 'Location nue', venue: 'Salle des fêtes + jardin', startDate: '2027-11-20', endDate: '2027-11-20', startTime: '08:00', endTime: '20:00' } }));
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    const search = await screen.findByRole('searchbox', { name: 'Rechercher un service' });
+    fireEvent.change(search, { target: { value: 'DECORATION' } });
+    expect(screen.getByRole('heading', { name: 'Décoration' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Guinguette linéaire' })).not.toBeInTheDocument();
+    fireEvent.change(search, { target: { value: 'guirlande' } });
+    expect(screen.getByRole('heading', { name: 'Guinguette linéaire' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Décoration' })).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).selectedServices).toEqual([expect.objectContaining({ id: 'SRV-002', quantity: 1, price: 300000 })]);
+    fireEvent.change(search, { target: { value: 'introuvable' } });
+    expect(screen.getByText('Aucun service ne correspond à cette recherche.')).toBeInTheDocument();
+    fireEvent.change(search, { target: { value: '' } });
+    expect(screen.getByRole('heading', { name: 'Décoration' })).toBeInTheDocument();
+  });
+
+  it.each(['active', 'aller-retour'])('conserve la saisie et les fichiers du nouveau client lors du changement d’onglet %s', async (navigation) => {
+    render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Nouveau client' }));
+    fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client en cours' } });
+    fireEvent.change(screen.getByPlaceholderText('Ex. justificatif domicile'), { target: { value: 'Justificatif B' } });
+    fireEvent.change(document.getElementById('clientFile')!, { target: { files: [new File(['document'], 'justificatif-b.pdf', { type: 'application/pdf' })] } });
+    fireEvent.click(screen.getByRole('button', { name: /^Ajouter$/ }));
+    expect(await screen.findByText('justificatif-b.pdf')).toBeInTheDocument();
+    if (navigation === 'aller-retour') fireEvent.click(screen.getByRole('button', { name: 'Client existant' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Nouveau client' }));
+    expect(screen.getByPlaceholderText('Ex: Jean Dupont')).toHaveValue('Client en cours');
+    expect(screen.getByText('justificatif-b.pdf')).toBeInTheDocument();
+    const draft = JSON.parse(localStorage.getItem('prototypeReservationDraft')!);
+    expect(draft.clientAttachments).toEqual([expect.objectContaining({ name: 'justificatif-b.pdf', label: 'Justificatif B' })]);
+    expect(createCustomer).not.toHaveBeenCalled();
+    expect(uploadAttachment).not.toHaveBeenCalled();
+  });
+
+  it('fige les champs et la navigation client pendant un enregistrement en cours', async () => {
+    const user = userEvent.setup();
+    let resolveCustomer!: (customer: Awaited<ReturnType<typeof createCustomer>>) => void;
+    vi.mocked(createCustomer).mockImplementationOnce(() => new Promise(resolve => { resolveCustomer = resolve; }));
+    render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+    await user.click(await screen.findByRole('button', { name: 'Nouveau client' }));
+    const name = screen.getByPlaceholderText('Ex: Jean Dupont');
+    await user.type(name, 'Client soumis');
+    await user.click(screen.getByRole('button', { name: 'Continuer' }));
+    await waitFor(() => expect(createCustomer).toHaveBeenCalledTimes(1));
+    expect(name).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Client existant' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Nouveau client' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Client existant' }));
+    await user.click(screen.getByRole('button', { name: 'Nouveau client' }));
+    await user.type(name, ' autre identité');
+    await user.click(screen.getByRole('button', { name: 'Retour' }));
+    await user.click(screen.getByRole('button', { name: /Client & volet/ }));
+    expect(screen.getByText('Sélection ou création du client')).toBeInTheDocument();
+    expect(name).toHaveValue('Client soumis');
+    expect(screen.queryByTestId('client-select-CUST-001')).not.toBeInTheDocument();
+    expect(createCustomer).toHaveBeenCalledTimes(1);
+    resolveCustomer({ ...mockCustomersData[0], id: 'SERVER-SUBMITTED-CLIENT', display_name: 'Client soumis' } as never);
+    expect(await screen.findByText('Détails Location (Titan)')).toBeInTheDocument();
+    expect(createCustomer).toHaveBeenCalledWith(expect.objectContaining({ display_name: 'Client soumis' }));
+    expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).selectedClientId).toBe('SERVER-SUBMITTED-CLIENT');
+    expect(updateCustomer).not.toHaveBeenCalled();
+  });
+
+  it('affiche le bloc dépliable de composition sous la synthèse financière au résumé (R10)', async () => {
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify({
+      step: 6,
+      maxReachedStep: 6,
+      domain: 'hahitantsoa',
+      path: 'client_first',
+      selectedClientId: 'CUST-001',
+      selectedMaterials: [{ id: 'MAT-001', name: 'Tente 10x10', price: 150000, quantity: 2 }],
+      hDetails: {
+        rentalType: 'Location nue',
+        startDate: '2027-11-20',
+        endDate: '2027-11-20',
+        startTime: '08:00',
+        endTime: '20:00',
+        venue: 'Grande Salle',
+        venuePrice: 2000000,
+        bareRentalComposition: [{ label: 'Tables rondes', quantity: 10 }],
+      },
+    }));
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+
+    const breakdown = await screen.findByTestId('summary-financial-breakdown');
+    expect(breakdown).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Détail des compositions & lignes de l'offre/i }));
+    expect(within(breakdown).getByText(/10 Tables rondes/i)).toBeInTheDocument();
+    expect(within(breakdown).getByText(/Caution restituable/i)).toBeInTheDocument();
+  });
+
+  it('persiste la clé de création avant la requête et la rejoue après réponse perdue et rechargement', async () => {
+    let attempts = 0;
+    const keys: string[] = [];
+    vi.mocked(createCustomer).mockImplementation(async payload => {
+      keys.push(payload.idempotency_key || '');
+      const recovery = JSON.parse(localStorage.getItem('prototypeReservationDraft')!);
+      expect(Boolean(payload.idempotency_key) && recovery.customerCreationKey === payload.idempotency_key).toBe(true);
+      if (++attempts === 1) throw new Error('Réponse réseau perdue');
+      return { ...mockCustomersData[0], id: 'REPLAYED-CUSTOMER', display_name: 'Client durable' } as never;
+    });
+    const first = render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Nouveau client' }));
+    fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client durable' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    expect(await screen.findByText(/Réponse réseau perdue/)).toBeInTheDocument();
+    first.unmount();
+    render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    expect(await screen.findByDisplayValue('Client durable')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    expect(await screen.findByText('Détails Location (Titan)')).toBeInTheDocument();
+    expect(attempts).toBe(2);
+    expect(keys.length === 2 && keys[0] === keys[1]).toBe(true);
+    expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).selectedClientId).toBe('REPLAYED-CUSTOMER');
+  });
+
+  it('ne crée pas de client si sa clé de reprise ne peut pas être sauvegardée', async () => {
+    render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Nouveau client' }));
+    fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client non envoyé' } });
+    const storage = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Stockage indisponible'); });
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+      expect(await screen.findByText(/Impossible de sécuriser la reprise du client/)).toBeInTheDocument();
+      expect(createCustomer).not.toHaveBeenCalled();
+      expect(screen.getByPlaceholderText('Ex: Jean Dupont')).toHaveValue('Client non envoyé');
+    } finally { storage.mockRestore(); }
+  });
+
+  it('affiche un service de trois unités à son montant enregistré de 300000 et conserve le total et la caution', async () => {
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify({ step: 6, maxReachedStep: 6, path: 'client_first', domain: 'hahitantsoa', selectedClientId: 'CUST-001', selectedServices: [{ id: 'SRV-003', name: 'Guinguette archivée', quantity: 3, price: 300000 }], hDetails: { rentalType: 'Location nue', venuePrice: 2000000, startDate: '2027-11-20', endDate: '2027-11-20', startTime: '08:00', endTime: '20:00', venue: 'Salle historique', bareRentalComposition: [{ label: 'Tables archivées', quantity: 9 }] } }));
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Détail des compositions & lignes de l'offre/i }));
+    const breakdown = screen.getByTestId('summary-financial-breakdown');
+    expect(within(breakdown).getByText(/Guinguette archivée/)).toHaveTextContent('(x3)');
+    expect(within(breakdown).getByText(/^300\s*000\s*Ar$/)).toBeInTheDocument();
+    expect(within(breakdown).queryByText(/^900\s*000\s*Ar$/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/^2\s*300\s*000 Ar$/).length).toBeGreaterThan(0);
+    expect(within(breakdown).getByText(/^500\s*000\s*Ar$/)).toBeInTheDocument();
+  });
+
+  it('ne reconstitue pas le détail du pack ancien avec le catalogue modifié et conserve les quantités sélectionnées', async () => {
+    vi.mocked(getMaterialPackages).mockResolvedValue([{ id: 'PKG-001', name: 'Pack modifié aujourd’hui', price: 9999999, is_active: true, lines: [{ inventory_item: 'NEW-ITEM', inventory_item_name: 'Ajout tardif', quantity: 99 }] }] as never);
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify({ step: 6, maxReachedStep: 6, path: 'client_first', domain: 'hahitantsoa', selectedClientId: 'CUST-001', selectedMaterials: [{ id: 'MAT-OLD', name: 'Chaise archivée', price: 5000, quantity: 5 }], hDetails: { packageMode: 'package', packageId: 'PKG-001', rentalType: 'Location + logistique', venuePrice: 2000000, startDate: '2027-11-20', endDate: '2027-11-20', startTime: '08:00', endTime: '20:00', bareRentalComposition: [{ label: 'Tables archivées', quantity: 9 }] } }));
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Détail des compositions & lignes de l'offre/i }));
+    const breakdown = screen.getByTestId('summary-financial-breakdown');
+    expect(within(breakdown).getByText(/^Ventilation du pack non archivée/)).toBeInTheDocument();
+    expect(within(breakdown).getByText('Chaise archivée')).toHaveTextContent('x5');
+    expect(within(breakdown).queryByText('Ajout tardif')).not.toBeInTheDocument();
+    expect(within(breakdown).queryByText(/Pack modifié aujourd’hui/)).not.toBeInTheDocument();
+    expect(within(breakdown).getByText(/9 Tables archivées/)).toBeInTheDocument();
+  });
+
+  it('sécurise la création sur réseau local lorsque randomUUID est absent avec 16 octets natifs', async () => {
+    const nativeCrypto = globalThis.crypto;
+    vi.stubGlobal('crypto', { getRandomValues: nativeCrypto.getRandomValues.bind(nativeCrypto) });
+    try {
+      render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Nouveau client' }));
+      fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client réseau local' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+      expect(await screen.findByText('Détails Location (Titan)')).toBeInTheDocument();
+      const operation = vi.mocked(createCustomer).mock.calls[0][0].idempotency_key || '';
+      expect(/^[0-9a-f]{32}$/.test(operation)).toBe(true);
+      expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).customerCreationKey === operation).toBe(true);
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it('conserve la saisie sans envoyer de création non sécurisée si la cryptographie native est absente', async () => {
+    vi.stubGlobal('crypto', undefined);
+    try {
+      render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Nouveau client' }));
+      fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client conservé' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+      expect(await screen.findByText(/Votre navigateur ne peut pas sécuriser la création du client/)).toBeInTheDocument();
+      expect(createCustomer).not.toHaveBeenCalled();
+      expect(screen.getByPlaceholderText('Ex: Jean Dupont')).toHaveValue('Client conservé');
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it('conserve la même opération et les champs après un conflit sans relancer une création sous une nouvelle clé', async () => {
+    vi.mocked(createCustomer)
+      .mockRejectedValueOnce(new Error('Réponse perdue'))
+      .mockRejectedValueOnce(Object.assign(new Error('Cette clé correspond déjà à une autre demande.'), { status: 409 }));
+    render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Nouveau client' }));
+    fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client initial' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    expect(await screen.findByText(/Réponse perdue/)).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client corrigé après incident' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    expect(await screen.findByText(/Cette clé correspond déjà à une autre demande/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Ex: Jean Dupont')).toHaveValue('Client corrigé après incident');
+    const operations = vi.mocked(createCustomer).mock.calls.map(([payload]) => payload.idempotency_key);
+    expect(operations.length === 2 && operations[0] === operations[1]).toBe(true);
+    expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).customerCreationKey === operations[0]).toBe(true);
+    expect(screen.getByText('Sélection ou création du client')).toBeInTheDocument();
+  });
+
 });
