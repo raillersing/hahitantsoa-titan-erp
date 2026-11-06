@@ -28,6 +28,13 @@ function collectRuntimeEvidence(page: Page): RuntimeEvidence {
       return failedRequests.filter((request) => {
         if (completedRequests.has(request)) return false;
         const url = new URL(request.url());
+        // Chromium may abort navigation after receiving this exact logout's
+        // successful response. A different request at the same URL is no proof.
+        if (request.method() === 'POST'
+          && url.pathname === '/api/v1/auth/logout/'
+          && request.failure()?.errorText === 'net::ERR_ABORTED'
+          && evidence.apiResponses.some((response) => response.request === request
+            && response.status >= 200 && response.status < 300)) return false;
         const observed = requests.get(request);
         if (request.method() !== 'GET'
           || url.pathname !== '/api/v1/notifications/'
@@ -62,11 +69,15 @@ function collectRuntimeEvidence(page: Page): RuntimeEvidence {
       evidence.apiRequests.push(`${request.method()} ${request.url()}`);
     }
   });
-  page.on('response', async (response) => {
+  page.on('response', (response) => {
     if (response.url().includes('/api/')) {
       evidence.apiResponses.push({ url: response.url(), status: response.status(), request: response.request() });
-      if (response.status() >= 200 && response.status() < 300 && await response.finished() === null) {
-        completedRequests.add(response.request());
+      const url = new URL(response.url());
+      if (response.status() === 200 && response.request().method() === 'GET'
+        && url.pathname === '/api/v1/notifications/' && url.search === '?unread_only=true') {
+        void response.finished().then((error) => {
+          if (error === null) completedRequests.add(response.request());
+        }).catch(() => { /* Teardown cannot establish successful completion. */ });
       }
     }
   });
@@ -123,10 +134,17 @@ test('recette réelle: session, rechargement, déconnexion et réseau applicatif
   await notificationsReloaded;
 
   await page.getByRole('button', { name: 'Menu utilisateur' }).click();
+  const logoutResponsePromise = page.waitForResponse((response) =>
+    response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/v1/auth/logout/');
   await page.getByRole('button', { name: 'Déconnexion' }).click();
+  expect((await logoutResponsePromise).status()).toBe(204);
   await expect(page.getByRole('heading', { name: 'Connexion opérateur' })).toBeVisible();
   await expect.poll(() => evidence.apiRequests.some((request) => request.includes('/api/v1/auth/logout/'))).toBe(true);
   expect(statusesFor(evidence, '/api/v1/auth/logout/').every((status) => status >= 200 && status < 300)).toBe(true);
+
+  const sessionAfterLogout = await page.request.get('/api/v1/auth/session/');
+  expect(sessionAfterLogout.status()).toBe(200);
+  await expect(sessionAfterLogout.json()).resolves.toMatchObject({ authenticated: false });
 
   expect(evidence.failedApi, evidence.failedApi.join('\n')).toEqual([]);
   expect(evidence.pageErrors, evidence.pageErrors.join('\n')).toEqual([]);
@@ -165,13 +183,14 @@ test('recette réelle: expiration de session redirige sans fallback métier', as
 // These cases qualify the observer itself with controlled browser transport.
 // The session scenarios above continue to use the real authenticated backend.
 for (const scenario of [
-  { name: 'annulation remplacée', path: '/api/v1/notifications/?unread_only=true', error: 'aborted', replace: true, nextSequence: false, successFirst: false, status: 200, failures: 0 },
-  { name: 'panne réseau remplacée', path: '/api/v1/notifications/?unread_only=true', error: 'failed', replace: true, nextSequence: false, successFirst: false, status: 200, failures: 1 },
-  { name: 'autre lecture annulée', path: '/api/v1/auth/session/', error: 'aborted', replace: true, nextSequence: false, successFirst: false, status: 200, failures: 1 },
-  { name: 'annulation sans remplacement', path: '/api/v1/notifications/?unread_only=true', error: 'aborted', replace: false, nextSequence: false, successFirst: false, status: 200, failures: 1 },
-  { name: 'remplacement dans une autre séquence', path: '/api/v1/notifications/?unread_only=true', error: 'aborted', replace: true, nextSequence: true, successFirst: false, status: 200, failures: 1 },
-  { name: 'succès antérieur', path: '/api/v1/notifications/?unread_only=true', error: 'aborted', replace: true, nextSequence: false, successFirst: true, status: 200, failures: 1 },
-  { name: 'remplacement HTTP500', path: '/api/v1/notifications/?unread_only=true', error: 'aborted', replace: true, nextSequence: false, successFirst: false, status: 500, failures: 1 },
+  { method: 'GET', name: 'annulation remplacée', path: '/api/v1/notifications/?unread_only=true', error: 'aborted', replace: true, nextSequence: false, successFirst: false, status: 200, failures: 0 },
+  { method: 'GET', name: 'panne réseau remplacée', path: '/api/v1/notifications/?unread_only=true', error: 'failed', replace: true, nextSequence: false, successFirst: false, status: 200, failures: 1 },
+  { method: 'GET', name: 'autre lecture annulée', path: '/api/v1/auth/session/', error: 'aborted', replace: true, nextSequence: false, successFirst: false, status: 200, failures: 1 },
+  { method: 'GET', name: 'annulation sans remplacement', path: '/api/v1/notifications/?unread_only=true', error: 'aborted', replace: false, nextSequence: false, successFirst: false, status: 200, failures: 1 },
+  { method: 'GET', name: 'remplacement dans une autre séquence', path: '/api/v1/notifications/?unread_only=true', error: 'aborted', replace: true, nextSequence: true, successFirst: false, status: 200, failures: 1 },
+  { method: 'GET', name: 'succès antérieur', path: '/api/v1/notifications/?unread_only=true', error: 'aborted', replace: true, nextSequence: false, successFirst: true, status: 200, failures: 1 },
+  { method: 'GET', name: 'remplacement HTTP500', path: '/api/v1/notifications/?unread_only=true', error: 'aborted', replace: true, nextSequence: false, successFirst: false, status: 500, failures: 1 },
+  { method: 'POST', name: 'déconnexion annulée avant réponse puis autre succès', path: '/api/v1/auth/logout/', error: 'aborted', replace: true, nextSequence: false, successFirst: false, status: 204, failures: 1 },
 ]) {
   test(`observateur réseau: ${scenario.name}`, async ({ page }) => {
     await page.route('**/api/v1/auth/session/', (route) => route.fulfill({
@@ -191,8 +210,8 @@ for (const scenario of [
       }
     });
     const fetchRead = () => page.evaluate(async (path) => {
-      try { await (await fetch(path)).text(); } catch { /* Intentional harness transport failure. */ }
-    }, scenario.path);
+      try { await (await fetch(path.url, { method: path.method })).text(); } catch { /* Intentional harness transport failure. */ }
+    }, { url: scenario.path, method: scenario.method });
     await fetchRead();
     if (scenario.replace) {
       if (scenario.nextSequence) evidence.beginNotificationRead();
