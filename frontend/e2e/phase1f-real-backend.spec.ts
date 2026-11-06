@@ -58,13 +58,29 @@ function statusesFor(evidence: RuntimeEvidence, path: string) {
     .map((response) => response.status);
 }
 
+// AppShell aborts this background read on reload or session teardown. Complete
+// the read before intentionally triggering those transitions, keeping genuine
+// transport failures visible to collectRuntimeEvidence.
+async function waitForUnreadNotifications(page: Page) {
+  const response = await page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'GET'
+      && url.pathname === '/api/v1/notifications/'
+      && url.searchParams.get('unread_only') === 'true';
+  });
+  expect(response.status()).toBe(200);
+  expect(await response.finished()).toBeNull();
+}
+
 async function login(page: Page) {
   await page.goto('/#documents');
   await expect(page.getByRole('heading', { name: 'Connexion opérateur' })).toBeVisible();
   await page.getByRole('textbox', { name: 'Nom d’utilisateur' }).fill(username);
   await page.getByLabel('Mot de passe').fill(password);
+  const notificationsLoaded = waitForUnreadNotifications(page);
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 15_000 });
+  await notificationsLoaded;
 }
 
 test('recette réelle: session, rechargement, déconnexion et réseau applicatif', async ({ page }) => {
@@ -76,8 +92,10 @@ test('recette réelle: session, rechargement, déconnexion et réseau applicatif
   expect(statusesFor(evidence, '/api/v1/auth/login/')).toEqual(expect.arrayContaining([200]));
   expect(statusesFor(evidence, '/api/v1/auth/session/').every((status) => status >= 200 && status < 300)).toBe(true);
 
+  const notificationsReloaded = waitForUnreadNotifications(page);
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 15_000 });
+  await notificationsReloaded;
 
   await page.getByRole('button', { name: 'Menu utilisateur' }).click();
   await page.getByRole('button', { name: 'Déconnexion' }).click();
@@ -95,8 +113,10 @@ test('recette réelle: expiration de session redirige sans fallback métier', as
   await page.goto('/#profile');
   await page.getByRole('textbox', { name: 'Nom d’utilisateur' }).fill(username);
   await page.getByLabel('Mot de passe').fill(password);
+  const notificationsLoaded = waitForUnreadNotifications(page);
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page.getByRole('heading', { name: 'Profil utilisateur', level: 1 })).toBeVisible({ timeout: 15_000 });
+  await notificationsLoaded;
 
   await context.clearCookies();
   const sessionResponsePromise = page.waitForResponse((response) => {
