@@ -19,12 +19,12 @@ function hasRole(user: SessionUser, role: string): boolean {
 }
 
 export function capabilitiesForUser(user: SessionUser): FrontendCapabilities {
-  const canSensitiveWrite = user.is_staff || hasRole(user, RESERVATION_SENSITIVE_ROLE);
+  const canSensitiveWrite = user.capabilities?.canSensitiveWrite ?? (user.is_staff || hasRole(user, RESERVATION_SENSITIVE_ROLE));
 
   return {
-    canManageIdentity: user.is_staff || hasRole(user, IDENTITY_ADMIN_ROLE),
-    canViewAudit: canSensitiveWrite,
+    canManageIdentity: user.capabilities?.canManageIdentity ?? (user.is_staff || hasRole(user, IDENTITY_ADMIN_ROLE)),
+    canViewAudit: user.capabilities?.canViewAudit ?? canSensitiveWrite,
     canSensitiveWrite,
-    canSuperAdminDelete: user.is_staff,
+    canSuperAdminDelete: user.capabilities?.canSuperAdminDelete ?? user.is_staff,
   };
 }

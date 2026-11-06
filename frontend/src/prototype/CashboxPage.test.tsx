@@ -6,6 +6,9 @@ import * as api from "../api";
 import CashboxPage from "./CashboxPage";
 import type { CashboxSession, CashboxMovement, User, ReservationDraft } from "../types";
 
+const { mockAuth } = vi.hoisted(() => ({ mockAuth: vi.fn() }));
+vi.mock("../AuthContext", () => ({ useAuth: () => mockAuth() }));
+
 const MOCK_USER: User = {
   id: "user-1",
   username: "caissier_principal",
@@ -111,6 +114,7 @@ const SUBMITTED_SESSION: CashboxSession = {
 
 describe("CashboxPage", () => {
   beforeEach(() => {
+    mockAuth.mockReturnValue({ state: { status: "authenticated", user: { id: "user-1", username: "supervisor", display_name: "Jean Rakoto", is_staff: true, roles: ["cashbox_supervisor"], capabilities: { canSuperviseCashbox: true } } } });
     vi.spyOn(api, "getCashboxSessions").mockResolvedValue([OPEN_SESSION]);
     vi.spyOn(api, "getCashboxMovements").mockResolvedValue(OPEN_SESSION.movements);
     vi.spyOn(api, "getUsers").mockResolvedValue([MOCK_USER]);
@@ -305,6 +309,22 @@ describe("CashboxPage", () => {
         }),
       );
     });
+  });
+
+  it.each(["owner_manager", "cashbox_supervisor"])("shows supervisor actions for %s through server capabilities", async (role) => {
+    mockAuth.mockReturnValue({ state: { status: "authenticated", user: { id: "user-2", username: "supervisor", display_name: "Superviseur", is_staff: false, roles: [role], capabilities: { canSuperviseCashbox: true } } } });
+    vi.spyOn(api, "getCashboxSessions").mockResolvedValue([SUBMITTED_SESSION]);
+    render(<CashboxPage onNavigate={vi.fn()} />);
+    expect(await screen.findByRole("button", { name: /Valider la clôture/i })).toBeInTheDocument();
+  });
+
+  it("does not infer supervision from staff or legacy role names", async () => {
+    mockAuth.mockReturnValue({ state: { status: "authenticated", user: { id: "user-2", username: "staff", display_name: "Staff", is_staff: true, roles: ["superadmin", "gerant"], capabilities: { canSuperviseCashbox: false } } } });
+    vi.spyOn(api, "getCashboxSessions").mockResolvedValue([SUBMITTED_SESSION]);
+    render(<CashboxPage onNavigate={vi.fn()} />);
+    await screen.findByText("Comptage Soumis (En attente visa)");
+    await waitFor(() => expect(api.getCashboxSessions).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: /Valider la clôture/i })).not.toBeInTheDocument();
   });
 
   it("displays supervisor validation modal and validates closure", async () => {

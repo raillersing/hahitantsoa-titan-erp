@@ -16,6 +16,7 @@ describe("rolePresentation", () => {
       last_login: null,
       date_joined: "2026-01-01T00:00:00Z",
       role_names: ["reservation_sensitive_operator"],
+      role_slugs: ["reservation_sensitive_operator"],
     },
     {
       id: "u2",
@@ -29,6 +30,7 @@ describe("rolePresentation", () => {
       last_login: null,
       date_joined: "2026-01-01T00:00:00Z",
       role_names: ["identity_admin"],
+      role_slugs: ["identity_admin"],
     },
   ];
 
@@ -37,6 +39,7 @@ describe("rolePresentation", () => {
       id: "r1",
       name: "reservation_sensitive_operator",
       slug: "reservation_sensitive_operator",
+      capabilities: { canSensitiveWrite: true },
       description: "System-managed role",
       is_system_managed: true,
       is_active: true,
@@ -48,7 +51,7 @@ describe("rolePresentation", () => {
     expect(pres.title).toBe("Chargé d'Affaires & Confirmation Commerciale");
     expect(pres.category).toBe("commercial");
     expect(pres.categoryLabel).toBe("Commerce & Vente");
-    expect(pres.keyRights.length).toBeGreaterThanOrEqual(3);
+    expect(pres.keyRights.join(" ")).toContain("capacités");
     expect(pres.matrix.length).toBe(6);
     expect(pres.memberCount).toBe(1);
     expect(pres.memberNames).toEqual(["Ranto Rakoto"]);
@@ -62,6 +65,7 @@ describe("rolePresentation", () => {
       id: "r2",
       name: "cashbox_operator",
       slug: "cashbox_operator",
+      capabilities: { canOperateCashbox: true },
       description: "System-managed role for cashbox",
       is_system_managed: true,
       is_active: true,
