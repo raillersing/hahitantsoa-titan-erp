@@ -341,7 +341,7 @@ def test_create_customer_with_idempotency_key_creates_and_returns_201(
     assert response.status_code == 201
     data = response.json()
     assert data["display_name"] == "Idempotent Corp"
-    assert data["idempotency_key"] == "op-cust-create-001"
+    assert "idempotency_key" not in data
     assert Customer.objects.filter(idempotency_key="op-cust-create-001").count() == 1
 
 

@@ -55,7 +55,7 @@ class CustomerSerializer(serializers.ModelSerializer):
     last_activity_at = serializers.SerializerMethodField()
     contact_points = CustomerContactPointSerializer(many=True, required=False)
     idempotency_key = serializers.CharField(
-        max_length=128, required=False, allow_blank=True, default=""
+        max_length=128, required=False, allow_blank=True, write_only=True
     )
 
     def get_reservation_count(self, obj):
@@ -147,6 +147,10 @@ class CustomerSerializer(serializers.ModelSerializer):
         )
 
     def validate(self, attrs):
+        if self.instance is not None and "idempotency_key" in attrs:
+            raise serializers.ValidationError(
+                {"idempotency_key": "La clé de création est immuable."}
+            )
         contact_points = attrs.get("contact_points")
         if contact_points is None:
             return attrs
@@ -170,65 +174,19 @@ class CustomerSerializer(serializers.ModelSerializer):
                 primary_by_kind.add(kind)
         return attrs
 
-    @staticmethod
-    def _normalise_contact_points(contact_points):
-        primary_by_kind = {
-            contact["kind"] for contact in contact_points if contact.get("is_primary", False)
-        }
-        normalised = []
-        for contact in contact_points:
-            contact = dict(contact)
-            if contact["kind"] not in primary_by_kind:
-                contact["is_primary"] = True
-                primary_by_kind.add(contact["kind"])
-            normalised.append(contact)
-        return normalised
-
-    @staticmethod
-    def _sync_legacy_contacts(customer: Customer) -> None:
-        contacts = list(customer.contact_points.all())
-        primary_values = {
-            kind: next(
-                (point.value for point in contacts if point.kind == kind and point.is_primary),
-                "",
-            )
-            for kind in CustomerContactKind.values
-        }
-        customer.email = primary_values[CustomerContactKind.EMAIL]
-        customer.phone = primary_values[CustomerContactKind.PHONE]
-
-    def _replace_contact_points(self, customer: Customer, contact_points) -> None:
-        contact_points = self._normalise_contact_points(contact_points)
-        CustomerContactPoint.objects.filter(customer=customer).delete()
-        CustomerContactPoint.objects.bulk_create(
-            [
-                CustomerContactPoint(
-                    customer=customer,
-                    created_by=customer.updated_by or customer.created_by,
-                    updated_by=customer.updated_by or customer.created_by,
-                    **contact,
-                )
-                for contact in contact_points
-            ]
-        )
-        self._sync_legacy_contacts(customer)
-
     def create(self, validated_data):
-        contact_points = validated_data.pop("contact_points", None)
-        customer = Customer.objects.create(**validated_data)
-        if contact_points is not None:
-            self._replace_contact_points(customer, contact_points)
-            customer.save(update_fields=["email", "phone", "updated_at"])
-        return customer
+        from apps.customers.services import create_customer_idempotently
+
+        values = dict(validated_data)
+        actor = values.pop("created_by", None)
+        values.pop("updated_by", None)
+        key = values.pop("idempotency_key", "")
+        return create_customer_idempotently(values=values, actor=actor, idempotency_key=key)[0]
 
     def update(self, instance, validated_data):
-        contact_points = validated_data.pop("contact_points", None)
-        for field, value in validated_data.items():
-            setattr(instance, field, value)
-        if contact_points is not None:
-            self._replace_contact_points(instance, contact_points)
-        instance.save()
-        return instance
+        from apps.customers.services import update_customer_record
+
+        return update_customer_record(customer=instance, values=validated_data)
 
 
 class DesiredDateWaitlistEntrySerializer(serializers.ModelSerializer):
