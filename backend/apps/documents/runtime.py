@@ -10,6 +10,7 @@ from django.core.files.storage import default_storage
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from apps.documents.commercial import (
     CommercialDocumentCustomerContactPointContext,
@@ -38,6 +39,46 @@ class DocumentRuntimeGenerationError(ValueError):
     def __init__(self, message: str, *, code: str) -> None:
         super().__init__(message)
         self.code = code
+
+
+def _invoice_period_context(document_instance, event_draft):
+    snapshot = document_instance.event_period_snapshot
+    if snapshot is None:
+        start, end = event_draft.start_at, event_draft.end_at
+        label = event_draft.get_duration_option_display()
+    else:
+        try:
+            if not isinstance(snapshot, dict):
+                raise ValueError
+            start = parse_datetime(snapshot["start_at"])
+            end = parse_datetime(snapshot["end_at"])
+            label = snapshot["duration_label"]
+            if (
+                start is None
+                or end is None
+                or timezone.is_naive(start)
+                or timezone.is_naive(end)
+                or end <= start
+                or not isinstance(label, str)
+                or not label.strip()
+                or snapshot.get("duration_option") not in {"day", "night_1", "night_2"}
+            ):
+                raise ValueError
+        except (KeyError, TypeError, ValueError) as error:
+            raise DocumentRuntimeGenerationError(
+                "L'instantané de période du document est invalide.",
+                code="invalid_event_period_snapshot",
+            ) from error
+    hours, minutes = divmod(int((end - start).total_seconds() // 60), 60)
+    return {
+        "start_at": start,
+        "end_at": end,
+        "duration_label": label,
+        "duration_hours": hours,
+        "duration_minutes": minutes,
+        "ends_next_day": timezone.localtime(end).date() > timezone.localtime(start).date(),
+        "legacy_current_period": snapshot is None,
+    }
 
 
 PAYMENT_RECEIPT_PAYMENT_NOT_FOUND = "payment_receipt_payment_not_found"
@@ -353,6 +394,7 @@ def _build_hahitantsoa_contract_runtime_context(
             "key": document_instance.template_key,
         },
         "event_draft": {
+            "invoice_period": _invoice_period_context(document_instance, linked_event_draft),
             "customer_id": document_instance.customer_id,
             "public_reference": linked_event_draft.public_reference,
             "party_type": document_instance.customer_party_type,
@@ -715,6 +757,22 @@ def generate_document_instance_html(
         )
         document_instance.hahitantsoa_event_draft = event_draft
         locked_instance = DocumentInstance.objects.select_for_update().get(pk=document_instance.pk)
+        if (
+            locked_instance.template_key == "hahitantsoa.invoice.v1"
+            and locked_instance.event_period_snapshot is None
+            and locked_instance.status == DocumentInstanceStatus.PREPARED
+            and not locked_instance.storage_path
+            and not locked_instance.content_checksum
+            and not locked_instance.pdf_storage_path
+        ):
+            locked_instance.event_period_snapshot = {
+                "start_at": event_draft.start_at.isoformat(),
+                "end_at": event_draft.end_at.isoformat(),
+                "duration_option": event_draft.duration_option,
+                "duration_label": event_draft.get_duration_option_display(),
+            }
+            locked_instance.save(update_fields=["event_period_snapshot", "updated_at"])
+        document_instance.event_period_snapshot = locked_instance.event_period_snapshot
         if locked_instance.bare_rental_composition_snapshot is None:
             locked_instance.bare_rental_composition_snapshot = {
                 "label": BARE_RENTAL_LABEL,

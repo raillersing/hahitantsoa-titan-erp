@@ -552,6 +552,16 @@ def hahitantsoa_event_draft_document_instance_kwargs(
 
     return {
         "hahitantsoa_event_draft": event_draft,
+        "event_period_snapshot": (
+            {
+                "start_at": event_draft.start_at.isoformat(),
+                "end_at": event_draft.end_at.isoformat(),
+                "duration_option": event_draft.duration_option,
+                "duration_label": event_draft.get_duration_option_display(),
+            }
+            if template_definition.document_type == "invoice"
+            else None
+        ),
         "customer": event_draft.customer,
         "template_key": template_definition.key,
         "template_version": template_definition.version,

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from math import ceil
 from typing import TYPE_CHECKING
 
 from apps.documents.registry import (
@@ -283,13 +282,9 @@ def build_payment_receipt_context(
         if customer is not None
         else payment.source_label or "Generic payment source"
     )
-    # Thermal PDF engines need a concrete page height; ``auto`` falls back to
-    # A4 in WeasyPrint. Keep the source receipt height for four history rows and
-    # grow only for data that genuinely needs additional lines.
-    history_extra_rows = max(0, len(history) - 4) if not is_standalone_fee else 0
-    customer_extra_lines = max(0, ceil(len(customer_display_name) / 26) - 1)
-    base_height = 100 if is_standalone_fee else 120
-    receipt_page_height_mm = base_height + (history_extra_rows * 5) + (customer_extra_lines * 4)
+    # The client's printer uses fixed 80 x 104 mm paper. Long content flows
+    # onto continuation pages instead of changing the printer's paper size.
+    receipt_page_height_mm = 104
 
     bank_name = getattr(payment, "bank_name", "") or ""
     check_number = getattr(payment, "check_number", "") or ""

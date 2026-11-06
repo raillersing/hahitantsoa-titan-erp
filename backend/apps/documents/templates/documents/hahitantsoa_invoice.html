@@ -205,10 +205,39 @@
     }
 
     .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; letter-spacing: 0; }
+    /* Keep the approved typography and sidebar; allow the article table to
+       continue before the complete settlement block instead of covering it. */
+    html, body { height: auto; }
+    .page { height: auto; min-height: 297mm; overflow: visible; }
+    .main { position: relative; left: 0; margin-left: 51mm; height: auto; min-height: 297mm; }
+    .invoice-content { min-height: 205mm; }
+    .items thead { display: table-header-group; }
+    .items tr { break-inside: avoid; }
+    .invoice-settlement { break-inside: avoid; page-break-inside: avoid; }
+    .totals { position: relative; right: auto; bottom: auto; margin: 0 7mm 0 auto; }
+    .total-bar { position: relative; left: auto; right: auto; bottom: auto; margin-top: 2mm; }
+    .words { position: relative; left: auto; right: auto; bottom: auto; height: auto; min-height: 11mm; margin-top: 1mm; }
+    .signatures { position: relative; left: auto; right: auto; bottom: auto; margin: 7mm 13mm 0; }
+    .footer { position: relative; left: auto; right: auto; bottom: auto; margin: 24mm 4mm 0 0; }
+    .invoice-continuation-reference { display: none; }
+    @page {
+      size: A4;
+      margin: 7mm 3mm 7mm 54mm;
+      @bottom-right { content: counter(page) "/" counter(pages); font: 7pt sans-serif; }
+    }
+    @media print {
+      html, body { width: auto; }
+      .page { width: auto; min-height: 0; }
+      .main { width: auto; min-height: 0; margin: 0; padding: 0; }
+      .side { position: fixed; left: -54mm; top: -7mm; }
+      .watermark { position: fixed; }
+      .invoice-continuation-reference { display: block; position: fixed; top: -5mm; left: 0; width: 153mm; font: 7pt sans-serif; text-align: right; }
+    }
     @media print { .variable { background: transparent; outline: 0; } }
   </style>
 </head>
-<body>
+<body data-pagination="native">
+  <div class="invoice-continuation-reference">{{ document.reference|default:context.event_draft.public_reference|default:"..../.." }}</div>
   <div class="page">
     <!-- ===================================================================== -->
     <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
@@ -241,6 +270,7 @@
       <!-- Logo 3 : Filigrane d'arrière-plan (Watermark) -->
       <img class="watermark" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="">
 
+      <div class="invoice-content">
       <header class="header">
         <div class="header-box">
           <div class="ref">
@@ -266,8 +296,23 @@
         </div>
         <div class="identity-row">
           <strong>EVENEMENT DU :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y" }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.invoice_period.start_at|date:"d/m/Y" }}{% endif %}</span>
         </div>
+        <div class="identity-row">
+          <strong>FORMULE :</strong>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.duration_option {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.invoice_period.duration_label }}{% endif %}</span>
+        </div>
+        <div class="identity-row">
+          <strong>PÉRIODE :</strong>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.start_at {% templatetag closevariable %} — {% templatetag openvariable %} event.end_at {% templatetag closevariable %}</span>{% else %}Du {{ context.event_draft.invoice_period.start_at|date:"d/m/Y à H:i" }} au {{ context.event_draft.invoice_period.end_at|date:"d/m/Y à H:i" }}{% if context.event_draft.invoice_period.ends_next_day %} (fin le lendemain ou après){% endif %}{% endif %}</span>
+        </div>
+        <div class="identity-row">
+          <strong>DURÉE :</strong>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.duration {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.invoice_period.duration_hours }} h{% if context.event_draft.invoice_period.duration_minutes %} {{ context.event_draft.invoice_period.duration_minutes }} min{% endif %}{% endif %}</span>
+        </div>
+        {% if context.event_draft.invoice_period.legacy_current_period %}
+        <p class="identity-value">Période actuelle du dossier : document ancien sans instantané de période.</p>
+        {% endif %}
       </section>
 
       <table class="items">
@@ -302,7 +347,9 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
 
+      <section class="invoice-settlement">
       <div class="totals">
         <div class="totals-row">
           <span>TOTAL</span>
@@ -333,6 +380,7 @@
         <span>hahitantsoa@ergon.mg</span>
         <span>+261 34 61 791 44</span>
       </div>
+      </section>
     </main>
   </div>
 </body>
