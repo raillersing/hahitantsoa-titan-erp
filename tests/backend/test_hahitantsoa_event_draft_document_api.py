@@ -161,7 +161,7 @@ def test_hahitantsoa_liability_release_can_be_prepared(authenticated_client) -> 
     assert response.json()["document_reference"] == draft.public_reference + "-DR"
 
 
-def test_hahitantsoa_document_preview_is_owner_scoped(
+def test_hahitantsoa_document_preview_allows_peer_user(
     authenticated_client, django_user_model
 ) -> None:
     draft = _event_draft(user=authenticated_client.test_user)
@@ -173,8 +173,13 @@ def test_hahitantsoa_document_preview_is_owner_scoped(
     other_client.force_login(other_user)
 
     response = other_client.get(_document_preview_url(draft.id, "hahitantsoa.contract.v1"))
+    assert response.status_code == 200
 
-    assert response.status_code == 404
+    unauthenticated_client = Client()
+    unauthenticated_response = unauthenticated_client.get(
+        _document_preview_url(draft.id, "hahitantsoa.contract.v1")
+    )
+    assert unauthenticated_response.status_code in (401, 403, 404)
 
 
 def test_hahitantsoa_document_preview_rejects_another_domain_template(authenticated_client) -> None:
@@ -288,7 +293,7 @@ def test_hahitantsoa_proforma_pdf_rejects_missing_generated_html(
     assert "status" in response.json()["detail"]
 
 
-def test_hahitantsoa_event_draft_document_access_is_owner_scoped(
+def test_hahitantsoa_event_draft_document_access_allows_peer_user(
     authenticated_client,
     django_user_model,
 ) -> None:
@@ -308,4 +313,10 @@ def test_hahitantsoa_event_draft_document_access_is_owner_scoped(
     other_client.force_login(other_user)
 
     response = other_client.get(_document_detail_url(draft.id, document_id))
-    assert response.status_code == 404
+    assert response.status_code == 200
+
+    unauthenticated_client = Client()
+    unauthenticated_response = unauthenticated_client.get(
+        _document_detail_url(draft.id, document_id)
+    )
+    assert unauthenticated_response.status_code in (401, 403, 404)
