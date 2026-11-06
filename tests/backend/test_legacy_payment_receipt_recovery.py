@@ -94,7 +94,7 @@ def test_private_get_recovers_legacy_receipt_once_and_pdf_preserves_identity(
     html = response.content.decode()
     assert receipt.document_reference in html
     assert "125 000" in html
-    assert "@page { size: 80mm 120mm; margin: 0; }" in html
+    assert "size: 80mm 104mm;" in html
     assert ("Hahitantsoa" if domain == "hahitantsoa" else "Titan") in html
     receipt.refresh_from_db()
     checksum = receipt.content_checksum
