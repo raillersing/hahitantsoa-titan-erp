@@ -2,17 +2,17 @@
 
 ## Current State
 
-- `origin/main` baseline is `d64bbc4ec300c49951b45787e58dbfcd1824ff39`.
-- `main` CI is green as verified on 2026-11-06 (run 42177849450).
+- `main` application/test baseline before this documentation checkpoint is `e87bf84559c727028704712072c678249b88910f`.
+- `main` CI is green as verified on 2026-11-07 (run 42307437015).
 - **Transformation complete**: All 12 prototype-to-production transformation phases are fully implemented, tested, and commercially accepted (`docs/audits/PHASE_12_COMMERCIAL_ACCEPTANCE_AUDIT.md`, PR #830).
-- **Client Corrections Plan (2026-11-05) complete**: All 5 sequential correction lots are merged and verified on `main`:
+- **Client Corrections Plan (2026-11-05) partially delivered**: These 5 bounded correction lots are merged and verified on `main`, but do not cover every approved R1–R11 requirement:
   - PR #897: Lot 2A (R5) — Idempotence création client
   - PR #898: Lot 3A (R8) — Modification partagée collègues
   - PR #899: Lot 4A (R3, R10) — Intégrité DB ensembles & packs
   - PR #900: Lot 6A (R4, R7) — Reçus thermiques 80×104 mm & snapshot facture
   - PR #901: Lots 1, 2B, 6B, 7B (R1, R2, R4, R5, R6, R10) — UI client & aperçu
-- User-access audit implementation is local and unmerged; see the 2026-11-06 checkpoint below. Canonical root stays clean; the earlier persistence worktree is preserved.
-- Current active/planned bundle: **Lot 8 — Physical & Hardware Acceptance** (impression Xprinter thermique 80 mm, tests réseau local sur Raspberry Pi).
+- User-access corrections and the approved customer-replay correction are merged with green exact-SHA main CI; see the publication checkpoint below.
+- Current publication bundle: access/customer corrective delivery and runtime checkpoint. Open original-plan code slices: R5 cross-terminal stage persistence, R8 change propagation, R9 inventory counters/search/labels/notifications; R11 original500 diagnosis. Lot8 physical/Raspberry acceptance follows applicable code delivery.
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
 - No new backend feature bundles shall be started without explicit human authorization.
 - F145A through F145H are merged on `main`.
@@ -1176,23 +1176,36 @@ Update this document when one of these changes occurs:
 Client approved the complete access audit and requested implementation. This
 explicitly authorizes the bounded backend corrections despite the earlier freeze.
 
-| Lot | Worktree under /home/raillersing/projects/erp-access-20261106 | Branch | Status |
+| Lot | Published PR | Exact-SHA main CI | Status |
 |---|---|---|---|
-| S/M identity security and business capabilities | identity | fix/user-access-security-20261106 | reviewed |
-| D document authorization and physical-stock emission | documents | fix/user-access-documents-20261106 | reviewed |
-| U collaborator administration UX | frontend | fix/user-access-admin-ux-20261106 | reviewed |
-| Policy and normative maps | policy | docs/user-access-policy-20261106 | reviewed |
+| Policy and normative maps | #903 | 42274541701 | done |
+| S/M identity security and business capabilities | #904 | 42275165215 | done |
+| D document authorization and physical-stock emission | #906 | 42276820155 | done |
+| U collaborator administration UX | #905 | 42278330952 | done |
+| Approved customer creation replay correction related to #897 | #907 | 42302183410 | done |
+| Real runtime observer and dossier-navigation acceptance correction | #908 | 42307437015 | done |
 
-Owner: root Codex. The original delegated sessions stopped on provider usage
-limits; implementation continued sequentially. A fresh independent reviewer
-requested three fixes, then approved their correction without a residual blocking
-finding. Expanded regression:163 backend and41 frontend tests pass (counts overlap
-prior integration runs).
-No commit, push, PR, merge or deployment was performed. PR/main CI for these
-changes is therefore unconfirmed. Integration order: policy, identity, documents,
-frontend. Documents require the new identity operation predicates; do not release
-that branch alone. Local combined-source integration and final-delta evidence are
-recorded in docs/audits/USER_ACCESS_IMPLEMENTATION_2026_11_06.md.
+Owner: root Codex. Client explicitly authorized commit, push and merge. Every
+reviewed PR passed CI and was merged through the protected exact-head finalizer,
+followed by successful exact-SHA main CI. Independent review requested three
+access corrections, then APPROVED their fixes. Customer replay received a separate
+B/E APPROVE, including migration review. Published implementation and evidence:
+`docs/audits/USER_ACCESS_IMPLEMENTATION_2026_11_06.md`.
 
-The pre-existing dirty customer-replay worktree remains preserve, with its prior
-owner and scope. No worktree cleanup before verified merge and exact-SHA main CI.
+The customer patch includes migration customers0012; the access lots add no
+migration. No client deployment, real role reassignment or production data change
+was performed. The earlier customer worktree is no longer an unowned dirty task:
+its eight approved files were reviewed, tested, committed and published as #907.
+
+The six clean lot worktrees/local branches were removed by the protected
+finalizer; remote branches and volumes are preserved. Dedicated CI containers and
+network were removed after evidence handoff.
+
+Main real-backend checkpoint42307733781 passed on exact e87bf845, including
+7 real-backend journeys and8 observer-control scenarios. This qualifies the
+bounded published lots, not every original client requirement.
+
+Next bounded operations: publish this status reconciliation; then scoped original-plan R5/R8/R9 code
+corrections and R11 diagnosis, followed by physical Xprinter80x104mm and Raspberry
+Pi multi-terminal acceptance and qualified deployment. Runtime acceptance CI is isolated and does not qualify
+printer hardware, real assignments or client LAN behavior.
