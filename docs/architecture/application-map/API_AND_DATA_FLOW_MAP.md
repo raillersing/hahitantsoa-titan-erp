@@ -177,3 +177,23 @@ Le gap n’est plus “frontend absent”, mais:
 
 ---
 *Fin des flux API et donnees*
+
+
+### Identity capability contract — 2026-11-06 approved amendment
+
+- GET `/api/v1/auth/session/`: additive `user.capabilities` boolean mapping.
+- GET `/api/v1/identity/users/` and user detail: effective `role_slugs` and
+  `role_names`, direct `assigned_role_slugs`, supported `group_role_slugs`,
+  effective `capabilities` and technical `base_capabilities`.
+- GET `/api/v1/identity/roles/`: additive `capabilities` and `assignable`.
+- These fields are computed/read-only. User creation/editing continues to submit
+  `role_slugs`; unchanged legacy grants are preserved. Explicit revocation removes
+  both supported sources transactionally. No new endpoint or schema migration.
+- Logistics/physical stock and cashbox routes use dedicated operation gates;
+  financial settlement and commercial confirmation retain their existing rules.
+- Private HTML/PDF share a category check: commercial access or authorized physical
+  operations limited to delivery/preparation documents. Emission revalidates the
+  physical-operation capability inside the stock service.
+
+This section documents the approved unmerged implementation; activation depends
+on merging the identity and documents lots together with their frontend contract.

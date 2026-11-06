@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `origin/main` HEAD is `ed4ea2fcdeae2d1bdc1a5ce5cd354d431ce27d37`.
-- `main` CI is green as verified on 2026-11-06 (run 42148530177).
+- `origin/main` baseline is `d64bbc4ec300c49951b45787e58dbfcd1824ff39`.
+- `main` CI is green as verified on 2026-11-06 (run 42177849450).
 - **Transformation complete**: All 12 prototype-to-production transformation phases are fully implemented, tested, and commercially accepted (`docs/audits/PHASE_12_COMMERCIAL_ACCEPTANCE_AUDIT.md`, PR #830).
 - **Client Corrections Plan (2026-11-05) complete**: All 5 sequential correction lots are merged and verified on `main`:
   - PR #897: Lot 2A (R5) — Idempotence création client
@@ -11,7 +11,7 @@
   - PR #899: Lot 4A (R3, R10) — Intégrité DB ensembles & packs
   - PR #900: Lot 6A (R4, R7) — Reçus thermiques 80×104 mm & snapshot facture
   - PR #901: Lots 1, 2B, 6B, 7B (R1, R2, R4, R5, R6, R10) — UI client & aperçu
-- No open PRs. Active worktree: canonical repository root on clean `main`.
+- User-access audit implementation is local and unmerged; see the 2026-11-06 checkpoint below. Canonical root stays clean; the earlier persistence worktree is preserved.
 - Current active/planned bundle: **Lot 8 — Physical & Hardware Acceptance** (impression Xprinter thermique 80 mm, tests réseau local sur Raspberry Pi).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
 - No new backend feature bundles shall be started without explicit human authorization.
@@ -1169,3 +1169,30 @@ Update this document when one of these changes occurs:
 - a repair track becomes necessary
 - the required standard wrappers or gates change
 - the application cartography requires a version bump
+
+
+## User-access audit implementation — 2026-11-06
+
+Client approved the complete access audit and requested implementation. This
+explicitly authorizes the bounded backend corrections despite the earlier freeze.
+
+| Lot | Worktree under /home/raillersing/projects/erp-access-20261106 | Branch | Status |
+|---|---|---|---|
+| S/M identity security and business capabilities | identity | fix/user-access-security-20261106 | reviewed |
+| D document authorization and physical-stock emission | documents | fix/user-access-documents-20261106 | reviewed |
+| U collaborator administration UX | frontend | fix/user-access-admin-ux-20261106 | reviewed |
+| Policy and normative maps | policy | docs/user-access-policy-20261106 | reviewed |
+
+Owner: root Codex. The original delegated sessions stopped on provider usage
+limits; implementation continued sequentially. A fresh independent reviewer
+requested three fixes, then approved their correction without a residual blocking
+finding. Expanded regression:163 backend and41 frontend tests pass (counts overlap
+prior integration runs).
+No commit, push, PR, merge or deployment was performed. PR/main CI for these
+changes is therefore unconfirmed. Integration order: policy, identity, documents,
+frontend. Documents require the new identity operation predicates; do not release
+that branch alone. Local combined-source integration and final-delta evidence are
+recorded in docs/audits/USER_ACCESS_IMPLEMENTATION_2026_11_06.md.
+
+The pre-existing dirty customer-replay worktree remains preserve, with its prior
+owner and scope. No worktree cleanup before verified merge and exact-SHA main CI.
