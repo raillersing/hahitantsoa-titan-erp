@@ -401,14 +401,18 @@ a second roadmap or infer completion from an unmerged worktree.
 
 ## Remaining sequence at this checkpoint
 
-All 12 core development phases and the 2026-11-05 client corrections are complete and integrated on `main`.
+The12 core development phases retain their historical acceptance. The2026-11-05
+client corrections are partially delivered; the bounded merged lots must not be
+confused with full closure of the approved R1–R11 plan. See the live reconciliation
+in USER_ACCESS_IMPLEMENTATION_2026_11_06.md.
 
 Remaining sequence:
-1. **Lot 8 — Physical acceptance & hardware validation:**
+1. **Open original-plan implementation:** R5 durable cross-terminal stage persistence, R8 change propagation/reconnect, R9 inventory truth/search/labels/notifications, and R11 precise500 diagnosis; then the applicable integrated acceptance.
+2. **Lot 8 — Physical acceptance & hardware validation:**
    - Physical print testing on Xprinter 80mm thermal hardware (80×104mm fixed pagination and tear/cut margin);
    - Multi-terminal LAN testing on Raspberry Pi staging/production server;
    - Real-world peer concurrent editing tests.
-2. Production deployment and operational cutover.
+3. Production deployment and operational cutover.
 
 The skills reassessment completed in PR `#461`; it is a governance improvement, not a
 substitute for any product phase.
@@ -417,3 +421,60 @@ The proportional test policy is defined in `docs/ai-agents/pr-quality-gates.md` 
 enforced by PR `#464`. The high-risk workflow self-change selected both stacks and the
 stable policy gate; subsequent documentation-only checkpoints have proven that both
 application jobs are skipped while `CI policy gate` remains green.
+
+
+## Post-acceptance access and customer-replay delivery — 2026-11-07
+
+Client approved the access audit implementation, the earlier customer replay
+correction, and explicitly authorized commit, push and merge. These bounded
+post-acceptance corrections are integrated; no core phase was reopened and no
+production deployment is inferred.
+
+| Approved lot | PR | Reviewed head | Merged main | Successful exact-SHA main CI |
+|---|---|---|---|---|
+| Role policy and normative maps | #903 | `8ffaae2f511c1eb1bd2dfb1281274ce57a5ca8d9` | `c81e59dbbb00af0b428b7e03931ee7a29623c394` | 42274541701 |
+| Delegated identity security and business capabilities | #904 | `f6665c05a70c6edfed65e09dca95693a4b30ee97` | `8aff71ee39175215f3624e99846155cc1fe5c7b5` | 42275165215 |
+| Private documents and physical-stock authorization | #906 | `37ee4a99188eb61ef23b421eba9a96681aa89d24` | `1f0b54ea0807d50187512c72ef47a7af23764a9c` | 42276820155 |
+| Clear collaborator profiles and server-capability UI | #905 | `2b96995d62ad8d745b781e8b400b69c54320828e` | `cf1601f7a6472d65fdc8c4416a71f45376045d97` | 42278330952 |
+| Scoped customer creation replay related to #897 | #907 | `86a810eccbe4dc1137eb5bb43e2fcb3bce30fdc4` | `7a00ae0fd3df4b2c9a315e20dc7979e04752ba9b` | 42302183410 |
+
+Every PR passed CI, independent applicable review, protected exact-head merge and
+exact-SHA main CI. Clean local task worktrees and branches were removed; remote
+branches, test volumes and unrelated services are preserved. Dedicated test
+containers/network were removed after evidence handoff. Graphify was refreshed
+from clean canonical main after structural changes, finally at 7a00ae0.
+
+Evidence and limitations are in
+[`USER_ACCESS_IMPLEMENTATION_2026_11_06.md`](../../audits/USER_ACCESS_IMPLEMENTATION_2026_11_06.md).
+The four access lots add no migration. The customer correction adds customers0012,
+which must be applied and qualified during deployment; history is preserved and
+ambiguous legacy operations are rejected. Actor scoping is technical replay
+identity, not creator-based commercial dossier isolation.
+
+Affected identity, documents, inventory-emission and administration slices now
+include the approved corrections and green publication evidence. Their existing
+module maturity labels are not upgraded on CI alone: real user assignments,
+client multi-terminal concurrency/refresh and hardware acceptance remain pending.
+No production role, password, session or business data was changed.
+
+Remaining bounded sequence includes the original-plan R5/R8/R9 implementation
+slices and R11 diagnosis identified by live reconciliation, then Lot8 physical
+Xprinter80x104mm and Raspberry Pi/LAN role-sensitive multi-terminal acceptance,
+qualified migration/deployment and operational cutover. Neither mocks nor GitHub runtime
+fixtures establish those client-environment gates.
+
+
+Runtime acceptance test correction #908 is also merged after FE-D/FE-F APPROVE:
+reviewed head`62590e2aba9b94589895e8ad627fc4fa92504988`, main
+`e87bf84559c727028704712072c678249b88910f`, successful PR CI42306912822,
+branch real-backend checkpoint42306912734 and exact-SHA main CI42307437015.
+The protected finalizer removed its clean worktree/local branch. The change only
+corrects observer lifecycle and dossier-navigation assertions; it does not close
+any open R5/R8/R9 implementation slice or the unidentified R11 incident.
+
+
+Bounded main integration checkpoint42307733781 passed on exact
+`e87bf84559c727028704712072c678249b88910f`, including the browser job, four backend
+shards, frontend and tooling. Seven journeys used the real isolated backend;
+eight scenarios qualified the observer. No client environment was exercised.
+Open original-plan implementation and physical/deployment gates remain unchanged.

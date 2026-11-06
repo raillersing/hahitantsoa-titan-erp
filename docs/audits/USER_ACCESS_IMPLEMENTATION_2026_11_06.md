@@ -1,6 +1,6 @@
 # User-access implementation — 2026-11-06
 
-## Baseline and authorization
+## Initial implementation baseline and authorization
 
 Baseline d64bbc4ec300c49951b45787e58dbfcd1824ff39. Client explicitly approved
 the user-access audit HTML and requested implementation. Root main is preserved;
@@ -74,12 +74,13 @@ endpoint, model, migration or bulk production role reassignment was introduced.
   fonts successfully (HTTP200); earlier dev-server symlink font restrictions did
   not affect the final screenshots or bundle check.
 
-Logs are local under each task worktree's logs/terminal. Key tasks:
+During initial validation, logs were local under each task worktree's logs/terminal.
+The retained handoff archive is now canonical reports/access-delivery-20261106/. Key tasks:
 access-integration-checks, access-final-delta-regression,
 access-dialog-escape-fix, access-browser-verified, access-ui-legacy-grants-completeness and access-frontend-final-build.
-Browser screenshots and JSON are in frontend/reports/access-admin-*.
+Browser screenshots and JSON were handed off to canonical reports/access-delivery-20261106/access-admin-*.
 
-## Remaining release gates
+## Initial handoff and independent review
 
 The original delegated sessions hit provider usage limits. A fresh independent
 Codex reviewer subsequently inspected the combined changes and requested three
@@ -89,9 +90,9 @@ reinspection returned APPROVE with no residual blocking finding. The reviewer
 performed static review, not execution of the provided tests. A subsequent
 expanded backend regression passed163 tests; frontend passed41, with a further
 10-test cashbox run proving the negative case after session data loads.
-Changes are uncommitted. No push, PR, merge, remote CI or deployment. The combined
-working-tree snapshot is not an exact committed-SHA CI result. Review policy,
-identity, documents and frontend together; release documents only after identity.
+At the initial handoff, changes were uncommitted and remote CI was not yet
+established. Publication below supersedes that historical state. The four lots
+were subsequently merged in dependency order: policy, identity, documents, frontend.
 
 The changed role policy takes effect for existing holders of those named roles;
 verify the deployment's actual assignments before activation. No real user roles,
@@ -103,7 +104,7 @@ The existing broader authenticated read/edit scope for shared drafts is retained
 creator-based isolation is not reintroduced. Personal support/import/notification
 scopes are unchanged. Physical printer acceptance belongs to the earlier task.
 
-No merge was performed.
+No deployment to the client server was performed.
 
 Independent review: /root/access_final_review — REQUEST_CHANGES, then APPROVE
 following the three documented fixes. Canonical PROTECTED_ROLE_SLUGS is shared
@@ -112,3 +113,215 @@ slugs with and without surrounding whitespace and manager definition changes.
 Cashbox supervision now consumes only the server capability, with no staff/name
 inference. Final review regression logs: access-review-security-regression,
 access-review-cashbox-capability-fix and access-cashbox-negative-regression.
+
+
+## Verified publication — 2026-11-06
+
+The client explicitly authorized commit, push and merge. Every PR below passed CI,
+was merged through `erp-pr-finalize-from-root` with the reviewed head SHA locked,
+and passed its exact merged-SHA main CI before the clean task worktree and local
+branch were removed. Remote branches are preserved.
+
+| Lot | PR | Reviewed head | Merged main SHA | Successful main CI run |
+|---|---|---|---|---|
+| Accepted policy and normative maps | [#903](https://github.com/raillersing/hahitantsoa-titan-erp/pull/903) | `8ffaae2f511c1eb1bd2dfb1281274ce57a5ca8d9` | `c81e59dbbb00af0b428b7e03931ee7a29623c394` | [42274541701](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42274541701) |
+| Identity and business capabilities | [#904](https://github.com/raillersing/hahitantsoa-titan-erp/pull/904) | `f6665c05a70c6edfed65e09dca95693a4b30ee97` | `8aff71ee39175215f3624e99846155cc1fe5c7b5` | [42275165215](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42275165215) |
+| Private documents and physical-stock authorization | [#906](https://github.com/raillersing/hahitantsoa-titan-erp/pull/906) | `37ee4a99188eb61ef23b421eba9a96681aa89d24` | `1f0b54ea0807d50187512c72ef47a7af23764a9c` | [42276820155](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42276820155) |
+| Collaborator administration UX | [#905](https://github.com/raillersing/hahitantsoa-titan-erp/pull/905) | `2b96995d62ad8d745b781e8b400b69c54320828e` | `cf1601f7a6472d65fdc8c4416a71f45376045d97` | [42278330952](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42278330952) |
+
+Application cartography and accepted policy were delivered by #903. Graphify was
+regenerated from clean canonical main after structural merges, including cf1601f.
+Screenshots, test logs and reviewed-source manifests were handed off under the
+canonical local `reports/access-delivery-20261106/` before task cleanup; they are
+local evidence, not versioned program truth. CI/PR links above remain durable.
+
+The temporary GitHub mergeability state UNKNOWN for #905 was rechecked until
+MERGEABLE on the unchanged reviewed head. No protection was bypassed.
+
+
+## Customer creation replay corrective delivery — 2026-11-07
+
+The earlier approved correction related to #897 was also committed and published
+separately: [#907](https://github.com/raillersing/hahitantsoa-titan-erp/pull/907),
+reviewed head `86a810eccbe4dc1137eb5bb43e2fcb3bce30fdc4`, merged main
+`7a00ae0fd3df4b2c9a315e20dc7979e04752ba9b`.
+[PR CI 42281309649](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42281309649)
+and [exact-SHA main CI 42302183410](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42302183410)
+both passed. Independent B/E review APPROVE was reconfirmed after Ruff formatting
+of migration0012; its AST was asserted unchanged.
+
+The operation identity is actor-scoped solely for creation replay, without
+restricting shared client/dossier business access. Identical validated requests
+return the existing customer without overwriting later edits; changed requests,
+tombstones and ambiguous legacy operations return controlled conflicts. Customer
+and contact creation is atomic and concurrent operations are serialized.
+
+Unlike the four access lots, this correction includes a schema migration:
+`customers.0012_customer_scoped_idempotency`. It preserves history, adds actor and
+request fingerprint, replaces global uniqueness with actor/key uniqueness
+including removed clients, and stops on incompatible history. Reversing after
+cross-actor key reuse requires checking collisions; no clients are deleted to
+make rollback succeed. Deployment must apply and qualify this migration.
+
+Final combined main-plus-correction qualification passed68 PostgreSQL tests in
+251.42s, covering replay, customer reads/writes, concurrency and migration.
+Django check, makemigrations --check --dry-run and migrate --plan passed. The
+Docker/WSL bind-mount problem was handled by copying explicit source snapshots
+into the existing isolated CI runner. An initial test invocation incorrectly
+replaced Django TEST settings and failed during setup; changing only TEST.NAME
+resolved that invocation error without a product change. Ruff, scope and diff
+checks passed. Two earlier frontend replay tests also passed.
+
+The owned sleeping CI runner, database/Redis containers and project network were
+removed through erp-backend-compose-ci down --remove-orphans after test evidence
+handoff; volumes and unrelated services were preserved. Graphify was refreshed
+from clean canonical main at 7a00ae0. The corrective patch reuses existing customer
+routes/services and preserves the mapped sharing boundary; no additional route,
+navigation or domain map change is needed beyond the access policy maps in #903.
+
+
+## Phase integration checkpoint and corrective test synchronization
+
+The first [real-backend browser checkpoint 42302676107](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42302676107)
+ran after all five lots had green exact-SHA main CI, on
+`7a00ae0fd3df4b2c9a315e20dc7979e04752ba9b`. Overall result: failure, despite green
+backend/frontend/tooling and CI policy gate. The browser job must be checked
+separately; the policy gate alone is not sufficient runtime acceptance evidence.
+
+The auth-session group passed3 scenarios. Both phase1f session scenarios then
+reported GET notifications unread_only=true net::ERR_ABORTED during intentional
+reload/session teardown. AppShell cancels that background read using its existing
+AbortController cleanup. Later role and lifecycle groups were not reached by the
+fail-fast group script; they were not qualified by this first run.
+
+The first bounded corrective test attempt waits for the actual notification GET response200 and
+successful response.finished() before reload/logout/cookie clearing. The wait is
+armed before each login/reload trigger. Network, console and page-error collection
+and assertions are unchanged; no application behavior or failure filter changes.
+Independent FE-D/FE-F static review returned APPROVE. The existing auth/shell map
+was consulted and the code-only Graphify report was current at7a00ae0; a test-only
+synchronization change adds no application route or domain boundary.
+
+
+## Original client plan is not fully closed — live reconciliation 2026-11-07
+
+The user's status question prompted a direct comparison with the approved local
+plan of2026-11-05 and current source. The earlier roadmap/queue statement that all
+client corrections were complete was too broad: merged PRs establish delivery of
+their diffs, not every requirement of the original plan. This checkpoint corrects
+that statement; only the bounded published lots above are complete.
+
+| Requirement | Actual evidence / remaining work |
+|---|---|
+| R1/R2 company and dates | #901 delivers the bounded frontend corrections; exhaustive historical/double-domain browser acceptance is not inferred from CI. |
+| R3 sets | #899 delivers package constraints and admissibility; this does not qualify inventory stock counters. |
+| R4 thermal printing | #900/#901 deliver pagination and preview; physical80x104mm printer/pilot acceptance remains open. |
+| R5 persistence | Client step persistence/replay is delivered by #897/#901 and hardened by #907. Intermediate assistant state/files still use localStorage/local recovery; cross-terminal server persistence of every validated stage and version conflicts are not fully delivered. See ReservationNewPage saveDraft/local recovery and deferred persisted draft creation. |
+| R6 services search | Bounded frontend search delivered in #901; all amendment selectors are not claimed qualified. |
+| R7 invoice event period | Snapshot/rendering changes delivered in #900; deployed/historical-document acceptance remains separate. |
+| R8 sharing and synchronization | Shared dossiers and role capabilities are delivered. End-to-end change propagation, reconnect recovery and measured multi-terminal latency remain open implementation/qualification work; sharing is not proof of real-time synchronization. |
+| R9 inventory | Still incomplete. InventoryItemSerializer.get_stock_summary returns reserved_stock=0 and cumulative movement figures. InventoryManagementPage maps inactive items to Rupture and uses that label when toggling activity. The ch search incident, temporal stock truth, labels and notification lifecycle require their separate corrective lots; #899 only covered sets. |
+| R10 recap | Bounded collapsible composition UI delivered in #901; complete historical-selection/snapshot coverage is not inferred. |
+| R11 original500 | The precise failing request/cause from the initial screenshot has not been reproduced and closed with evidence. Date/replay fixes do not establish resolution of an unidentified500. |
+
+Remaining code work must stay in separate backend/frontend task scopes, reuse the
+approved stock/allocation rules and protect shared concurrent state. No stock
+reset, invented allocation semantics, silent error masking or production test is
+authorized by this status correction. Client-environment deployment/physical
+acceptance remains required in addition to these open implementation slices.
+
+
+The initial wait-only correction was insufficient: branch runtime run
+[42303937919](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42303937919)
+still failed the same two scenarios on head1d5a2fe. The artifact trace showed an
+aborted notification read immediately followed by a successful replacement within
+1–3ms, at login and reload, before the intentional teardown. React StrictMode is
+active in the dev-server entrypoint. A later success could not retroactively clear
+the collector's already-recorded failure.
+
+The final observer records request identity, start order, explicit read sequence
+and frame. Only the exact notification GET ERR_ABORTED can be explained by a later
+HTTP200 replacement in the same sequence/frame whose transfer completed without
+error. Other failures stay visible; the old same-URL-success shortcut is removed.
+The three transition waits remain. Seven controlled Chromium harness cases passed
+locally: expected replacement, genuine network failure despite replacement, other
+endpoint abort, no replacement, another sequence, earlier success, and HTTP500
+replacement. These test the observer, not a business API. The actual authenticated
+journeys still use the real backend. FE-D/FE-F independent review APPROVE was
+reconfirmed. Local symlinked Vite fonts produced an allow-list warning during the
+harness checks; those checks do not claim visual acceptance.
+
+
+Branch run [42304999264](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42304999264)
+then passed expiration and the seven observer checks but exposed Chromium's
+logout-response cancellation: the exact POST had already received HTTP204.
+The collector now distinguishes that exact Request/POST/logout/ERR_ABORTED with
+its own2xx response; a successful different request cannot excuse it. The actual
+journey explicitly waits for204 and rechecks the backend session as
+`authenticated:false`. An eighth controlled case verifies that logout aborted
+before any response remains a failure even when a different logout succeeds.
+Notification completion callbacks cannot create success if transfer completion
+rejects during teardown. Independent FE-D/FE-F review APPROVE was reconfirmed.
+
+
+Run [42305679376](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42305679376)
+onf70bde1 passed3 auth,2 real session,8 controlled observer and1 real role scenarios.
+The Titan lifecycle reached generated proforma, recorded deposit and contract,
+then failed an obsolete expectation of the Titan list heading. The actual source
+navigates directly to the created dossier; the artifact snapshot showed that
+dossier and its signing action. The bounded frontend-only corrective scope was
+extended to the affected lifecycle test: assert the exact persisted dossier hash
+and remove forced navigation that could hide a wrong destination. Signing,
+confirmation, reload persistence, invoice and delivery-note assertions remain.
+No commercial UI/application change was made. Targeted TypeScript and test
+discovery pass; independent FE-D/FE-F review APPROVE was reconfirmed.
+
+
+The corrected branch checkpoint
+[42306912734](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42306912734)
+passed on reviewed head`62590e2aba9b94589895e8ad627fc4fa92504988`, including the
+browser job and all backend/frontend/tooling gates. Its browser groups passed3
+real auth,2 real session plus8 controlled observer,1 real role, and1 real Titan
+lifecycle scenarios. These are7 real-backend journeys and8 observer-control
+scenarios, not15 business journeys. The Titan path now reaches signing,
+confirmation, reload persistence, invoice and delivery-note issuance.
+This qualifies the bounded published delivery in isolated CI, not closure of the
+original R1–R11 plan or the client's Raspberry Pi environment.
+
+
+## Runtime correction publication
+
+[#908](https://github.com/raillersing/hahitantsoa-titan-erp/pull/908) is merged:
+reviewed head`62590e2aba9b94589895e8ad627fc4fa92504988`, merged main
+`e87bf84559c727028704712072c678249b88910f`.
+[PR CI42306912822](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42306912822),
+[branch real-backend checkpoint42306912734](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42306912734)
+and [exact-SHA main CI42307437015](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42307437015)
+all succeeded. Protected finalization removed the clean runtime worktree and local
+branch, preserving its remote branch. This test-only correction did not change
+application behavior, routes, models or dependencies; the application Graphify
+snapshot at7a00ae0 remains applicable without a structural regeneration.
+
+
+## Final bounded main integration result — 2026-11-07
+
+[Main checkpoint42307733781](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42307733781)
+completed SUCCESS on exact main`e87bf84559c727028704712072c678249b88910f`,
+after every published application/test lot had green exact-SHA main CI. The
+browser job itself succeeded, together with all four backend shards, frontend,
+tooling and policy gate. Seven real-backend journeys and eight controlled
+observer scenarios passed. The qualified Titan journey persisted proforma,
+deposit, contract, signature, confirmation, invoice and delivery note, including
+reload checks; role fixtures demonstrated distinct backend audit authorization.
+
+This is acceptance of the bounded access/customer delivery and its runtime test
+corrections. It is not full acceptance of the original client plan: the R5/R8/R9
+implementation gaps, unidentified R11 incident and physical/Raspberry gates above
+remain open. No client server, user assignment, production data or printer was
+modified. The documentation checkpoint changes records only and does not require
+another broad application replay.
+
+Agent F independently approved the publication records and partial-plan
+reconciliation; final CI result is recorded only after live verification. Future
+agents must reconcile requirements against actual code, not infer full delivery
+from green PRs or from the CI policy gate alone.
