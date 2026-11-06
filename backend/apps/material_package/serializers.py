@@ -1,11 +1,19 @@
 from rest_framework import serializers
 
 from apps.common.catalog_images import validate_catalog_image_url
+from apps.inventory.models import INVENTORY_ITEM_KIND_VALUES, InventoryItem
 from apps.material_package.models import MaterialPackage, MaterialPackageLine
+from apps.material_package.services import save_material_package
 
 
 class MaterialPackageLineSerializer(serializers.ModelSerializer):
     inventory_item_name = serializers.CharField(source="inventory_item.name", read_only=True)
+    inventory_item = serializers.PrimaryKeyRelatedField(
+        queryset=InventoryItem.objects.filter(
+            is_active=True, is_deleted=False, kind__in=INVENTORY_ITEM_KIND_VALUES
+        )
+    )
+    quantity = serializers.IntegerField(min_value=1, required=False, default=1)
 
     class Meta:
         model = MaterialPackageLine
@@ -64,20 +72,8 @@ class MaterialPackageCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         lines_data = validated_data.pop("lines", [])
-        package = MaterialPackage.objects.create(**validated_data)
-        for line_data in lines_data:
-            MaterialPackageLine.objects.create(package=package, **line_data)
-        return package
+        return save_material_package(attributes=validated_data, lines=lines_data)
 
     def update(self, instance, validated_data):
         lines_data = validated_data.pop("lines", None)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-
-        if lines_data is not None:
-            instance.lines.all().delete()
-            for line_data in lines_data:
-                MaterialPackageLine.objects.create(package=instance, **line_data)
-
-        return instance
+        return save_material_package(attributes=validated_data, lines=lines_data, instance=instance)

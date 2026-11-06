@@ -23,7 +23,7 @@ class MaterialPackageListCreateAPIView(generics.ListCreateAPIView):
         return MaterialPackageSerializer
 
     def get_queryset(self):
-        qs = MaterialPackage.objects.all().order_by("name")
+        qs = MaterialPackage.objects.prefetch_related("lines__inventory_item").order_by("name")
         include_inactive = self.request.query_params.get("include_inactive", "").lower() in (
             "true",
             "1",
@@ -38,6 +38,9 @@ class MaterialPackageListCreateAPIView(generics.ListCreateAPIView):
         elif not include_inactive:
             qs = qs.filter(is_active=True)
         return qs
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
 
 
 class MaterialPackageRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
@@ -55,7 +58,10 @@ class MaterialPackageRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroy
         return MaterialPackageSerializer
 
     def get_queryset(self):
-        return MaterialPackage.objects.all()
+        return MaterialPackage.objects.prefetch_related("lines__inventory_item")
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
 
     def perform_destroy(self, instance):
         """Soft delete: mark as inactive instead of actually deleting."""
