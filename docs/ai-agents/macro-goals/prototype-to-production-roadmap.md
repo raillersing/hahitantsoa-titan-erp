@@ -46,7 +46,7 @@ stacks and journeys, then implement one consolidated corrective bundle for ordin
 findings. Security, authorization, data-integrity, migration, financial, concurrency,
 CI, and release-blocking findings remain immediate corrective work.
 
-Current next bundle: **Phase Integration Checkpoint Closeout (Phases 6-10)**. Phases 6A/6B (Document Templates & Versioning, PR #500/#502), Phase 7A (Billing & Invoices, PR #503), Phase 9 (Hahitantsoa Venues & Services, PR #503), and Phase 10 (Hahitantsoa Discovery & Concepts) have been fully implemented, integrated, and verified with exact-SHA green `main` CI (`37734bd`).
+Current next bundle: **Phase Integration Checkpoint / Hardware Acceptance (Lot 8)**. The transformation cycle (Phases 1 through 12) and the post-Phase 12 Client Corrections Plan (2026-11-05, Lots 0-7, PRs #897-#901) have been fully implemented, integrated, and verified with exact-SHA green `main` CI (`ed4ea2fcdeae2d1bdc1a5ce5cd354d431ce27d37`).
 
 ## Product target
 
@@ -87,9 +87,9 @@ authorization control, and a successful mock notification is not persistence evi
 
 ## Current program checkpoint
 
-Checkpoint date: 2026-07-18. Current verified baseline:
-`58b6b90be7563ebb0667c5f84058d08990ba0b63`, with exact-SHA `main` CI success in run
-`29639718831`.
+Checkpoint date: 2026-11-06. Current verified baseline:
+`ed4ea2fcdeae2d1bdc1a5ce5cd354d431ce27d37`, with exact-SHA `main` CI success in run
+`42148530177` (PR #901).
 
 | Item | Status | Evidence or limitation |
 |---|---|---|
@@ -118,8 +118,13 @@ Checkpoint date: 2026-07-18. Current verified baseline:
 | Phase 10 remove production mocks | Completed and integrated | PR `#827`, merged `main` SHA `8fce4be`, exact-SHA CI run `34681668374` green. 100% elimination of business mocks, placeholders, and dead buttons; enforced by `frontend/src/no-production-mocks.test.ts`. |
 | Phase 11 production readiness and hardening | Completed and integrated | PR `#828` (infra/config hardening, static assets, reverse proxy, merged SHA `61f8c54`) and PR `#829` (OWASP ASVS 5.0 audit, DR verification, merged SHA `24e06e4`). `check --deploy` clean, backup/restore tested. |
 | Phase 12 commercial acceptance | Completed and validated | Formal acceptance audit `docs/audits/PHASE_12_COMMERCIAL_ACCEPTANCE_AUDIT.md`. Multi-role RBAC matrix, complete happy paths and exception journeys validated, 72 frontend test files / 681 tests passing, backend test suite green. |
+| Client Corrections Lot 2A (R5) — Idempotence client | Completed and integrated | PR `#897`, merged `main` SHA `49e5232926bff9eb0e922e12a161de192ac87a56`, exact-SHA CI run `42145431796` green. Active DB unique constraint on `idempotency_key`, safe replay and 409 conflict handling. |
+| Client Corrections Lot 3A (R8) — Modification partagée collègues | Completed and integrated | PR `#898`, merged `main` SHA `2df1be375f249548b8aa01a6be21df8a5d7b2400`, exact-SHA CI run `42146901684` green. Shared draft modification for users with same staff privilege, non-destructive attribution (`updated_by`). |
+| Client Corrections Lot 4A (R3) — Intégrité DB ensembles & packs | Completed and integrated | PR `#899`, merged `main` SHA `58e058778ca8a20a71b058a4d736f8493919f1ed`, exact-SHA CI run `42147421939` green. Quantities > 0, unique constraint `(package, inventory_item)`, and historical package maintenance message for unarchived compositions. |
+| Client Corrections Lot 6A (R4, R7) — Reçus thermiques & snapshot facture | Completed and integrated | PR `#900`, merged `main` SHA `48b8d498dbd8998b3999b7f2dfd419da8080f437`, exact-SHA CI run `42147960098` green. 80×104mm fixed thermal receipt pagination with page counters, `event_period_snapshot` frozen in `DocumentInstance` at confirmation. |
+| Client Corrections Lots 1, 2B, 6B, 7B (R1, R2, R4, R5, R6, R10) — UI client & aperçu | Completed and integrated | PR `#901`, merged `main` SHA `ed4ea2fcdeae2d1bdc1a5ce5cd354d431ce27d37`, exact-SHA CI run `42148530177` green. Customer selection persistence across steps, interactive canvas 80×104mm thermal receipt preview, collapsible composition breakdown. |
 
-The transformation cycle is **COMPLETE (Phases 1 through 12)**. The system is certified production-ready and commercially accepted.
+The transformation cycle is **COMPLETE (Phases 1 through 12)** and hardened by the **2026-11-05 Client Corrections Plan**. The system is certified production-ready, commercially accepted, and ready for physical hardware acceptance (Lot 8).
 
 ## Versioned module checkpoint
 
@@ -396,8 +401,14 @@ a second roadmap or infer completion from an unmerged worktree.
 
 ## Remaining sequence at this checkpoint
 
-1. complete `1E-BE`, `1E-FE`, and `1F`;
-2. execute Phases 2 through 12 in order, split into the bounded bundles above.
+All 12 core development phases and the 2026-11-05 client corrections are complete and integrated on `main`.
+
+Remaining sequence:
+1. **Lot 8 — Physical acceptance & hardware validation:**
+   - Physical print testing on Xprinter 80mm thermal hardware (80×104mm fixed pagination and tear/cut margin);
+   - Multi-terminal LAN testing on Raspberry Pi staging/production server;
+   - Real-world peer concurrent editing tests.
+2. Production deployment and operational cutover.
 
 The skills reassessment completed in PR `#461`; it is a governance improvement, not a
 substitute for any product phase.
