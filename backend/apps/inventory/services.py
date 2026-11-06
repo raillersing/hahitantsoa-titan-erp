@@ -11,6 +11,7 @@ from django.utils import timezone
 from apps.audit.services import record_audit_event_on_commit
 from apps.documents.excess_receivable import build_excess_receivable_invoice_context
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
+from apps.identity.authorization import require_logistics_operator_actor
 from apps.inventory.models import (
     FIXED_INVENTORY_STOCK_MOVEMENT_DIRECTIONS,
     InventoryCautionRefundObligation,
@@ -68,6 +69,7 @@ def issue_delivery_note_stock(
     *, document_instance: DocumentInstance, actor, logistics_event=None
 ) -> tuple[InventoryStockMovement, ...]:
     """Create the physical outbound movements exactly once for an emitted delivery note."""
+    require_logistics_operator_actor(actor=actor)
     from apps.hahitantsoa.models import HahitantsoaEventDraftLine
     from apps.reservations.models import ReservationDraftLine
 

@@ -1347,3 +1347,71 @@ def override_document_instance_content(
         },
     )
     return locked_instance
+
+
+@transaction.atomic
+def create_document_template_record(*, actor, validated_data, version=False):
+    from apps.documents.models import DocumentTemplate, DocumentTemplateVersion
+    from apps.identity.authorization import require_reservation_sensitive_actor
+
+    require_reservation_sensitive_actor(actor=actor)
+    model = DocumentTemplateVersion if version else DocumentTemplate
+    if version:
+        DocumentTemplate.objects.select_for_update().get(pk=validated_data["template"].pk)
+    record = model.objects.create(**validated_data)
+    if version and record.status == "active":
+        activate_document_template_version(actor=actor, version_id=record.pk)
+    record_audit_event_on_commit(
+        actor=actor,
+        action="documents.template_version_created" if version else "documents.template_created",
+        target_type="document_template_version" if version else "document_template",
+        target_id=str(record.pk),
+        metadata={},
+    )
+    return record
+
+
+@transaction.atomic
+def activate_document_template_version(*, actor, version_id):
+    from apps.documents.models import DocumentTemplate, DocumentTemplateVersion
+    from apps.identity.authorization import require_reservation_sensitive_actor
+
+    require_reservation_sensitive_actor(actor=actor)
+    # Serialize activations by parent; locking only the chosen versions permits
+    # concurrent requests to leave two active versions.
+    template_id = DocumentTemplateVersion.objects.values_list("template_id", flat=True).get(
+        pk=version_id
+    )
+    DocumentTemplate.objects.select_for_update().get(pk=template_id)
+    version = DocumentTemplateVersion.objects.select_for_update().get(pk=version_id)
+    DocumentTemplateVersion.objects.filter(template_id=template_id).exclude(pk=version_id).update(
+        status="archived"
+    )
+    version.status = "active"
+    version.save(update_fields=["status", "updated_at"])
+    record_audit_event_on_commit(
+        actor=actor,
+        action="documents.template_version_activated",
+        target_type="document_template_version",
+        target_id=str(version.pk),
+        metadata={"template_id": str(template_id)},
+    )
+    return version
+
+
+def require_private_document_actor(*, actor, document_instance):
+    from django.core.exceptions import PermissionDenied
+
+    from apps.identity.authorization import (
+        is_logistics_operator_actor,
+        is_reservation_sensitive_actor,
+    )
+
+    if is_reservation_sensitive_actor(actor=actor):
+        return
+    if document_instance.document_type in {
+        "delivery_note",
+        "preparation_sheet",
+    } and is_logistics_operator_actor(actor=actor):
+        return
+    raise PermissionDenied("Vous ne disposez pas des droits requis pour ce document privé.")

@@ -193,6 +193,11 @@ def test_hahitantsoa_document_preview_rejects_another_domain_template(authentica
 
 
 def test_hahitantsoa_delivery_pdf_emits_checklist_once(authenticated_client) -> None:
+    from django.contrib.auth.models import Group
+
+    # PDF issuance is a sensitive action, unlike consultation of shared drafts.
+    group, _ = Group.objects.get_or_create(name="reservation_sensitive_operator")
+    authenticated_client.test_user.groups.add(group)
     draft = _event_draft(user=authenticated_client.test_user)
     create_response = authenticated_client.post(
         _documents_url(draft.id),
@@ -221,6 +226,11 @@ def test_hahitantsoa_delivery_pdf_emits_checklist_once(authenticated_client) -> 
 def test_hahitantsoa_proforma_uses_configured_validity_from_first_pdf_issuance(
     authenticated_client,
 ) -> None:
+    from django.contrib.auth.models import Group
+
+    # PDF issuance is a sensitive action, unlike consultation of shared drafts.
+    group, _ = Group.objects.get_or_create(name="reservation_sensitive_operator")
+    authenticated_client.test_user.groups.add(group)
     draft = _event_draft(user=authenticated_client.test_user)
 
     create_response = authenticated_client.post(
@@ -277,6 +287,11 @@ def test_hahitantsoa_proforma_defaults_to_fifteen_days_before_issuance(
 def test_hahitantsoa_proforma_pdf_rejects_missing_generated_html(
     authenticated_client,
 ) -> None:
+    from django.contrib.auth.models import Group
+
+    # PDF issuance is a sensitive action, unlike consultation of shared drafts.
+    group, _ = Group.objects.get_or_create(name="reservation_sensitive_operator")
+    authenticated_client.test_user.groups.add(group)
     draft = _event_draft(user=authenticated_client.test_user)
     create_response = authenticated_client.post(
         _documents_url(draft.id),

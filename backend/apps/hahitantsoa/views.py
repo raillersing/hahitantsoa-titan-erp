@@ -73,6 +73,7 @@ from apps.hahitantsoa.services import (
 )
 from apps.identity.permissions import (
     HasInventoryManagementAccess,
+    HasLogisticsOperationAccess,
     HasReservationSensitiveAccess,
     HasSuperAdminAccess,
 )
@@ -1029,7 +1030,7 @@ class HahitantsoaEventDraftDocumentInstanceGenerateAPIView(APIView):
 
 class HahitantsoaEventDraftDocumentInstanceGeneratePdfAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+    permission_classes = [HasLogisticsOperationAccess]
 
     @transaction.atomic
     def post(self, request, pk, id):
@@ -1051,6 +1052,9 @@ class HahitantsoaEventDraftDocumentInstanceGeneratePdfAPIView(APIView):
                 event_draft=event_draft,
                 document_instance_id=id,
             )
+            from apps.documents.services import require_private_document_actor
+
+            require_private_document_actor(actor=request.user, document_instance=instance)
             instance = generate_document_instance_pdf(
                 document_instance=instance,
                 actor=request.user,
