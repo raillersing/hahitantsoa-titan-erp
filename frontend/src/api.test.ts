@@ -11,6 +11,7 @@ import {
   reconcilePayment,
   getInventoryItems,
   getInventoryItem,
+  createCustomer,
   checkAuth,
   login,
   logout,
@@ -43,6 +44,16 @@ beforeEach(() => {
 });
 
 describe("session authentication", () => {
+  it("forwards the optional customer creation operation key through the existing authenticated API", async () => {
+    const operation = "8506fd36-60f7-4637-9864-ed05cfae2062";
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() => mockFetchResponse({ id: "customer-replayed", display_name: "Client durable" }));
+    await createCustomer({ display_name: "Client durable", idempotency_key: operation });
+    expect(fetchSpy).toHaveBeenCalledWith("/api/v1/customers/create/", expect.objectContaining({ method: "POST", credentials: "include" }));
+    const sent = JSON.parse(String(fetchSpy.mock.calls[0][1]?.body));
+    expect(sent.display_name).toBe("Client durable");
+    expect(sent.idempotency_key === operation).toBe(true);
+  });
+
   it.each([401, 403, 404, 500])('preserves PDF HTTP status %s for safe download recovery', async (status) => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => mockFetchResponse({}, status, false));
     const result = getDocumentInstancePdfBlob('receipt-1');

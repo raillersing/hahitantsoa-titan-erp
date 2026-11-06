@@ -394,6 +394,7 @@ describe('ReservationNewPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
     await waitFor(() => expect(updateCustomer).toHaveBeenCalledWith('CUST-001', expect.objectContaining({ display_name: 'Ando corrigé' })));
     expect(createCustomer).not.toHaveBeenCalled();
+    expect(Object.hasOwn(vi.mocked(updateCustomer).mock.calls[0][1], 'idempotency_key')).toBe(false);
     expect(await screen.findByRole('heading', { name: 'Détails Location (Titan)' })).toBeInTheDocument();
   });
 
@@ -2012,6 +2013,9 @@ describe('ReservationNewPage', () => {
     expect(await screen.findByText('Détails Location (Titan)')).toBeInTheDocument();
     expect(createCustomer).toHaveBeenCalledTimes(2);
     expect(createCustomer).toHaveBeenNthCalledWith(2, expect.objectContaining({ display_name: 'Client B' }));
+    const creationKeys = vi.mocked(createCustomer).mock.calls.map(([payload]) => payload.idempotency_key);
+    expect(creationKeys.every(key => typeof key === 'string' && key.length > 0)).toBe(true);
+    expect(new Set(creationKeys).size).toBe(2);
     expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).selectedClientId).toBe('SERVER-CLIENT-B');
   });
 
@@ -2152,7 +2156,7 @@ describe('ReservationNewPage', () => {
         startTime: '08:00',
         endTime: '20:00',
         venue: 'Grande Salle',
-        spaceRentalAmount: 2000000,
+        venuePrice: 2000000,
         bareRentalComposition: [{ label: 'Tables rondes', quantity: 10 }],
       },
     }));
@@ -2164,6 +2168,119 @@ describe('ReservationNewPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Détail des compositions & lignes de l'offre/i }));
     expect(within(breakdown).getByText(/10 Tables rondes/i)).toBeInTheDocument();
     expect(within(breakdown).getByText(/Caution restituable/i)).toBeInTheDocument();
+  });
+
+  it('persiste la clé de création avant la requête et la rejoue après réponse perdue et rechargement', async () => {
+    let attempts = 0;
+    const keys: string[] = [];
+    vi.mocked(createCustomer).mockImplementation(async payload => {
+      keys.push(payload.idempotency_key || '');
+      const recovery = JSON.parse(localStorage.getItem('prototypeReservationDraft')!);
+      expect(Boolean(payload.idempotency_key) && recovery.customerCreationKey === payload.idempotency_key).toBe(true);
+      if (++attempts === 1) throw new Error('Réponse réseau perdue');
+      return { ...mockCustomersData[0], id: 'REPLAYED-CUSTOMER', display_name: 'Client durable' } as never;
+    });
+    const first = render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Nouveau client' }));
+    fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client durable' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    expect(await screen.findByText(/Réponse réseau perdue/)).toBeInTheDocument();
+    first.unmount();
+    render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    expect(await screen.findByDisplayValue('Client durable')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    expect(await screen.findByText('Détails Location (Titan)')).toBeInTheDocument();
+    expect(attempts).toBe(2);
+    expect(keys.length === 2 && keys[0] === keys[1]).toBe(true);
+    expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).selectedClientId).toBe('REPLAYED-CUSTOMER');
+  });
+
+  it('ne crée pas de client si sa clé de reprise ne peut pas être sauvegardée', async () => {
+    render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Nouveau client' }));
+    fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client non envoyé' } });
+    const storage = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Stockage indisponible'); });
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+      expect(await screen.findByText(/Impossible de sécuriser la reprise du client/)).toBeInTheDocument();
+      expect(createCustomer).not.toHaveBeenCalled();
+      expect(screen.getByPlaceholderText('Ex: Jean Dupont')).toHaveValue('Client non envoyé');
+    } finally { storage.mockRestore(); }
+  });
+
+  it('affiche un service de trois unités à son montant enregistré de 300000 et conserve le total et la caution', async () => {
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify({ step: 6, maxReachedStep: 6, path: 'client_first', domain: 'hahitantsoa', selectedClientId: 'CUST-001', selectedServices: [{ id: 'SRV-003', name: 'Guinguette archivée', quantity: 3, price: 300000 }], hDetails: { rentalType: 'Location nue', venuePrice: 2000000, startDate: '2027-11-20', endDate: '2027-11-20', startTime: '08:00', endTime: '20:00', venue: 'Salle historique', bareRentalComposition: [{ label: 'Tables archivées', quantity: 9 }] } }));
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Détail des compositions & lignes de l'offre/i }));
+    const breakdown = screen.getByTestId('summary-financial-breakdown');
+    expect(within(breakdown).getByText(/Guinguette archivée/)).toHaveTextContent('(x3)');
+    expect(within(breakdown).getByText(/^300\s*000\s*Ar$/)).toBeInTheDocument();
+    expect(within(breakdown).queryByText(/^900\s*000\s*Ar$/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/^2\s*300\s*000 Ar$/).length).toBeGreaterThan(0);
+    expect(within(breakdown).getByText(/^500\s*000\s*Ar$/)).toBeInTheDocument();
+  });
+
+  it('ne reconstitue pas le détail du pack ancien avec le catalogue modifié et conserve les quantités sélectionnées', async () => {
+    vi.mocked(getMaterialPackages).mockResolvedValue([{ id: 'PKG-001', name: 'Pack modifié aujourd’hui', price: 9999999, is_active: true, lines: [{ inventory_item: 'NEW-ITEM', inventory_item_name: 'Ajout tardif', quantity: 99 }] }] as never);
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify({ step: 6, maxReachedStep: 6, path: 'client_first', domain: 'hahitantsoa', selectedClientId: 'CUST-001', selectedMaterials: [{ id: 'MAT-OLD', name: 'Chaise archivée', price: 5000, quantity: 5 }], hDetails: { packageMode: 'package', packageId: 'PKG-001', rentalType: 'Location + logistique', venuePrice: 2000000, startDate: '2027-11-20', endDate: '2027-11-20', startTime: '08:00', endTime: '20:00', bareRentalComposition: [{ label: 'Tables archivées', quantity: 9 }] } }));
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Détail des compositions & lignes de l'offre/i }));
+    const breakdown = screen.getByTestId('summary-financial-breakdown');
+    expect(within(breakdown).getByText(/^Ventilation du pack non archivée/)).toBeInTheDocument();
+    expect(within(breakdown).getByText('Chaise archivée')).toHaveTextContent('x5');
+    expect(within(breakdown).queryByText('Ajout tardif')).not.toBeInTheDocument();
+    expect(within(breakdown).queryByText(/Pack modifié aujourd’hui/)).not.toBeInTheDocument();
+    expect(within(breakdown).getByText(/9 Tables archivées/)).toBeInTheDocument();
+  });
+
+  it('sécurise la création sur réseau local lorsque randomUUID est absent avec 16 octets natifs', async () => {
+    const nativeCrypto = globalThis.crypto;
+    vi.stubGlobal('crypto', { getRandomValues: nativeCrypto.getRandomValues.bind(nativeCrypto) });
+    try {
+      render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Nouveau client' }));
+      fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client réseau local' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+      expect(await screen.findByText('Détails Location (Titan)')).toBeInTheDocument();
+      const operation = vi.mocked(createCustomer).mock.calls[0][0].idempotency_key || '';
+      expect(/^[0-9a-f]{32}$/.test(operation)).toBe(true);
+      expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).customerCreationKey === operation).toBe(true);
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it('conserve la saisie sans envoyer de création non sécurisée si la cryptographie native est absente', async () => {
+    vi.stubGlobal('crypto', undefined);
+    try {
+      render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Nouveau client' }));
+      fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client conservé' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+      expect(await screen.findByText(/Votre navigateur ne peut pas sécuriser la création du client/)).toBeInTheDocument();
+      expect(createCustomer).not.toHaveBeenCalled();
+      expect(screen.getByPlaceholderText('Ex: Jean Dupont')).toHaveValue('Client conservé');
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it('conserve la même opération et les champs après un conflit sans relancer une création sous une nouvelle clé', async () => {
+    vi.mocked(createCustomer)
+      .mockRejectedValueOnce(new Error('Réponse perdue'))
+      .mockRejectedValueOnce(Object.assign(new Error('Cette clé correspond déjà à une autre demande.'), { status: 409 }));
+    render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Nouveau client' }));
+    fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client initial' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    expect(await screen.findByText(/Réponse perdue/)).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText('Ex: Jean Dupont'), { target: { value: 'Client corrigé après incident' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    expect(await screen.findByText(/Cette clé correspond déjà à une autre demande/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Ex: Jean Dupont')).toHaveValue('Client corrigé après incident');
+    const operations = vi.mocked(createCustomer).mock.calls.map(([payload]) => payload.idempotency_key);
+    expect(operations.length === 2 && operations[0] === operations[1]).toBe(true);
+    expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).customerCreationKey === operations[0]).toBe(true);
+    expect(screen.getByText('Sélection ou création du client')).toBeInTheDocument();
   });
 
 });

@@ -88,6 +88,7 @@ export type CustomerContactPoint = {
 };
 
 export type CustomerCreatePayload = {
+  idempotency_key?: string;
   display_name: string;
   lifecycle_status?: "prospect" | "client";
   party_type?: "individual" | "company";

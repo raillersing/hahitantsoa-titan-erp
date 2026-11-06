@@ -662,6 +662,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
   const [maxReachedStep, setMaxReachedStep] = useState<number>(0);
   const [isEditingClient, setIsEditingClient] = useState(false);
   const createdClientIdRef = useRef<string | null>(null);
+  const customerCreationKeyRef = useRef<string | null>(null);
   const lastOfferRef = useRef<string | null>(null);
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' | 'warning' } | null>(null);
@@ -1150,7 +1151,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     setDiscountValue(0);
     setDiscountIsPercentage(true);
     setDiscountReason("");
-    setProspectProformaEmission(null); setIsEditingClient(false); createdClientIdRef.current = null; lastOfferRef.current = null;
+    setProspectProformaEmission(null); setIsEditingClient(false); createdClientIdRef.current = null; customerCreationKeyRef.current = null; lastOfferRef.current = null;
     setProformaGenerated(false); setIssuedProspectProformaId(null); setPaymentDone(false); setDocumentReference("");
     setDeliveryModifiedManually(false); setReturnModifiedManually(false); depositRecordingKeyRef.current = null;
   };
@@ -1254,7 +1255,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     const draft = {
       routeParam: param ?? null, editingDraftContext, isEditingClient, documentReference, issuedProspectProformaId, proformaGenerated, proformaValidity,
       deliveryModifiedManually, returnModifiedManually, lastCalculatedDelivery, lastCalculatedReturn,
-      useCustomReference, customPublicReference, depositRecordingKey: depositRecordingKeyRef.current,
+      useCustomReference, customPublicReference, depositRecordingKey: depositRecordingKeyRef.current, customerCreationKey: customerCreationKeyRef.current,
       path, step, maxReachedStep, clientMode, selectedClientId, newClient, domain,
       hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment,
       clientAttachments: clientAttachments.map(({ file: _file, ...attachment }) => attachment),
@@ -1341,6 +1342,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
         if (resumedStep === 9 && !covered) setStep(8);
       } else { setRecordedPayments([]); setPaymentDone(false); }
       depositRecordingKeyRef.current = data.depositRecordingKey || null;
+      customerCreationKeyRef.current = typeof data.customerCreationKey === "string" ? data.customerCreationKey : null;
       setDiscountValue(data.discountValue || 0); setDiscountIsPercentage(data.discountIsPercentage ?? true); setDiscountReason(data.discountReason || "");
       setProspectProformaEmission(data.prospectProformaEmission ? { ...data.prospectProformaEmission, ...(persistedSnapshot?.required_deposit_amount !== undefined ? { requiredDepositAmount: Number(persistedSnapshot.required_deposit_amount) } : {}) } : null); setDocumentReference(data.documentReference || "");
       setIssuedProspectProformaId(data.issuedProspectProformaId || null); setProformaGenerated(Boolean(data.proformaGenerated)); setProformaValidity(data.proformaValidity || 15);
@@ -1672,9 +1674,27 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       representative_role: newClient.repRole || "",
     };
     const { lifecycle_status: _lifecycleStatus, ...customerChanges } = payload;
+    if (!isEditingClient) {
+      if (!customerCreationKeyRef.current) {
+        const random = globalThis.crypto;
+        if (typeof random?.randomUUID !== "function" && typeof random?.getRandomValues !== "function") {
+          throw new Error("Votre navigateur ne peut pas sécuriser la création du client. Ouvrez l’application via son adresse HTTPS puis réessayez.");
+        }
+        customerCreationKeyRef.current = typeof random.randomUUID === "function"
+          ? random.randomUUID()
+          : Array.from(random.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
+      }
+      // Save the operation identity before the request: a lost response must be replayable.
+      try {
+        const saved = JSON.parse(localStorage.getItem(draftKey) || "{}");
+        localStorage.setItem(draftKey, JSON.stringify({ ...saved, customerCreationKey: customerCreationKeyRef.current, newClient }));
+      } catch {
+        throw new Error("Impossible de sécuriser la reprise du client. Réessayez la sauvegarde avant de continuer.");
+      }
+    }
     const customer = isEditingClient && selectedClientId
       ? await updateCustomer(selectedClientId, customerChanges)
-      : await createCustomer(payload);
+      : await createCustomer({ ...payload, idempotency_key: customerCreationKeyRef.current! });
     createdClientIdRef.current = customer.id;
     setIsEditingClient(false);
     setApiCustomers((current) => [...current.filter(item => item.id !== customer.id), customer]);
@@ -2023,6 +2043,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     setIsEditingClient(false);
     setClientMode("new");
     if (startsFreshIdentity) {
+      customerCreationKeyRef.current = null;
       setNewClient({ name: "", phone: "", email: "", additionalEmails: [], additionalPhones: [], type: "Particulier", notes: "", civilite: "", idType: "CIN" });
       setClientAttachments([]);
       setDedicatedAttachments({});
@@ -4116,7 +4137,9 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       <div data-testid="summary-financial-breakdown" className="mt-4 rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
         <button
           type="button"
-          onClick={() => setShowSummaryBreakdown(!showSummaryBreakdown)}
+          onClick={() => setShowSummaryBreakdown(current => !current)}
+          aria-expanded={showSummaryBreakdown}
+          aria-controls="wizard-financial-breakdown"
           className="w-full text-left font-bold text-xs uppercase text-slate-700 p-3.5 bg-slate-50 hover:bg-slate-100 flex items-center justify-between select-none cursor-pointer"
         >
           <span className="flex items-center gap-2">
@@ -4128,7 +4151,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           </span>
         </button>
         {showSummaryBreakdown && (
-          <div className="p-4 space-y-4 text-xs divide-y divide-slate-100">
+          <div id="wizard-financial-breakdown" className="p-4 space-y-4 text-xs divide-y divide-slate-100">
             {domain === 'hahitantsoa' && (
               <div className="space-y-1.5">
                 <span className="font-bold text-slate-800 uppercase block">Espace & Lieu de réception</span>
@@ -4152,26 +4175,8 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
 
             {domain === 'hahitantsoa' && hDetails.packageId && (
               <div className="pt-3 space-y-1.5">
-                <span className="font-bold text-slate-800 uppercase block">
-                  Pack sélectionné : {packages.find(p => p.id === hDetails.packageId)?.name || "Pack"}
-                </span>
-                {(() => {
-                  const pkg = packages.find(p => p.id === hDetails.packageId);
-                  const pkgLines = pkg?.lines || [];
-                  if (pkgLines.length === 0) {
-                    return <p className="text-slate-400 italic">Détail non archivé pour ce dossier</p>;
-                  }
-                  return (
-                    <div className="pl-3 border-l-2 border-indigo-200 text-slate-500 space-y-0.5">
-                      {pkgLines.map((line, idx) => (
-                        <div key={idx} className="flex justify-between">
-                          <span>• {line.inventory_item_name || `Article ${line.inventory_item}`} (x{line.quantity})</span>
-                          <span className="text-emerald-600 italic">Inclus</span>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
+                <span className="font-bold text-slate-800 uppercase block">Pack sélectionné</span>
+                <p className="text-slate-500">Ventilation du pack non archivée. Les quantités sélectionnées ci-dessous ne sont pas facturées une seconde fois ; consultez le montant global de l'offre.</p>
               </div>
             )}
 
@@ -4182,7 +4187,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
                   {selectedMaterials.map((m) => (
                     <div key={m.id} className="flex justify-between items-center text-slate-700">
                       <span>{m.name} <span className="text-slate-400">x{m.quantity}</span></span>
-                      <span className="font-semibold">{formatMoney(m.price * m.quantity)}</span>
+                      <span className="font-semibold">{domain === "hahitantsoa" && hDetails.packageId ? "Ventilation non archivée" : formatMoney(m.price * m.quantity)}</span>
                     </div>
                   ))}
                 </div>
@@ -4196,17 +4201,17 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
                   {selectedServices.map((s) => (
                     <div key={s.id} className="flex justify-between items-center text-slate-700">
                       <span>{s.name} {s.quantity && s.quantity > 1 ? `(x${s.quantity})` : ""}</span>
-                      <span className="font-semibold">{formatMoney(s.price * (s.quantity || 1))}</span>
+                      <span className="font-semibold">{formatMoney(s.price)}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {deliveryFee && parseInt(deliveryFee, 10) > 0 && (
+            {domain === "titan" && deliveryFee && Number(deliveryFee) > 0 && (
               <div className="pt-3 flex justify-between items-center text-slate-700">
                 <span className="font-bold uppercase">Frais de livraison / transport</span>
-                <span className="font-semibold">{formatMoney(parseInt(deliveryFee, 10))}</span>
+                <span className="font-semibold">{formatMoney(Number(deliveryFee))}</span>
               </div>
             )}
 

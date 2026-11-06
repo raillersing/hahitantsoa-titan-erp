@@ -2082,13 +2082,10 @@ export default function ReservationDetailPage({
                 {draft.lines.map((line) => (
                   <div key={line.id} className="flex justify-between items-center text-slate-700">
                     <span>{line.inventory_item_name} <span className="text-slate-400">x{line.quantity}</span></span>
-                    {line.inventory_item_kind === "material_pack" ? (
-                      <span className="text-slate-400 italic text-[11px]">Détail non archivé pour ce dossier</span>
-                    ) : (
-                      <span className="font-semibold text-slate-900">
-                        {line.unit_rental_price ? formatMoney(Number(line.unit_rental_price) * line.quantity) : "—"}
-                      </span>
-                    )}
+                    <span className="font-semibold text-slate-900">
+                      {line.unit_rental_price == null ? "Prix non archivé" : formatMoney(Number(line.unit_rental_price) * line.quantity)}
+                      {line.inventory_item_kind === "material_pack" && <span className="block text-slate-400 italic text-[11px]">Détail non archivé pour ce dossier</span>}
+                    </span>
                   </div>
                 ))}
               </div>
