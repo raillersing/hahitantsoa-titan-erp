@@ -1,5 +1,6 @@
+from collections.abc import Mapping
+
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError, transaction
 from django.http import Http404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics, serializers, status
@@ -22,9 +23,11 @@ from .serializers import (
 )
 from .services import (
     CustomerConversionError,
+    CustomerCreationConflict,
     DesiredDateWaitlistLifecycleError,
     ProspectTransitionError,
     convert_prospect_to_client,
+    create_customer_idempotently,
     create_desired_date_waitlist_entry,
     transition_desired_date_waitlist_entry,
 )
@@ -96,51 +99,51 @@ class CustomerCreateAPIView(APIView):
         responses={
             201: CustomerSerializer,
             200: CustomerSerializer,
+            409: OpenApiResponse(description="Creation operation conflict."),
             400: OpenApiResponse(description="Invalid request."),
             403: OpenApiResponse(description="Unauthorized."),
         },
     )
     def post(self, request):
-        idempotency_key = (
-            request.data.get("idempotency_key") or request.headers.get("Idempotency-Key") or ""
-        ).strip()
-        if len(idempotency_key) > 128:
-            return Response(
-                {"detail": "Idempotency key too long (max 128 characters)."},
-                status=status.HTTP_400_BAD_REQUEST,
+        if not isinstance(request.data, Mapping):
+            raise serializers.ValidationError({"detail": "Un objet client est requis."})
+        body_key = request.data.get("idempotency_key", "")
+        if not isinstance(body_key, str):
+            raise serializers.ValidationError({"idempotency_key": "Une chaîne est requise."})
+        body_key = body_key.strip()
+        header_key = request.headers.get("Idempotency-Key", "").strip()
+        if body_key and header_key and body_key != header_key:
+            raise serializers.ValidationError(
+                {"idempotency_key": "Les deux clés ne correspondent pas."}
             )
-
-        if idempotency_key:
-            existing = active_customers().filter(idempotency_key=idempotency_key).first()
-            if existing is not None:
-                return Response(
-                    CustomerSerializer(existing).data,
-                    status=status.HTTP_200_OK,
-                )
-
+        key = body_key or header_key
+        if len(key) > 128:
+            raise serializers.ValidationError({"idempotency_key": "128 caractères maximum."})
         serializer = CustomerSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
+        values = dict(serializer.validated_data)
+        values.pop("idempotency_key", None)
         try:
-            with transaction.atomic():
-                customer = serializer.save(
-                    created_by=request.user,
-                    updated_by=request.user,
-                    idempotency_key=idempotency_key,
+            customer, created = create_customer_idempotently(
+                values=values, actor=request.user, idempotency_key=key
+            )
+        except CustomerCreationConflict as error:
+            return Response(
+                {"detail": str(error), "code": error.code}, status=status.HTTP_409_CONFLICT
+            )
+        if not created:
+            customer = active_customers().filter(pk=customer.pk).first()
+            if customer is None:
+                return Response(
+                    {
+                        "detail": "Le client de cette opération n'est plus disponible.",
+                        "code": "customer_creation_conflict",
+                    },
+                    status=status.HTTP_409_CONFLICT,
                 )
-        except IntegrityError:
-            if idempotency_key:
-                existing = active_customers().filter(idempotency_key=idempotency_key).first()
-                if existing is not None:
-                    return Response(
-                        CustomerSerializer(existing).data,
-                        status=status.HTTP_200_OK,
-                    )
-            raise
-
         return Response(
             CustomerSerializer(customer).data,
-            status=status.HTTP_201_CREATED,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
 
 

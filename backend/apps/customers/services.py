@@ -1,14 +1,135 @@
-from django.db import transaction
+import hashlib
+import json
+
+from django.contrib.auth import get_user_model
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import models, transaction
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
 from apps.customers.models import (
     Customer,
+    CustomerContactKind,
+    CustomerContactPoint,
     CustomerLifecycleStatus,
     DesiredDateWaitlistEntry,
     DesiredDateWaitlistStatus,
     ProspectStatus,
 )
+
+
+class CustomerCreationConflict(ValueError):
+    code = "customer_creation_conflict"
+
+
+def _replace_customer_contacts(customer, contact_points):
+    primary_kinds = {
+        contact["kind"] for contact in contact_points if contact.get("is_primary", False)
+    }
+    normalised = []
+    for contact in contact_points:
+        contact = dict(contact)
+        if contact["kind"] not in primary_kinds:
+            contact["is_primary"] = True
+            primary_kinds.add(contact["kind"])
+        normalised.append(contact)
+    CustomerContactPoint.objects.filter(customer=customer).delete()
+    CustomerContactPoint.objects.bulk_create(
+        CustomerContactPoint(
+            customer=customer,
+            created_by=customer.updated_by or customer.created_by,
+            updated_by=customer.updated_by or customer.created_by,
+            **contact,
+        )
+        for contact in normalised
+    )
+    contacts = list(customer.contact_points.all())
+    for kind, field in ((CustomerContactKind.EMAIL, "email"), (CustomerContactKind.PHONE, "phone")):
+        setattr(
+            customer,
+            field,
+            next(
+                (point.value for point in contacts if point.kind == kind and point.is_primary), ""
+            ),
+        )
+
+
+@transaction.atomic
+def create_customer_idempotently(*, values, actor, idempotency_key=""):
+    values = dict(values)
+    values.pop("idempotency_key", None)
+    fingerprint = hashlib.sha256(
+        json.dumps(
+            values,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=lambda value: (
+                str(value.pk)
+                if isinstance(value, models.Model)
+                else DjangoJSONEncoder().default(value)
+            ),
+        ).encode("utf-8")
+    ).hexdigest()
+    if idempotency_key:
+        if actor is None:
+            raise CustomerCreationConflict("L'opération de création nécessite un utilisateur.")
+        # NO KEY UPDATE serializes the actor's creation operations without
+        # blocking customer/contact FK checks performed by another writer.
+        get_user_model().objects.select_for_update(no_key=True).get(pk=actor.pk)
+        existing = (
+            Customer.objects.select_for_update()
+            .filter(idempotency_actor=actor, idempotency_key=idempotency_key)
+            .first()
+        )
+        if existing is not None:
+            if existing.is_deleted or not existing.is_active:
+                raise CustomerCreationConflict(
+                    "Le client de cette opération est désactivé ou supprimé."
+                )
+            if not existing.idempotency_fingerprint:
+                raise CustomerCreationConflict(
+                    "L'empreinte de cette ancienne opération est indisponible. "
+                    "Consultez la fiche existante."
+                )
+            if existing.idempotency_fingerprint != fingerprint:
+                raise CustomerCreationConflict(
+                    "Cette clé de création a déjà été utilisée avec une autre demande."
+                )
+            return existing, False
+        if Customer.objects.filter(
+            idempotency_key=idempotency_key, idempotency_actor__isnull=True
+        ).exists():
+            raise CustomerCreationConflict(
+                "Cette ancienne opération ne peut pas être rejouée automatiquement."
+            )
+    contacts = values.pop("contact_points", None)
+    customer = Customer.objects.create(
+        **values,
+        created_by=actor,
+        updated_by=actor,
+        idempotency_key=idempotency_key,
+        idempotency_actor=actor if idempotency_key else None,
+        idempotency_fingerprint=fingerprint if idempotency_key else "",
+    )
+    if contacts is not None:
+        _replace_customer_contacts(customer, contacts)
+        customer.save(update_fields=["email", "phone", "updated_at"])
+    return customer, True
+
+
+@transaction.atomic
+def update_customer_record(*, customer, values):
+    if {"idempotency_key", "idempotency_actor", "idempotency_fingerprint"}.intersection(values):
+        raise CustomerCreationConflict("La clé de création ne peut pas être modifiée.")
+    customer = Customer.objects.select_for_update().get(pk=customer.pk)
+    values = dict(values)
+    contacts = values.pop("contact_points", None)
+    for field, value in values.items():
+        setattr(customer, field, value)
+    if contacts is not None:
+        _replace_customer_contacts(customer, contacts)
+    customer.save()
+    return customer
 
 
 class DesiredDateWaitlistLifecycleError(ValueError):

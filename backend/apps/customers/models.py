@@ -124,6 +124,17 @@ class Customer(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel):
         related_name="+",
     )
     idempotency_key = models.CharField(max_length=128, blank=True, default="", db_index=True)
+    idempotency_actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        editable=False,
+    )
+    idempotency_fingerprint = models.CharField(
+        max_length=64, blank=True, default="", editable=False
+    )
 
     class Meta:
         ordering = ["display_name"]
@@ -143,9 +154,9 @@ class Customer(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel):
                 name="customer_party_type_allowed",
             ),
             models.UniqueConstraint(
-                fields=["idempotency_key"],
-                condition=models.Q(is_deleted=False) & ~models.Q(idempotency_key=""),
-                name="customer_idempotency_key_active_unique",
+                fields=["idempotency_actor", "idempotency_key"],
+                condition=~models.Q(idempotency_key=""),
+                name="customer_creation_operation_unique",
             ),
         ]
 
