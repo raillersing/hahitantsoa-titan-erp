@@ -123,6 +123,7 @@ class Customer(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel):
         blank=True,
         related_name="+",
     )
+    idempotency_key = models.CharField(max_length=128, blank=True, default="", db_index=True)
 
     class Meta:
         ordering = ["display_name"]
@@ -140,6 +141,11 @@ class Customer(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel):
                     party_type__in=[party_type.value for party_type in CustomerPartyType]
                 ),
                 name="customer_party_type_allowed",
+            ),
+            models.UniqueConstraint(
+                fields=["idempotency_key"],
+                condition=models.Q(is_deleted=False) & ~models.Q(idempotency_key=""),
+                name="customer_idempotency_key_active_unique",
             ),
         ]
 

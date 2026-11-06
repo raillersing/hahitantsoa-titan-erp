@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
 from django.http import Http404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics, serializers, status
@@ -94,14 +95,49 @@ class CustomerCreateAPIView(APIView):
         request=CustomerSerializer,
         responses={
             201: CustomerSerializer,
+            200: CustomerSerializer,
             400: OpenApiResponse(description="Invalid request."),
             403: OpenApiResponse(description="Unauthorized."),
         },
     )
     def post(self, request):
+        idempotency_key = (
+            request.data.get("idempotency_key") or request.headers.get("Idempotency-Key") or ""
+        ).strip()
+        if len(idempotency_key) > 128:
+            return Response(
+                {"detail": "Idempotency key too long (max 128 characters)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if idempotency_key:
+            existing = active_customers().filter(idempotency_key=idempotency_key).first()
+            if existing is not None:
+                return Response(
+                    CustomerSerializer(existing).data,
+                    status=status.HTTP_200_OK,
+                )
+
         serializer = CustomerSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        customer = serializer.save(created_by=request.user, updated_by=request.user)
+
+        try:
+            with transaction.atomic():
+                customer = serializer.save(
+                    created_by=request.user,
+                    updated_by=request.user,
+                    idempotency_key=idempotency_key,
+                )
+        except IntegrityError:
+            if idempotency_key:
+                existing = active_customers().filter(idempotency_key=idempotency_key).first()
+                if existing is not None:
+                    return Response(
+                        CustomerSerializer(existing).data,
+                        status=status.HTTP_200_OK,
+                    )
+            raise
+
         return Response(
             CustomerSerializer(customer).data,
             status=status.HTTP_201_CREATED,

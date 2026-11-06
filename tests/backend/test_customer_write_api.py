@@ -322,3 +322,104 @@ def test_soft_delete_already_deleted_returns_404(staff_authenticated_client):
     url = f"/api/v1/customers/{customer.id}/delete/"
     response = staff_authenticated_client.post(url, {}, content_type="application/json")
     assert response.status_code == 404
+
+
+# idempotency and safe replay
+
+
+def test_create_customer_with_idempotency_key_creates_and_returns_201(
+    staff_authenticated_client,
+):
+    payload = {
+        "display_name": "Idempotent Corp",
+        "email": "idem@example.com",
+        "idempotency_key": "op-cust-create-001",
+    }
+    response = staff_authenticated_client.post(
+        CUSTOMER_CREATE_URL, payload, content_type="application/json"
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["display_name"] == "Idempotent Corp"
+    assert data["idempotency_key"] == "op-cust-create-001"
+    assert Customer.objects.filter(idempotency_key="op-cust-create-001").count() == 1
+
+
+def test_create_customer_replay_with_same_idempotency_key_returns_200_and_same_record(
+    staff_authenticated_client,
+):
+    payload = {
+        "display_name": "Idempotent Replay",
+        "email": "replay@example.com",
+        "idempotency_key": "op-cust-create-002",
+    }
+    first_resp = staff_authenticated_client.post(
+        CUSTOMER_CREATE_URL, payload, content_type="application/json"
+    )
+    assert first_resp.status_code == 201
+    first_id = first_resp.json()["id"]
+
+    second_resp = staff_authenticated_client.post(
+        CUSTOMER_CREATE_URL, payload, content_type="application/json"
+    )
+    assert second_resp.status_code == 200
+    assert second_resp.json()["id"] == first_id
+    assert Customer.objects.filter(idempotency_key="op-cust-create-002").count() == 1
+
+
+def test_create_customer_replay_via_http_header_returns_200(staff_authenticated_client):
+    payload = {"display_name": "Header Idempotent", "email": "header@example.com"}
+    first_resp = staff_authenticated_client.post(
+        CUSTOMER_CREATE_URL,
+        payload,
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="op-cust-header-003",
+    )
+    assert first_resp.status_code == 201
+    first_id = first_resp.json()["id"]
+
+    second_resp = staff_authenticated_client.post(
+        CUSTOMER_CREATE_URL,
+        payload,
+        content_type="application/json",
+        HTTP_IDEMPOTENCY_KEY="op-cust-header-003",
+    )
+    assert second_resp.status_code == 200
+    assert second_resp.json()["id"] == first_id
+    assert Customer.objects.filter(idempotency_key="op-cust-header-003").count() == 1
+
+
+def test_create_customer_distinct_idempotency_keys_create_distinct_customers(
+    staff_authenticated_client,
+):
+    payload_one = {
+        "display_name": "Same Name Customer",
+        "idempotency_key": "op-cust-distinct-001",
+    }
+    payload_two = {
+        "display_name": "Same Name Customer",
+        "idempotency_key": "op-cust-distinct-002",
+    }
+    resp_one = staff_authenticated_client.post(
+        CUSTOMER_CREATE_URL, payload_one, content_type="application/json"
+    )
+    resp_two = staff_authenticated_client.post(
+        CUSTOMER_CREATE_URL, payload_two, content_type="application/json"
+    )
+    assert resp_one.status_code == 201
+    assert resp_two.status_code == 201
+    assert resp_one.json()["id"] != resp_two.json()["id"]
+    assert Customer.objects.filter(display_name="Same Name Customer").count() == 2
+
+
+def test_create_customer_idempotency_key_too_long_returns_400(
+    staff_authenticated_client,
+):
+    payload = {
+        "display_name": "Long Key Corp",
+        "idempotency_key": "x" * 129,
+    }
+    response = staff_authenticated_client.post(
+        CUSTOMER_CREATE_URL, payload, content_type="application/json"
+    )
+    assert response.status_code == 400
