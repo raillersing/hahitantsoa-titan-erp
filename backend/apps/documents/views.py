@@ -55,7 +55,7 @@ from apps.documents.services import (
     prepare_contract_from_proforma,
     void_proforma,
 )
-from apps.identity.permissions import HasReservationSensitiveAccess
+from apps.identity.permissions import HasLogisticsOperationAccess, HasReservationSensitiveAccess
 from apps.reservations.models import ReservationDraft
 
 
@@ -621,7 +621,7 @@ class TitanProformaDraftPreviewAPIView(APIView):
 
 class DocumentInstancePrivateArtifactAPIView(APIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasLogisticsOperationAccess]
 
     @extend_schema(
         responses={
@@ -639,6 +639,12 @@ class DocumentInstancePrivateArtifactAPIView(APIView):
         from apps.documents.selectors import get_document_instance_by_id
 
         instance = get_document_instance_by_id(document_instance_id=id)
+        from apps.documents.services import require_private_document_actor
+
+        if instance is not None:
+            require_private_document_actor(actor=request.user, document_instance=instance)
+            if instance.status == "voided":
+                raise Http404("Document instance not found.")
         if instance is None or instance.status == DocumentInstanceStatus.VOIDED:
             raise Http404("Document instance not found.")
 
@@ -870,7 +876,7 @@ class ReservationDraftDocumentInstancePDFGenerateAPIView(APIView):
 
 class DocumentInstancePDFRetrieveAPIView(APIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasLogisticsOperationAccess]
 
     @extend_schema(
         responses={
@@ -884,6 +890,12 @@ class DocumentInstancePDFRetrieveAPIView(APIView):
         from django.http import Http404 as DjangoHttp404
 
         instance = get_document_instance_by_id(document_instance_id=id)
+        from apps.documents.services import require_private_document_actor
+
+        if instance is not None:
+            require_private_document_actor(actor=request.user, document_instance=instance)
+            if instance.status == "voided":
+                raise Http404("Document instance not found.")
         if instance is None or not instance.pdf_storage_path:
             raise DjangoHttp404("PDF artifact not found.")
 
@@ -909,6 +921,20 @@ class DocumentTemplateCRUDListCreateAPIView(ListCreateAPIView):
         from apps.documents.models import DocumentTemplate
 
         return DocumentTemplate.objects.all()
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [HasReservationSensitiveAccess()]
+        return super().get_permissions()
+
+    def perform_create(self, serializer):
+        from apps.documents.services import create_document_template_record
+
+        serializer.instance = create_document_template_record(
+            actor=self.request.user,
+            validated_data=serializer.validated_data,
+            version=False,
+        )
 
 
 class DocumentTemplateCRUDDestroyAPIView(APIView):
@@ -950,25 +976,34 @@ class DocumentTemplateVersionListCreateAPIView(ListCreateAPIView):
             qs = qs.filter(template_id=template_id)
         return qs
 
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [HasReservationSensitiveAccess()]
+        return super().get_permissions()
+
+    def perform_create(self, serializer):
+        from apps.documents.services import create_document_template_record
+
+        serializer.instance = create_document_template_record(
+            actor=self.request.user,
+            validated_data=serializer.validated_data,
+            version=True,
+        )
+
 
 class DocumentTemplateVersionActivateAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasReservationSensitiveAccess]
 
     def post(self, request, id):
-        from django.shortcuts import get_object_or_404
-
         from apps.documents.models import DocumentTemplateVersion
-
-        version = get_object_or_404(DocumentTemplateVersion, pk=id)
-        # Deactivate all other versions of the same template
-        DocumentTemplateVersion.objects.filter(template=version.template).exclude(
-            pk=version.pk
-        ).update(status="archived")
-        version.status = "active"
-        version.save(update_fields=["status", "updated_at"])
         from apps.documents.serializers import DocumentTemplateVersionSerializer
+        from apps.documents.services import activate_document_template_version
 
+        try:
+            version = activate_document_template_version(actor=request.user, version_id=id)
+        except DocumentTemplateVersion.DoesNotExist:
+            raise Http404("Document template version not found.")
         return Response(DocumentTemplateVersionSerializer(version).data)
 
 
