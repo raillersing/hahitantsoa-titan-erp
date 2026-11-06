@@ -224,7 +224,15 @@ def active_hahitantsoa_event_drafts():
 
 
 def visible_hahitantsoa_event_drafts(*, user):
-    return active_hahitantsoa_event_drafts().filter(created_by=user)
+    """Return active event drafts visible to the requesting user.
+
+    All authenticated users sharing the Hahitantsoa event draft boundary permission
+    can consult and update active dossiers (R8), preserving created_by for audit.
+    Unauthenticated callers see none.
+    """
+    if not user or not getattr(user, "is_authenticated", False):
+        return active_hahitantsoa_event_drafts().none()
+    return active_hahitantsoa_event_drafts()
 
 
 class HahitantsoaEventDraftListCreateAPIView(generics.ListCreateAPIView):

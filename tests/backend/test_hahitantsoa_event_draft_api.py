@@ -1131,7 +1131,7 @@ def test_owner_can_mark_generated_contract_as_signed(authenticated_client) -> No
     assert draft.contract_signed_by_id == user.pk
 
 
-def test_second_user_cannot_access_another_users_confirmation_preflight(
+def test_second_user_with_same_role_can_access_confirmation_preflight(
     authenticated_client,
     authenticated_client_two,
 ) -> None:
@@ -1139,7 +1139,7 @@ def test_second_user_cannot_access_another_users_confirmation_preflight(
     owner = authenticated_client.test_user
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
-        event_name="Private preflight event",
+        event_name="Shared preflight event",
         start_at=start_at,
         end_at=end_at,
         created_by=owner,
@@ -1155,7 +1155,8 @@ def test_second_user_cannot_access_another_users_confirmation_preflight(
         f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/"
     )
 
-    assert response.status_code == 404
+    assert response.status_code == 200
+    assert response.json()["event_draft_id"] == str(draft.id)
 
 
 def test_confirmed_event_draft_amendment_preflight_allows_confirmed_owner_draft(
@@ -1210,7 +1211,7 @@ def test_draft_event_draft_amendment_preflight_blocks_unconfirmed_draft(
     assert payload["active_line_count"] == 1
 
 
-def test_second_user_cannot_access_another_users_amendment_preflight(
+def test_second_user_with_same_role_can_access_amendment_preflight(
     authenticated_client,
     authenticated_client_two,
 ) -> None:
@@ -1223,7 +1224,10 @@ def test_second_user_cannot_access_another_users_amendment_preflight(
         f"{EVENT_DRAFT_LIST_URL}{draft.id}/amendment-preflight/"
     )
 
-    assert response.status_code == 404
+    assert response.status_code == 200
+    assert response.json()["event_draft_id"] == str(draft.id)
+    assert response.json()["status"] == "confirmed"
+    assert response.json()["can_amend"] is True
 
 
 def test_event_draft_amendment_preflight_rejects_write_methods(authenticated_client) -> None:
@@ -1436,13 +1440,22 @@ def test_amendment_request_creation_returns_404_for_deleted_original(authenticat
     assert HahitantsoaEventDraftAmendmentRequest.objects.count() == 0
 
 
-def test_second_user_cannot_access_another_users_amendment_requests(
+def test_second_user_with_same_role_can_access_and_create_amendment_requests(
     authenticated_client,
     authenticated_client_two,
 ) -> None:
+    from django.contrib.auth.models import Group
+
+    from apps.identity.roles import IdentityRole
+
     owner = authenticated_client.test_user
     owner.is_staff = True
     owner.save(update_fields=["is_staff"])
+    peer = authenticated_client_two.test_user
+    sensitive_group, _ = Group.objects.get_or_create(
+        name=IdentityRole.RESERVATION_SENSITIVE_OPERATOR.value
+    )
+    peer.groups.add(sensitive_group)
     draft = _confirmed_draft(user=owner, item=_item(kind="article"))
     amendment_request = HahitantsoaEventDraftAmendmentRequest.objects.create(
         event_draft=draft,
@@ -1453,16 +1466,18 @@ def test_second_user_cannot_access_another_users_amendment_requests(
     list_response = authenticated_client_two.get(_amendment_request_list_url(draft.id))
     create_response = authenticated_client_two.post(
         _amendment_request_list_url(draft.id),
-        data={"reason": "Should not see draft"},
+        data={"reason": "Peer change"},
         content_type="application/json",
     )
     detail_response = authenticated_client_two.get(
         _amendment_request_detail_url(draft.id, amendment_request.id)
     )
 
-    assert list_response.status_code == 404
-    assert create_response.status_code == 404
-    assert detail_response.status_code == 404
+    assert list_response.status_code == 200
+    assert len(list_response.json()) == 1
+    assert create_response.status_code == 201
+    assert detail_response.status_code == 200
+    assert detail_response.json()["id"] == str(amendment_request.id)
 
 
 def test_owner_can_update_amendment_request_metadata_without_side_effects(
@@ -1664,7 +1679,7 @@ def test_owner_can_create_list_read_update_and_soft_delete_amendment_request_lin
     assert ReservationDraft.objects.count() == reservation_count
 
 
-def test_second_user_cannot_access_another_users_amendment_request_lines(
+def test_second_user_with_same_role_can_access_amendment_request_lines(
     authenticated_client,
     authenticated_client_two,
 ) -> None:
@@ -1703,11 +1718,11 @@ def test_second_user_cannot_access_another_users_amendment_request_lines(
         _amendment_request_line_detail_url(draft.id, amendment_request.id, line.id)
     )
 
-    assert list_response.status_code == 404
-    assert create_response.status_code == 404
-    assert detail_response.status_code == 404
-    assert update_response.status_code == 404
-    assert delete_response.status_code == 404
+    assert list_response.status_code == 200
+    assert create_response.status_code == 201
+    assert detail_response.status_code == 200
+    assert update_response.status_code == 200
+    assert delete_response.status_code == 204
 
 
 def test_wrong_event_draft_amendment_request_path_returns_404_for_line_endpoints(
@@ -1810,7 +1825,7 @@ def test_owner_can_read_amendment_request_availability_preflight_without_side_ef
     assert ReservationDraft.objects.count() == reservation_count
 
 
-def test_second_user_cannot_access_another_users_amendment_request_availability_preflight(
+def test_second_user_with_same_role_can_access_amendment_request_availability_preflight(
     authenticated_client,
     authenticated_client_two,
 ) -> None:
@@ -1827,7 +1842,8 @@ def test_second_user_cannot_access_another_users_amendment_request_availability_
         _amendment_request_availability_preflight_url(draft.id, amendment_request.id)
     )
 
-    assert response.status_code == 404
+    assert response.status_code == 200
+    assert response.json()["amendment_request_id"] == str(amendment_request.id)
 
 
 def test_wrong_event_draft_amendment_request_path_returns_404_for_availability_preflight(
@@ -1869,7 +1885,7 @@ def test_amendment_request_availability_preflight_rejects_write_methods(
     assert response.status_code == 405
 
 
-def test_second_user_cannot_update_another_users_amendment_request(
+def test_second_user_with_same_role_can_update_another_users_amendment_request(
     authenticated_client,
     authenticated_client_two,
 ) -> None:
@@ -1885,13 +1901,15 @@ def test_second_user_cannot_update_another_users_amendment_request(
 
     response = authenticated_client_two.patch(
         _amendment_request_detail_url(draft.id, amendment_request.id),
-        data={"reason": "Blocked"},
+        data={"reason": "Updated by peer"},
         content_type="application/json",
     )
 
-    assert response.status_code == 404
+    assert response.status_code == 200
     amendment_request.refresh_from_db()
-    assert amendment_request.reason == "Owner-only"
+    assert amendment_request.reason == "Updated by peer"
+    assert amendment_request.created_by == owner
+    assert amendment_request.updated_by == authenticated_client_two.test_user
 
 
 def test_authenticated_user_can_confirm_own_event_draft(
@@ -2067,7 +2085,7 @@ def test_confirmed_event_draft_delete_is_rejected_without_inventory_mutation(
     assert ReservationDraft.objects.count() == reservation_count
 
 
-def test_second_user_gets_404_for_confirmed_event_draft_mutations(
+def test_second_user_sees_confirmed_draft_and_gets_lifecycle_error_for_direct_mutation(
     authenticated_client,
     authenticated_client_two,
 ) -> None:
@@ -2084,22 +2102,32 @@ def test_second_user_gets_404_for_confirmed_event_draft_mutations(
     )
     delete_response = authenticated_client_two.delete(f"{EVENT_DRAFT_LIST_URL}{draft.id}/")
 
-    assert detail_response.status_code == 404
-    assert update_response.status_code == 404
+    assert detail_response.status_code == 200
+    assert detail_response.json()["id"] == str(draft.id)
+    assert update_response.status_code == 400
+    assert update_response.json()["code"] == "confirmed_draft_is_immutable"
     assert delete_response.status_code == 403
 
 
-def test_second_user_cannot_list_read_update_delete_or_preview_another_users_draft(
+def test_second_user_with_same_role_can_list_read_update_and_preview_draft(
     authenticated_client,
     authenticated_client_two,
 ) -> None:
+    from django.contrib.auth.models import Group
+
+    from apps.identity.roles import IdentityRole
+
     start_at, end_at = _period()
     owner = authenticated_client.test_user
     other_user = authenticated_client_two.test_user
+    sensitive_group, _ = Group.objects.get_or_create(
+        name=IdentityRole.RESERVATION_SENSITIVE_OPERATOR.value
+    )
+    other_user.groups.add(sensitive_group)
     item = _item()
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
-        event_name="Private event",
+        event_name="Shared event",
         start_at=start_at,
         end_at=end_at,
         created_by=owner,
@@ -2114,7 +2142,7 @@ def test_second_user_cannot_list_read_update_delete_or_preview_another_users_dra
     detail_response = authenticated_client_two.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/")
     update_response = authenticated_client_two.patch(
         f"{EVENT_DRAFT_LIST_URL}{draft.id}/",
-        data={"event_name": "Should stay hidden"},
+        data={"event_name": "Updated by peer"},
         content_type="application/json",
     )
     delete_response = authenticated_client_two.delete(f"{EVENT_DRAFT_LIST_URL}{draft.id}/")
@@ -2130,21 +2158,30 @@ def test_second_user_cannot_list_read_update_delete_or_preview_another_users_dra
     confirm_response = authenticated_client_two.post(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirm/")
 
     assert list_response.status_code == 200
-    assert list_response.json() == []
-    assert detail_response.status_code == 404
-    assert update_response.status_code == 404
+    assert len(list_response.json()) == 1
+    assert list_response.json()[0]["id"] == str(draft.id)
+    assert detail_response.status_code == 200
+    assert update_response.status_code == 200
     assert delete_response.status_code == 403
-    assert preview_response.status_code == 404
-    assert preflight_response.status_code == 404
-    assert amendment_preflight_response.status_code == 404
-    assert confirm_response.status_code == 404
+    assert preview_response.status_code == 200
+    assert preflight_response.status_code == 200
+    assert amendment_preflight_response.status_code == 200
+    assert confirm_response.status_code == 400
+    assert confirm_response.json()["code"] == "confirmation_preflight_failed"
+    assert "missing_signed_contract" in confirm_response.json()["blockers"]
     draft.refresh_from_db()
-    line = draft.lines.get()
     assert draft.created_by == owner
-    assert draft.updated_by != other_user
+    assert draft.updated_by == other_user
+    assert draft.event_name == "Updated by peer"
     assert draft.is_deleted is False
-    assert line.created_by != other_user
-    assert line.updated_by != other_user
+
+
+def test_unauthenticated_client_cannot_access_event_drafts() -> None:
+    from rest_framework.test import APIClient
+
+    unauthenticated = APIClient()
+    list_response = unauthenticated.get(EVENT_DRAFT_LIST_URL)
+    assert list_response.status_code in (401, 403)
 
 
 def test_event_draft_detail_hides_soft_deleted_lines_after_update(authenticated_client) -> None:
