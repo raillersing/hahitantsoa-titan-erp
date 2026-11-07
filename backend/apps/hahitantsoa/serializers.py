@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
@@ -823,6 +824,25 @@ class HahitantsoaEventDraftCancelSerializer(serializers.Serializer):
     )
 
 
+def _validate_event_draft_model(instance, **kwargs):
+    """Translate only draft/line model validation at this API input boundary."""
+    try:
+        instance.full_clean(**kwargs)
+    except DjangoValidationError as error:
+        raise serializers.ValidationError(
+            error.message_dict if hasattr(error, "message_dict") else error.messages
+        ) from error
+
+
+def _recalculate_event_draft_totals(event_draft):
+    try:
+        recalculate_hahitantsoa_event_draft_totals(event_draft=event_draft)
+    except DjangoValidationError as error:
+        raise serializers.ValidationError(
+            error.message_dict if hasattr(error, "message_dict") else error.messages
+        ) from error
+
+
 class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
     bare_rental_composition = BareRentalCompositionField(required=False)
 
@@ -986,7 +1006,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             ),
         )
         event_draft = HahitantsoaEventDraft(**validated_data)
-        event_draft.full_clean()
+        _validate_event_draft_model(event_draft)
         event_draft.save()
 
         for line_data in lines_data:
@@ -996,10 +1016,10 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
                 created_by=event_draft.created_by,
                 **line_data,
             )
-            line.full_clean()
+            _validate_event_draft_model(line)
             line.save()
 
-        recalculate_hahitantsoa_event_draft_totals(event_draft=event_draft)
+        _recalculate_event_draft_totals(event_draft)
 
         from apps.documents.services import create_document_instance_from_hahitantsoa_event_draft
 
@@ -1050,7 +1070,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
                 guest_count=instance.guest_count,
                 duration_option=instance.duration_option,
             )
-        instance.full_clean()
+        _validate_event_draft_model(instance)
         instance.save()
 
         if new_reference and new_reference != old_reference:
@@ -1096,7 +1116,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
                         updated_by=acting_user,
                         **line_data,
                     )
-                    line.full_clean()
+                    _validate_event_draft_model(line)
                     line.save()
                 else:
                     line.quantity = line_data["quantity"]
@@ -1104,7 +1124,9 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
                     line.is_deleted = False
                     line.deleted_at = None
                     line.updated_by = acting_user
-                    line.full_clean(validate_unique=False, validate_constraints=False)
+                    _validate_event_draft_model(
+                        line, validate_unique=False, validate_constraints=False
+                    )
                     line.save(
                         update_fields=[
                             "quantity",
@@ -1116,7 +1138,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
                         ]
                     )
 
-        recalculate_hahitantsoa_event_draft_totals(event_draft=instance)
+        _recalculate_event_draft_totals(instance)
         return instance
 
 
