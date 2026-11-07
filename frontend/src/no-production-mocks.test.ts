@@ -7,6 +7,20 @@ const modules = import.meta.glob("./**/*.{ts,tsx}", {
   eager: true,
 }) as Record<string, string>;
 
+const reservationDraftDeclaration = 'const draftKey = (currentUserId ? `prototypeReservationDraft:${currentUserId}` : "prototypeReservationDraft") + (param?.startsWith("edit-") ? `:${param}` : "");';
+const recoveryIdentityDeclaration = 'const identityKey = `${draftKey}:server-client-key`;';
+
+function isApprovedScopedDraftAccess(filePath: string, content: string, keyExpr: string): boolean {
+  const declaration = filePath === "./prototype/CustomersPage.tsx"
+    ? 'const draftKey = currentUserId ? `customerWizardDraft:${currentUserId}` : "customerWizardDraft";'
+    : filePath === "./prototype/ReservationNewPage.tsx" ? reservationDraftDeclaration : null;
+  if (!declaration || !content.includes(declaration)) return false;
+  if (keyExpr === "draftKey") return true;
+  if (filePath !== "./prototype/ReservationNewPage.tsx") return false;
+  return keyExpr === '`${draftKey}:server-client-key`'
+    || (keyExpr === "identityKey" && content.includes(recoveryIdentityDeclaration));
+}
+
 describe("Phase 10: No production mocks & placeholders guard", () => {
   const productionEntries = Object.entries(modules).filter(([filePath]) => {
     return (
@@ -81,12 +95,7 @@ describe("Phase 10: No production mocks & placeholders guard", () => {
       let match: RegExpExecArray | null;
       while ((match = storageAccessRegex.exec(content)) !== null) {
         const keyExpr = match[1].trim();
-        const scopedDraftDeclaration = filePath === "./prototype/CustomersPage.tsx"
-          ? 'const draftKey = currentUserId ? `customerWizardDraft:${currentUserId}` : "customerWizardDraft";'
-          : filePath === "./prototype/ReservationNewPage.tsx"
-            ? 'const draftKey = (currentUserId ? `prototypeReservationDraft:${currentUserId}` : "prototypeReservationDraft") + (param?.startsWith("edit-") ? `:${param}` : "");'
-            : null;
-        const approvedScopedDraft = keyExpr === "draftKey" && scopedDraftDeclaration !== null && content.includes(scopedDraftDeclaration);
+        const approvedScopedDraft = isApprovedScopedDraftAccess(filePath, content, keyExpr);
         if (!allowedExpressions.has(keyExpr) && !approvedScopedDraft) {
           violations.push(`${filePath} accesses unauthorized key: ${keyExpr}`);
         }
@@ -94,6 +103,26 @@ describe("Phase 10: No production mocks & placeholders guard", () => {
     }
 
     expect(violations).toEqual([]);
+  });
+
+  it("autorise l'identifiant de reprise uniquement sous le brouillon de réservation déclaré", () => {
+    const content = `${reservationDraftDeclaration}\n${recoveryIdentityDeclaration}`;
+    expect(isApprovedScopedDraftAccess("./prototype/ReservationNewPage.tsx", content, "draftKey")).toBe(true);
+    expect(isApprovedScopedDraftAccess("./prototype/ReservationNewPage.tsx", content, "identityKey")).toBe(true);
+    expect(isApprovedScopedDraftAccess("./prototype/ReservationNewPage.tsx", content, '`${draftKey}:server-client-key`')).toBe(true);
+  });
+
+  it.each([
+    ["./OtherPage.tsx", `${reservationDraftDeclaration}\n${recoveryIdentityDeclaration}`, "identityKey"],
+    ["./prototype/CustomersPage.tsx", `${reservationDraftDeclaration}\n${recoveryIdentityDeclaration}`, "identityKey"],
+    ["./prototype/ReservationNewPage.tsx", recoveryIdentityDeclaration, "identityKey"],
+    ["./prototype/ReservationNewPage.tsx", reservationDraftDeclaration, "identityKey"],
+    ["./prototype/ReservationNewPage.tsx", `${reservationDraftDeclaration}\nconst identityKey = "arbitrary";`, "identityKey"],
+    ["./prototype/ReservationNewPage.tsx", 'const draftKey = "other-user";', '`${draftKey}:server-client-key`'],
+    ["./prototype/ReservationNewPage.tsx", reservationDraftDeclaration, '`${draftKey}:arbitrary`'],
+    ["./prototype/ReservationNewPage.tsx", `${reservationDraftDeclaration}\n${recoveryIdentityDeclaration}`, '"arbitrary"'],
+  ])("refuse une clé ou déclaration non autorisée : %s / %s / %s", (filePath, content, keyExpr) => {
+    expect(isApprovedScopedDraftAccess(filePath, content, keyExpr)).toBe(false);
   });
 
   it("confirme la suppression des pages prototypes obsolètes non montées", () => {
