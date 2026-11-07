@@ -1,3 +1,4 @@
+import { useLiveRefresh } from "../useLiveRefresh";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AvailabilityDatePicker, AvailabilityInspectorModal } from "../components";
@@ -379,8 +380,8 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
 
   const monday = useMemo(() => getMonday(currentDate), [currentDate]);
 
-  const loadData = useCallback(async () => {
-    setItemsState({ status: "loading" });
+  const loadData = useCallback(async (signal?: AbortSignal, background = false) => {
+    if (!background) setItemsState({ status: "loading" });
     try {
       const [
         reservationDrafts,
@@ -389,11 +390,11 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
         logistics,
         closedDays,
       ] = await Promise.all([
-        getReservationDrafts(),
-        getHahitantsoaEventDrafts(),
-        getVisitAppointments(),
-        getLogisticsEvents(),
-        getTitanClosedDays(),
+        getReservationDrafts(undefined, signal),
+        getHahitantsoaEventDrafts(undefined, signal),
+        getVisitAppointments(undefined, signal),
+        getLogisticsEvents(undefined, signal),
+        getTitanClosedDays(undefined, signal),
       ]);
 
       const events: UnifiedPlanningEvent[] = [];
@@ -628,18 +629,17 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
       }
 
       events.sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
-      setItemsState({ status: "loaded", events });
+      if (!signal?.aborted) setItemsState({ status: "loaded", events });
     } catch (err: unknown) {
-      setItemsState({
+      if (!signal?.aborted && !background) setItemsState({
         status: "error",
         message: err instanceof Error ? err.message : "Échec du chargement du planning.",
       });
+      if (signal) throw err;
     }
   }, [monday]);
 
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
+  useLiveRefresh(loadData, monday.toISOString());
 
   const allEvents = useMemo(
     () => (itemsState.status === "loaded" ? itemsState.events : []),
@@ -1155,7 +1155,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
           <p className="text-xs text-rose-600 dark:text-rose-400 mb-4">{itemsState.message}</p>
           <button
             type="button"
-            onClick={loadData}
+            onClick={() => { void loadData(); }}
             className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition"
           >
             Réessayer

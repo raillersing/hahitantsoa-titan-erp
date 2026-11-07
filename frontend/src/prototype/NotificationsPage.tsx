@@ -1,3 +1,4 @@
+import { useLiveRefresh } from "../useLiveRefresh";
 import React, { useEffect, useState } from "react";
 import { AppScope } from "../App";
 import { getNotifications, getPaymentReminderDispatch, markNotificationRead, markAllNotificationsRead } from "../api";
@@ -63,7 +64,19 @@ export default function NotificationsPage({ onNavigate, param }: NotificationsPa
     }
   };
 
-  useEffect(() => { fetchNotifications(); }, []);
+  useLiveRefresh(async (signal, background) => {
+    try {
+      const data = await getNotifications(false, signal);
+      if (signal.aborted) return;
+      setNotifications(data);
+      setError(null);
+    } catch (error) {
+      if ((!signal.aborted || signal.reason?.name === "TimeoutError") && !background) setError(error instanceof Error ? error.message : "Chargement impossible.");
+      throw error;
+    } finally {
+      if (!signal.aborted || signal.reason?.name === "TimeoutError") setLoading(false);
+    }
+  });
 
   useEffect(() => {
     if (!param) {

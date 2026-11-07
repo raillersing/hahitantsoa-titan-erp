@@ -1,3 +1,4 @@
+import { useLiveRefresh, optionalLiveRead } from "../useLiveRefresh";
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { AppScope } from "../App";
 import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
@@ -385,6 +386,26 @@ export default function ReservationDetailPage({
   useEffect(() => {
     void load();
   }, [load]);
+  useLiveRefresh(async (signal) => {
+    if (!draftId) return;
+    const current = await getReservationDraft(draftId, signal);
+    const [instances, records, lifecycle] = await Promise.all([
+      optionalLiveRead(getReservationDraftDocumentInstances(draftId, signal)),
+      optionalLiveRead(getPayments(draftId, signal)),
+      optionalLiveRead(getReservationDraftLifecycle(draftId, signal)),
+    ]);
+    if (signal.aborted) return;
+    setDraft(current);
+    setDocumentInstances(instances ?? []);
+    setPayments((records ?? []).filter((payment) => payment.payment_status === "confirmed" || payment.payment_status === "reconciled").map((payment) => ({
+      id: payment.id, date: payment.paid_at || payment.created_at, method: payment.payment_method,
+      amount: Number(payment.amount), note: payment.notes || payment.payment_kind,
+      reference: payment.external_reference || undefined, receipt_document: payment.receipt_document,
+      payment_kind: payment.payment_kind,
+    })));
+    setLifecycleSummary(lifecycle);
+    setLifecycleError(!lifecycle);
+  }, draftId ?? "", Boolean(draft && draft.id === draftId && !loading));
 
   /* ── local UI state ───────────────────────────────────────────── */
   const [activeTab, setActiveTab] = useState("contrat");

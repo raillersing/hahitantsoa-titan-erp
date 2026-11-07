@@ -1,3 +1,5 @@
+import { useLiveRefresh, useLiveDataStale } from "../useLiveRefresh";
+import { DATA_CHANGED_EVENT } from "../liveDataEvents";
 import React from "react";
 import type { AppScope } from "../App";
 import { getNotifications, type SessionUser } from "../api";
@@ -139,18 +141,13 @@ export default function AppShell({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = React.useState(0);
 
-  React.useEffect(() => {
-    if (!hasAuthenticatedUser) return;
-    const controller = new AbortController();
-    getNotifications(true, controller.signal)
-      .then((items) => {
-        if (Array.isArray(items)) {
-          setUnreadNotificationsCount(items.filter((n) => !n.is_read).length);
-        }
-      })
-      .catch(() => setUnreadNotificationsCount(0));
-    return () => controller.abort();
-  }, [hasAuthenticatedUser, activeScope]);
+  const liveDataStale = useLiveDataStale();
+  React.useEffect(() => { setUnreadNotificationsCount(0); }, [user?.id]);
+  useLiveRefresh(async (signal) => {
+    const items = await getNotifications(true, signal);
+    if (!signal.aborted) setUnreadNotificationsCount(items.filter((n) => !n.is_read).length);
+  }, `${user?.id ?? ""}:${activeScope}`, hasAuthenticatedUser);
+
   const userMenuRef = React.useRef<HTMLDivElement>(null);
   const userMenuButtonRef = React.useRef<HTMLButtonElement>(null);
   const displayName = user?.display_name || user?.username || "Utilisateur";
@@ -587,6 +584,12 @@ export default function AppShell({
         </header>
 
         {/* Content Scroll Area */}
+        {liveDataStale && hasAuthenticatedUser && (
+          <div role="status" className="flex items-center justify-between gap-3 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+            <span>Actualisation interrompue. Les données affichées peuvent être anciennes.</span>
+            <button type="button" className="underline font-semibold" onClick={() => window.dispatchEvent(new Event(DATA_CHANGED_EVENT))}>Réessayer</button>
+          </div>
+        )}
         <main className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 bg-slate-50 dark:bg-slate-900 relative">
           {children}
         </main>

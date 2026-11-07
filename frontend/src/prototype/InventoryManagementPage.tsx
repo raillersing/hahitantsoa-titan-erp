@@ -1,3 +1,4 @@
+import { useLiveRefresh } from "../useLiveRefresh";
 import React, { useState, useEffect, useMemo } from "react";
 import { createInventoryItem, createStockMovement, deleteInventoryItem, getInventoryItems, updateInventoryItem, ApiError } from "../api";
 import type { InventoryItem } from "../types";
@@ -159,32 +160,19 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
   const [deleteItem, setDeleteItem] = useState<any>(null);
 
   // Fetch inventory from the real backend on mount
-  useEffect(() => {
-    const abortController = new AbortController();
-
-    async function fetchInventory() {
-      try {
-        setLoading(true);
-        setError(null);
-        const items = await loadManagedInventory(abortController.signal);
-        setInventory(items.map(toDisplayItem));
-      } catch (err: any) {
-        if (err.name === "AbortError") return;
-        const message =
-          err instanceof ApiError
-            ? err.message
-            : err instanceof Error
-              ? err.message
-              : "Erreur lors du chargement de l'inventaire.";
-        setError(message);
-      } finally {
-        setLoading(false);
-      }
+  useLiveRefresh(async (signal, background) => {
+    try {
+      const data = await loadManagedInventory(signal);
+      if (signal.aborted) return;
+      setInventory(data.map(toDisplayItem));
+      setError(null);
+    } catch (error) {
+      if ((!signal.aborted || signal.reason?.name === "TimeoutError") && !background) setError(error instanceof Error ? error.message : "Chargement impossible.");
+      throw error;
+    } finally {
+      if (!signal.aborted || signal.reason?.name === "TimeoutError") setLoading(false);
     }
-
-    fetchInventory();
-    return () => abortController.abort();
-  }, []);
+  });
 
   useEffect(() => {
     if (toast) {

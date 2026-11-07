@@ -1,3 +1,4 @@
+import { useLiveRefresh, optionalLiveRead } from "../useLiveRefresh";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   cancelHahitantsoaEventDraft,
@@ -590,6 +591,23 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   useEffect(() => {
     void load();
   }, [load]);
+  useLiveRefresh(async (signal) => {
+    if (!param) return;
+    const current = await getHahitantsoaEventDraft(param, signal);
+    const [nextDocuments, nextPayments, nextPreflight, nextLifecycle] = await Promise.all([
+      optionalLiveRead(getHahitantsoaEventDraftDocumentInstances(param, signal)),
+      optionalLiveRead(getHahitantsoaEventDraftPayments(param, signal)),
+      optionalLiveRead(getHahitantsoaEventDraftConfirmationPreflight(param, signal)),
+      optionalLiveRead(getHahitantsoaEventDraftLifecycle(param, signal)),
+    ]);
+    if (signal.aborted) return;
+    setDraft(current);
+    setDocuments(nextDocuments ?? []);
+    setPayments(nextPayments ?? []);
+    setPreflight(nextPreflight);
+    setLifecycleSummary(nextLifecycle);
+    setLifecycleError(!nextLifecycle);
+  }, param ?? "", Boolean(draft && draft.id === param && !loading));
 
   const recordDeposit = async () => {
     if (!param) return;

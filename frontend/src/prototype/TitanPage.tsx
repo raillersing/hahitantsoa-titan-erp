@@ -1,3 +1,4 @@
+import { useLiveRefresh } from "../useLiveRefresh";
 import React, { useEffect, useMemo, useState } from "react";
 import BrandIdentity from "./BrandIdentity";
 import { LoadingSpinner, EmptyState } from "../components";
@@ -82,23 +83,19 @@ export default function TitanPage({ onNavigate, canSensitiveWrite = false, canSu
     }
   };
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    setError(null);
-    getReservationDrafts(undefined, controller.signal)
-      .then((data: ReservationDraft[]) => {
-        setDrafts(data.filter(isTitanDraft) as ReservationDraft[]);
-        setLoading(false);
-      })
-      .catch((err: Error) => {
-        if (err.name !== "AbortError") {
-          setError(err.message || "Erreur lors du chargement des réservations Titan.");
-          setLoading(false);
-        }
-      });
-    return () => controller.abort();
-  }, []);
+  useLiveRefresh(async (signal, background) => {
+    try {
+      const data = await getReservationDrafts(undefined, signal);
+      if (signal.aborted) return;
+      setDrafts(data.filter(isTitanDraft));
+      setError(null);
+    } catch (error) {
+      if ((!signal.aborted || signal.reason?.name === "TimeoutError") && !background) setError(error instanceof Error ? error.message : "Chargement impossible.");
+      throw error;
+    } finally {
+      if (!signal.aborted || signal.reason?.name === "TimeoutError") setLoading(false);
+    }
+  });
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
