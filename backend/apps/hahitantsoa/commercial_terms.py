@@ -3,8 +3,9 @@ from __future__ import annotations
 import calendar
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal, DecimalException
 
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from apps.hahitantsoa.models import (
@@ -158,9 +159,14 @@ def recalculate_hahitantsoa_event_draft_totals(*, event_draft: HahitantsoaEventD
         ),
         Decimal("0"),
     ).quantize(MONEY_QUANTUM)
-    services_amount = parse_hahitantsoa_services_total(event_draft.service_notes).quantize(
-        MONEY_QUANTUM
-    )
+    try:
+        services_amount = parse_hahitantsoa_services_total(event_draft.service_notes).quantize(
+            MONEY_QUANTUM
+        )
+    except DecimalException as error:
+        raise ValidationError(
+            {"service_notes": "Le montant des services dépasse la capacité monétaire du dossier."}
+        ) from error
     event_draft.logistics_amount = logistics_amount
     event_draft.total_amount = (
         event_draft.space_rental_amount + logistics_amount + services_amount
