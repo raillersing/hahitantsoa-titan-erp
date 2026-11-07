@@ -1,3 +1,4 @@
+import { getInventoryStock } from "./inventoryStockUtils";
 import { useLiveRefresh } from "../useLiveRefresh";
 import React, { useState, useEffect } from "react";
 import { EmptyState, LoadingSpinner } from "../components";
@@ -22,16 +23,13 @@ const KIND_ICONS: Record<InventoryItemKind, string> = {
 };
 
 function getItemMetrics(item: InventoryItem) {
-  const stock = item.stock_summary;
-  const reportedStock = stock?.reported_inventory_quantity ?? item.reported_inventory_quantity ?? 0;
-  const totalStock = stock?.current_stock ?? reportedStock;
-  const brokenLost = stock?.damaged_lost_stock ?? item.reported_damaged_quantity ?? 0;
-  const available = stock?.available_stock ?? Math.max(totalStock - brokenLost, 0);
+  const physical = getInventoryStock(item);
   const rentalPrice = Number(item.rental_price ?? 0);
   const breakagePrice = Number(item.breakage_price ?? 0);
-  const isOutOfStock = item.is_active === false || available <= 0;
-  const isLowStock = !isOutOfStock && available <= 5;
-  return { available, totalStock, rentalPrice, breakagePrice, isOutOfStock, isLowStock };
+  return { available: physical.available, totalStock: physical.current, rentalPrice, breakagePrice,
+    isInactive: !physical.active, isBlocked: physical.blocked,
+    isOutOfStock: physical.status === "out_of_stock", isLowStock: physical.status === "low" };
+
 }
 
 export default function InventoryPage({ onNavigate, canSensitiveWrite = false }: InventoryPageProps) {
@@ -167,10 +165,14 @@ export default function InventoryPage({ onNavigate, canSensitiveWrite = false }:
                 <div className={`${viewMode === 'grid-large' ? 'aspect-square' : 'aspect-[4/3]'} bg-slate-100 dark:bg-slate-900 flex items-center justify-center relative`}>
                   <i className={`fas ${KIND_ICONS[item.kind]} text-slate-300 dark:text-slate-700 ${viewMode === 'grid-large' ? 'text-4xl' : 'text-2xl'}`}></i>
                   <div className="absolute top-2 right-2">
-                    {metrics.isOutOfStock ? (
+                    {metrics.isInactive ? (
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-full">Inactif</span>
+                    ) : metrics.isOutOfStock ? (
                       <span className="px-2 py-0.5 bg-rose-100 text-rose-700 dark:bg-rose-900/70 dark:text-rose-300 text-[10px] font-bold rounded-full shadow-xs">
                         Rupture
                       </span>
+                    ) : metrics.isBlocked ? (
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-full">Indisponible sur la période</span>
                     ) : metrics.isLowStock ? (
                       <span className="px-2 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/70 dark:text-amber-300 text-[10px] font-bold rounded-full shadow-xs">
                         Faible ({metrics.available})
@@ -232,10 +234,14 @@ export default function InventoryPage({ onNavigate, canSensitiveWrite = false }:
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                       {KIND_LABELS[item.kind] || item.kind}
                     </span>
-                    {metrics.isOutOfStock ? (
+                    {metrics.isInactive ? (
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-full">Inactif</span>
+                    ) : metrics.isOutOfStock ? (
                       <span className="px-2 py-0.5 bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 text-[10px] font-bold rounded-full">
                         Rupture
                       </span>
+                    ) : metrics.isBlocked ? (
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-full">Indisponible sur la période</span>
                     ) : metrics.isLowStock ? (
                       <span className="px-2 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 text-[10px] font-bold rounded-full">
                         Stock faible ({metrics.available} dispo)
@@ -294,7 +300,9 @@ export default function InventoryPage({ onNavigate, canSensitiveWrite = false }:
                       {KIND_LABELS[item.kind] || item.kind}
                     </td>
                     <td className="p-3 text-center">
-                      {metrics.isOutOfStock ? (
+                      {metrics.isInactive ? (
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-full">Inactif</span>
+                    ) : metrics.isOutOfStock ? (
                         <span className="px-2 py-0.5 bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 text-xs font-bold rounded-full">
                           0
                         </span>

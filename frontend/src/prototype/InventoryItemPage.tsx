@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getInventoryItem, getStockMovements, updateInventoryItem, deleteInventoryItem, createStockMovement } from "../api";
 import type { InventoryItem, InventoryStockMovement } from "../types";
-import { validateStockChange } from "./inventoryStockUtils";
+import { validateStockChange, getInventoryStock, type PhysicalStockLabel } from "./inventoryStockUtils";
 
 const MOVEMENT_TYPE_LABELS: Record<string, string> = {
   outbound_delivery: "Sortie",
@@ -52,35 +52,42 @@ interface DisplayItem {
   brokenLostStock: number;
   unitPrice: number;
   breakagePrice: number;
-  status: "OK" | "Bas" | "Rupture";
+  status: PhysicalStockLabel;
+  availabilityBlocked: boolean;
+  unavailablePhysicalStock: number;
+  lowStockThreshold: number;
   imageUrl?: string;
 }
 
 function toDisplayItem(raw: InventoryItem): DisplayItem {
   const kindLabel = KIND_LABELS[raw.kind] || raw.kind;
   const stock = raw.stock_summary;
+  const physical = getInventoryStock(raw);
   const reportedStock = stock?.reported_inventory_quantity ?? raw.reported_inventory_quantity ?? 0;
   return {
     id: raw.id,
     name: raw.name,
     kind: raw.kind,
     code: raw.code || "",
-    isActive: raw.is_active !== false,
+    isActive: physical.active,
     imageUrl: raw.image_url || "",
     description: raw.description || "",
     type: kindLabel as "Location" | "Consommable" | "Uniforme",
     category: raw.section || kindLabel,
     purchasePrice: Number(raw.purchase_price ?? 0),
     reportedStock,
-    totalStock: stock?.current_stock ?? reportedStock,
-    availableStock: stock?.available_stock ?? Math.max(reportedStock - (raw.reported_damaged_quantity ?? 0), 0),
+    totalStock: physical.current,
+    availableStock: physical.available,
     reservedStock: stock?.reserved_stock ?? 0,
     outStock: stock?.out_stock ?? 0,
     expectedReturnStock: stock?.return_stock ?? 0,
     brokenLostStock: stock?.damaged_lost_stock ?? raw.reported_damaged_quantity ?? 0,
     unitPrice: Number(raw.rental_price ?? 0),
     breakagePrice: Number(raw.breakage_price ?? 0),
-    status: raw.is_active === false ? "Rupture" : "OK",
+    status: physical.label,
+    availabilityBlocked: physical.blocked,
+    unavailablePhysicalStock: physical.unavailablePhysical,
+    lowStockThreshold: physical.threshold,
   };
 }
 
@@ -127,6 +134,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
   const [isAdjustingStock, setIsAdjustingStock] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [stockConflict, setStockConflict] = useState(false);
   const [stockRefreshRequired, setStockRefreshRequired] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -166,8 +174,8 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
   }, [param]);
 
   useEffect(() => {
-    if (item) setNewTotalDraft(String(item.totalStock));
-  }, [item]);
+    if (item && !isAdjustingStock) setNewTotalDraft(String(item.totalStock));
+  }, [item, isAdjustingStock]);
 
   const handleBack = () => {
     if (onBack) {
@@ -181,14 +189,16 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
 
   const backLabel = returnContext?.from === 'inventory' ? "Retour au catalogue" : "Retour à l'inventaire";
 
-  const refreshItem = async () => {
+  const refreshItem = async (preserveForm = false) => {
     if (!param) return;
     const [raw, history] = await Promise.allSettled([getInventoryItem(param), getStockMovements()]);
     if (raw.status === "fulfilled") {
       const display = toDisplayItem(raw.value);
       setItem(display);
-      setOriginalTotalStock(display.totalStock);
-      setEditTotalDraft(String(display.totalStock));
+      if (!preserveForm) {
+        setOriginalTotalStock(display.totalStock);
+        setEditTotalDraft(String(display.totalStock));
+      }
       setStockRefreshRequired(false);
     } else {
       setStockRefreshRequired(true);
@@ -218,7 +228,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!item || !editForm || isSaving || stockRefreshRequired) return;
+    if (!item || !editForm || isSaving || stockRefreshRequired || stockConflict) return;
 
     const normalizedDraft = normalizeNonNegativeIntegerDraft(editTotalDraft);
     if (!/^\d+$/.test(normalizedDraft) && normalizedDraft !== "") { setStockError("Stock invalide."); return; }
@@ -232,7 +242,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
         setStockError("Veuillez sélectionner un motif pour la modification du stock total.");
         return;
       }
-      const validation = validateStockChange(finalTotal, updatedForm.reservedStock, updatedForm.outStock, updatedForm.expectedReturnStock, updatedForm.brokenLostStock);
+      const validation = validateStockChange(finalTotal, updatedForm.unavailablePhysicalStock, updatedForm.availabilityBlocked || !updatedForm.isActive);
       if (!validation.isValid) {
         setStockError(validation.error || "Stock invalide.");
         return;
@@ -242,6 +252,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
 
     setIsSaving(true);
     setActionError(null);
+    let movementStarted = false;
     try {
       const kind = updatedForm.type === item.type ? item.kind
         : updatedForm.type === "Location" ? "material" : updatedForm.type === "Uniforme" ? "material_pack" : "article";
@@ -256,22 +267,28 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
       setItem(toDisplayItem(saved));
       if (finalTotal !== originalTotalStock) {
         const delta = finalTotal - originalTotalStock;
-        await createStockMovement({ inventory_item: item.id,
+        const movement: Parameters<typeof createStockMovement>[0] & { expected_current_stock: number } = { inventory_item: item.id,
           movement_type: delta > 0 ? "adjustment_in" : "adjustment_out",
           direction: delta > 0 ? "inbound" : "outbound", quantity: Math.abs(delta),
-          source_label: stockChangeReason, notes: stockChangeReason });
+          source_label: stockChangeReason, notes: stockChangeReason, expected_current_stock: originalTotalStock };
+        movementStarted = true;
+        await createStockMovement(movement);
       }
       setIsEditing(false);
       setToast(localImage ? "Article modifié. Renseignez une URL pour conserver la photo locale." : "Article modifié avec succès");
       await refreshItem();
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "La modification a échoué.");
+      const message = movementStarted
+        ? "La fiche est enregistrée, mais le résultat de l’ajustement du stock est incertain. Fermez et rouvrez le formulaire après actualisation pour vérifier le stock."
+        : error instanceof Error ? error.message : "La modification a échoué.";
+      setActionError(message);
+      if (movementStarted) { setStockConflict(true); setStockError(message); await refreshItem(true); }
     } finally { setIsSaving(false); }
   };
 
   const handleSaveStock = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!item || isSaving || stockRefreshRequired) return;
+    if (!item || isSaving || stockRefreshRequired || stockConflict) return;
     if (!stockChangeReason) {
       setStockError("Veuillez sélectionner un motif pour la modification du stock total.");
       return;
@@ -282,18 +299,18 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
       return;
     }
 
-    let newTotal = item.totalStock;
+    let newTotal = originalTotalStock;
     let actualDelta = 0;
 
     if (/^[+-]?\d+$/.test(adjustmentDraft)) {
       actualDelta = parseInt(adjustmentDraft, 10);
-      newTotal = item.totalStock + actualDelta;
+      newTotal = originalTotalStock + actualDelta;
     } else if (/^\d+$/.test(newTotalDraft)) {
       newTotal = parseInt(newTotalDraft, 10);
-      actualDelta = newTotal - item.totalStock;
+      actualDelta = newTotal - originalTotalStock;
     }
 
-    const validation = validateStockChange(newTotal, item.reservedStock, item.outStock, item.expectedReturnStock, item.brokenLostStock);
+    const validation = validateStockChange(newTotal, item.unavailablePhysicalStock, item.availabilityBlocked || !item.isActive);
 
     if (!validation.isValid) {
       setStockError(validation.error || "Stock invalide.");
@@ -304,17 +321,22 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
     setIsSaving(true);
     setActionError(null);
     try {
-      await createStockMovement({ inventory_item: item.id,
+      const movement: Parameters<typeof createStockMovement>[0] & { expected_current_stock: number } = { inventory_item: item.id,
         movement_type: actualDelta > 0 ? "adjustment_in" : "adjustment_out",
         direction: actualDelta > 0 ? "inbound" : "outbound", quantity: Math.abs(actualDelta),
-        source_label: stockChangeReason, notes: stockChangeReason });
+        source_label: stockChangeReason, notes: stockChangeReason, expected_current_stock: originalTotalStock };
+      await createStockMovement(movement);
       setIsAdjustingStock(false);
       setAdjustmentDraft("0");
       setStockChangeReason("");
       setToast("Stock ajusté avec succès.");
       await refreshItem();
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "L'ajustement a échoué.");
+      const message = "Le résultat de l’ajustement du stock est incertain. Fermez et rouvrez ce formulaire après actualisation pour vérifier le stock.";
+      setActionError(message);
+      setStockError(message);
+      setStockConflict(true);
+      await refreshItem(true);
     } finally { setIsSaving(false); }
   };
 
@@ -370,16 +392,16 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
           <i className="fas fa-arrow-left"></i> {backLabel}
         </button>
         <div className="flex gap-2">
-          <button className={`px-4 py-2 ${item.status === 'OK' ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'} font-bold rounded-lg`} onClick={handleToggleStatus}>
-            {item.status === 'OK' ? 'Désactiver' : 'Réactiver'}
+          <button className={`px-4 py-2 ${item.isActive ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'} font-bold rounded-lg`} onClick={handleToggleStatus}>
+            {item.isActive ? 'Désactiver' : 'Réactiver'}
           </button>
-          <button disabled={isSaving || stockRefreshRequired} className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-lg hover:bg-slate-50 disabled:opacity-50" onClick={() => { setEditForm(item); setOriginalTotalStock(item.totalStock); setEditTotalDraft(String(item.totalStock)); setStockChangeReason(""); setStockError(""); setIsEditing(true); }}>
+          <button disabled={isSaving || stockRefreshRequired} className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-lg hover:bg-slate-50 disabled:opacity-50" onClick={() => { setStockConflict(false); setEditForm(item); setOriginalTotalStock(item.totalStock); setEditTotalDraft(String(item.totalStock)); setStockChangeReason(""); setStockError(""); setIsEditing(true); }}>
             Modifier l'article
           </button>
           <button className="px-4 py-2 border border-rose-200 text-rose-600 font-bold rounded-lg hover:bg-rose-50" onClick={() => setIsDeleteOpen(true)}>
             Supprimer
           </button>
-          <button disabled={isSaving || stockRefreshRequired} className="px-4 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700 disabled:opacity-50" onClick={() => { setAdjustmentDraft("0"); setNewTotalDraft(String(item.totalStock)); setStockChangeReason(""); setStockError(""); setIsAdjustingStock(true); }}>
+          <button disabled={isSaving || stockRefreshRequired} className="px-4 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700 disabled:opacity-50" onClick={() => { setStockConflict(false); setOriginalTotalStock(item.totalStock); setAdjustmentDraft("0"); setNewTotalDraft(String(item.totalStock)); setStockChangeReason(""); setStockError(""); setIsAdjustingStock(true); }}>
             Ajuster stock
           </button>
         </div>
@@ -432,6 +454,8 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
                   <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">OK</span>
                 ) : item.status === "Bas" ? (
                   <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">Bas</span>
+                ) : item.status === "Inactif" ? (
+                  <span className="px-2 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-full">Inactif</span>
                 ) : (
                   <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">Rupture</span>
                 )}
@@ -592,7 +616,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
                     </div>
                     <div>
                       <label htmlFor="stock-dispo-edit" className="block text-sm font-medium text-slate-700 mb-1">Stock Disponible (calculé)</label>
-                      <input id="stock-dispo-edit" type="number" disabled className="w-full border border-slate-200 bg-slate-100 rounded p-2 text-sm text-slate-500 cursor-not-allowed" value={editForm.totalStock - (editForm.reservedStock + editForm.outStock + editForm.expectedReturnStock + editForm.brokenLostStock)} />
+                      <input id="stock-dispo-edit" type="number" disabled className="w-full border border-slate-200 bg-slate-100 rounded p-2 text-sm text-slate-500 cursor-not-allowed" value={validateStockChange(editForm.totalStock, editForm.unavailablePhysicalStock, editForm.availabilityBlocked || !editForm.isActive).newAvailable} />
                     </div>
                     {editForm.totalStock !== originalTotalStock && (
                       <div className="col-span-2 mt-2">
@@ -622,7 +646,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
               </div>
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200">
                 <button type="button" className="px-4 py-2 border border-slate-300 text-slate-700 rounded font-medium" onClick={() => setIsEditing(false)}>Annuler</button>
-                <button disabled={isSaving} type="submit" className="px-4 py-2 bg-tit-600 text-white rounded font-bold">Enregistrer</button>
+                <button disabled={isSaving || stockConflict} type="submit" className="px-4 py-2 bg-tit-600 text-white rounded font-bold">Enregistrer</button>
               </div>
             </form>
           </div>
@@ -648,7 +672,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
                       const val = e.target.value;
                       setNewTotalDraft(val);
                       if (/^\d+$/.test(val)) {
-                        setAdjustmentDraft(String(parseInt(val, 10) - item.totalStock));
+                        setAdjustmentDraft(String(parseInt(val, 10) - originalTotalStock));
                       }
                       setStockError("");
                     }} />
@@ -658,7 +682,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
                       const val = e.target.value;
                       setAdjustmentDraft(val);
                       if (/^[+-]?\d+$/.test(val)) {
-                        setNewTotalDraft(String(item.totalStock + parseInt(val, 10)));
+                        setNewTotalDraft(String(originalTotalStock + parseInt(val, 10)));
                       }
                       setStockError("");
                     }} />
@@ -666,8 +690,8 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
                   <div>
                     <div className="text-sm bg-slate-50 p-3 rounded border border-slate-200 space-y-2 h-full">
                       <div>Total actuel: <span className="font-bold">{item.totalStock}</span></div>
-                      <div>Engagé (min): <span className="font-bold">{item.reservedStock + item.outStock + item.expectedReturnStock + item.brokenLostStock}</span></div>
-                      <div>Nouveau dispo: <span className="font-bold text-emerald-600">{/^\d+$/.test(newTotalDraft) ? (parseInt(newTotalDraft, 10) - (item.reservedStock + item.outStock + item.expectedReturnStock + item.brokenLostStock)) : '-'}</span></div>
+                      <div>Indisponible physiquement : <span className="font-bold">{item.unavailablePhysicalStock}</span></div>
+                      <div>Nouveau dispo: <span className="font-bold text-emerald-600">{/^\d+$/.test(newTotalDraft) ? validateStockChange(parseInt(newTotalDraft, 10), item.unavailablePhysicalStock, item.availabilityBlocked || !item.isActive).newAvailable : '-'}</span></div>
                     </div>
                   </div>
                 </div>
@@ -690,7 +714,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
               {stockError && <div className="text-sm text-rose-600 font-medium"><i className="fas fa-exclamation-circle mr-1"></i>{stockError}</div>}
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200">
                 <button type="button" className="px-4 py-2 border border-slate-300 text-slate-700 rounded font-medium" onClick={() => { setIsAdjustingStock(false); setAdjustmentDraft("0"); setNewTotalDraft(String(item.totalStock)); }}>Annuler</button>
-                <button disabled={isSaving} type="submit" className="px-4 py-2 bg-tit-600 text-white rounded font-bold">Appliquer</button>
+                <button disabled={isSaving || stockConflict} type="submit" className="px-4 py-2 bg-tit-600 text-white rounded font-bold">Appliquer</button>
               </div>
             </form>
           </div>
@@ -714,7 +738,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
         </div>
       )}
 
-      {actionError && <div role="alert" className="fixed bottom-16 right-4 z-[60] max-w-md bg-rose-50 border border-rose-300 text-rose-700 p-4 rounded-lg">{actionError}<button type="button" className="block underline mt-2" onClick={() => { setActionError(null); void refreshItem(); }}>Actualiser les données</button></div>}
+      {actionError && <div role="alert" className="fixed bottom-16 right-4 z-[60] max-w-md bg-rose-50 border border-rose-300 text-rose-700 p-4 rounded-lg">{actionError}<button type="button" className="block underline mt-2" onClick={() => { setActionError(null); void refreshItem(isEditing || isAdjustingStock); }}>Actualiser les données</button></div>}
       {toast && (
         <div className="fixed bottom-4 right-4 bg-slate-800 text-white px-4 py-2 rounded shadow-lg z-50 flex items-center gap-3">
           <span role="status">{toast}</span>

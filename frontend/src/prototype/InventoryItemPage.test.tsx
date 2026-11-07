@@ -73,3 +73,43 @@ it('does not offer a second stock adjustment when the write succeeds but reread 
   await waitFor(() => expect(screen.getByRole('button', { name: 'Ajuster stock' })).toBeEnabled());
   expect(api.createStockMovement).toHaveBeenCalledTimes(1);
 });
+
+
+it("conserves the stock count and reason after409 and requires reopening before another write", async () => {
+  const movement = vi.spyOn(api, "createStockMovement").mockRejectedValue(Object.assign(new Error("Stock périmé"), { status: 409 }));
+  vi.mocked(api.getInventoryItem).mockResolvedValueOnce(item).mockResolvedValue({ ...item, reported_inventory_quantity: 8 });
+  render(<InventoryItemPage param="chair" onNavigate={vi.fn()} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Ajuster stock" }));
+  fireEvent.change(screen.getByLabelText("Ajustement (ex: +5, -2)"), { target: { value: "3" } });
+  fireEvent.change(screen.getByLabelText(/Motif de la modification/), { target: { value: "Nouvel achat" } });
+  fireEvent.click(screen.getByRole("button", { name: "Appliquer" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Appliquer" })).toBeDisabled());
+  expect(movement).toHaveBeenCalledWith(expect.objectContaining({ expected_current_stock: 10, quantity: 3 }));
+  expect(screen.getByLabelText("Ajustement (ex: +5, -2)")).toHaveValue("3");
+  expect(screen.getByLabelText(/Nouveau Stock Total/)).toHaveValue("13");
+  expect(screen.getByLabelText(/Motif de la modification/)).toHaveValue("Nouvel achat");
+  fireEvent.click(screen.getByRole("button", { name: "Appliquer" }));
+  expect(movement).toHaveBeenCalledTimes(1);
+});
+
+it.each([new Error("Réponse perdue"), Object.assign(new Error("Erreur serveur"), { status: 500 })])(
+  "preserves an edited form and blocks replay when the stock result is uncertain: %s",
+  async (failure) => {
+    const update = vi.spyOn(api, "updateInventoryItem").mockResolvedValue(item);
+    const movement = vi.spyOn(api, "createStockMovement").mockRejectedValue(failure);
+    render(<InventoryItemPage param="chair" onNavigate={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Modifier l'article" }));
+    const count = screen.getByLabelText("Stock Total");
+    fireEvent.change(count, { target: { value: "13" } });
+    fireEvent.blur(count);
+    fireEvent.change(screen.getByLabelText(/Motif de la modification/), { target: { value: "Nouvel achat" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    expect((await screen.findAllByText(/La fiche est enregistrée, mais le résultat/)).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Enregistrer" })).toBeDisabled();
+    expect(count).toHaveValue("13");
+    expect(screen.getByLabelText(/Motif de la modification/)).toHaveValue("Nouvel achat");
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(movement).toHaveBeenCalledTimes(1);
+  },
+);
