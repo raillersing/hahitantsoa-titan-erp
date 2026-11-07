@@ -289,7 +289,7 @@ def test_source_backed_template_preview_renders_with_variables(template_key: str
     )
     if template_key in {"hahitantsoa.payment_receipt.v1", "titan.payment_receipt.v1"}:
         assert "................" in html
-        assert "size: 80mm 120mm" in html
+        assert "size: 80mm 104mm" in html
     else:
         assert "{{" in html
         assert "}}" in html
@@ -661,7 +661,7 @@ def test_hahitantsoa_contract_smart_rental_type_and_deposit() -> None:
         {"context": context_bare, "bank": bank, "show_variables": False},
     )
     assert "Type de location : Location nue<br>" in html_bare
-    assert "versement d’un acompte de <strong>1 000 000,00 Ariary</strong>" in html_bare
+    assert "versement de <strong>1 000 000,00 Ariary</strong>" in html_bare
     assert "1 500 000,00 Ariary" not in html_bare
     assert "Les intervenants du client accèderont aux locaux le jour-J à 07 heures." in html_bare
     assert "veuillez rayer" not in html_bare
@@ -678,7 +678,7 @@ def test_hahitantsoa_contract_smart_rental_type_and_deposit() -> None:
         {"context": context_logistics, "bank": bank, "show_variables": False},
     )
     assert "Type de location : Location nue + logistique<br>" in html_logistics
-    assert "versement d’un acompte de <strong>1 500 000,00 Ariary</strong>" in html_logistics
+    assert "versement de <strong>1 500 000,00 Ariary</strong>" in html_logistics
     assert "1 000 000,00 Ariary" not in html_logistics
     assert "accèderont aux locaux la veille à 15 heures 30" in html_logistics
     assert "veuillez rayer" not in html_logistics

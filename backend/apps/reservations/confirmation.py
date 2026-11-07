@@ -467,13 +467,20 @@ def mark_reservation_draft_contract_signed(
             reservation_draft=reservation_draft
         )
         _assert_active_draft_state(reservation_draft=locked_reservation_draft)
-        if not _lock_contract_truth_documents(reservation_draft=locked_reservation_draft):
+        contract_docs = _lock_contract_truth_documents(reservation_draft=locked_reservation_draft)
+        if not contract_docs:
             raise ReservationLifecyclePrerequisiteError(
                 (
                     "Reservation draft must have a generated or issued material contract "
                     "document before the contract marker can be recorded."
                 ),
                 code=REQUIRED_CONTRACT_DOCUMENT_TRUTH_MISSING,
+            )
+        latest_contract = contract_docs[-1]
+        if latest_contract.valid_until is not None and latest_contract.valid_until < timezone.now():
+            raise ReservationLifecyclePrerequisiteError(
+                "Le délai de validité du contrat est expiré.",
+                code="contract_expired",
             )
         return _persist_contract_signed_marker(
             reservation_draft=locked_reservation_draft,
@@ -494,6 +501,11 @@ def mark_reservation_draft_required_deposit_received(
             reservation_draft=reservation_draft
         )
         _assert_active_draft_state(reservation_draft=locked_reservation_draft)
+        if not _is_contract_signed(reservation_draft=locked_reservation_draft):
+            raise ReservationLifecyclePrerequisiteError(
+                "Le contrat doit être signé avant tout enregistrement de paiement.",
+                code="contract_signature_required_before_payment",
+            )
         locked_payments = _lock_confirmed_required_deposit_payments(
             reservation_draft=locked_reservation_draft
         )
@@ -513,7 +525,11 @@ def mark_reservation_draft_required_deposit_received(
             reservation_draft=locked_reservation_draft,
             attribution=attribution,
         )
-        if auto_confirm and _is_contract_signed(reservation_draft=marked_draft):
+        if (
+            auto_confirm
+            and _is_contract_signed(reservation_draft=marked_draft)
+            and _has_contract_document_truth(reservation_draft=marked_draft)
+        ):
             return confirm_reservation_draft(
                 reservation_draft=marked_draft,
                 actor=actor,

@@ -7,6 +7,7 @@ from django.utils import timezone
 from apps.customers.models import Customer, CustomerLifecycleStatus
 from apps.hahitantsoa.commercial_terms import (
     calculate_duration_supplement,
+    get_hahitantsoa_contract_article_3_access_text,
     get_hahitantsoa_event_draft_access_schedule,
 )
 from apps.hahitantsoa.models import (
@@ -80,9 +81,9 @@ def test_prior_confirmed_night_two_requires_same_day_access_only() -> None:
 
 
 @pytest.mark.django_db
-def test_prior_day_or_night_one_keeps_day_before_access() -> None:
+def test_prior_confirmed_night_one_requires_same_day_access() -> None:
     customer = Customer.objects.create(
-        display_name="Client accès J-1",
+        display_name="Client nuit 1 la veille",
         lifecycle_status=CustomerLifecycleStatus.CLIENT,
     )
     current_timezone = timezone.get_current_timezone()
@@ -101,6 +102,38 @@ def test_prior_day_or_night_one_keeps_day_before_access() -> None:
     )
     event_draft = HahitantsoaEventDraft.objects.create(
         customer=customer,
+        event_name="Réception lendemain de nuit 1",
+        venue_name=venue_name,
+        duration_option=HahitantsoaDurationOption.DAY,
+        start_at=event_start,
+        end_at=event_start + timedelta(hours=10),
+    )
+
+    assert get_hahitantsoa_event_draft_access_schedule(event_draft=event_draft) == "same_day"
+
+
+@pytest.mark.django_db
+def test_prior_day_keeps_day_before_access() -> None:
+    customer = Customer.objects.create(
+        display_name="Client accès J-1",
+        lifecycle_status=CustomerLifecycleStatus.CLIENT,
+    )
+    current_timezone = timezone.get_current_timezone()
+    event_day = timezone.localdate() + timedelta(days=14)
+    event_start = timezone.make_aware(datetime.combine(event_day, time(10, 0)), current_timezone)
+    venue_name = "Salle Hahitantsoa"
+
+    HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Réception fête de jour la veille",
+        venue_name=venue_name,
+        duration_option=HahitantsoaDurationOption.DAY,
+        status=HahitantsoaEventDraftStatus.CONFIRMED,
+        start_at=event_start - timedelta(days=1),
+        end_at=event_start - timedelta(hours=14),
+    )
+    event_draft = HahitantsoaEventDraft.objects.create(
+        customer=customer,
         event_name="Réception avec accès J-1",
         venue_name=venue_name,
         duration_option=HahitantsoaDurationOption.DAY,
@@ -109,3 +142,61 @@ def test_prior_day_or_night_one_keeps_day_before_access() -> None:
     )
 
     assert get_hahitantsoa_event_draft_access_schedule(event_draft=event_draft) == "day_before"
+
+
+@pytest.mark.django_db
+def test_contract_article_3_access_text_all_four_cases() -> None:
+    customer = Customer.objects.create(
+        display_name="Client Article 3",
+        lifecycle_status=CustomerLifecycleStatus.CLIENT,
+    )
+    current_timezone = timezone.get_current_timezone()
+    event_day = timezone.localdate() + timedelta(days=20)
+    event_start = timezone.make_aware(datetime.combine(event_day, time(10, 0)), current_timezone)
+    venue_name = "Espace Hahitantsoa Grand Salon"
+
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Mariage J-J",
+        venue_name=venue_name,
+        duration_option=HahitantsoaDurationOption.DAY,
+        start_at=event_start,
+        end_at=event_start + timedelta(hours=10),
+    )
+
+    # Case 1: No confirmed event on D-1
+    assert (
+        get_hahitantsoa_contract_article_3_access_text(event_draft=draft)
+        == "Les intervenants du client peuvent accéder aux locaux à 15 heures 30"
+    )
+
+    # Case 2: Confirmed event on D-1 with fête de jour (day)
+    prior_event = HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Mariage la veille",
+        venue_name=venue_name,
+        duration_option=HahitantsoaDurationOption.DAY,
+        status=HahitantsoaEventDraftStatus.CONFIRMED,
+        start_at=event_start - timedelta(days=1),
+        end_at=event_start - timedelta(hours=14),
+    )
+    assert (
+        get_hahitantsoa_contract_article_3_access_text(event_draft=draft)
+        == "Les intervenants du client peuvent accéder aux locaux à 23 heures 30"
+    )
+
+    # Case 3: Confirmed event on D-1 with Option 1 (night_1)
+    prior_event.duration_option = HahitantsoaDurationOption.NIGHT_1
+    prior_event.save(update_fields=["duration_option"])
+    assert (
+        get_hahitantsoa_contract_article_3_access_text(event_draft=draft)
+        == "Les intervenants du client peuvent accéder aux locaux à le jour-J à 07 heures"
+    )
+
+    # Case 4: Confirmed event on D-1 with Option 2 (night_2)
+    prior_event.duration_option = HahitantsoaDurationOption.NIGHT_2
+    prior_event.save(update_fields=["duration_option"])
+    assert (
+        get_hahitantsoa_contract_article_3_access_text(event_draft=draft)
+        == "Les intervenants du client peuvent accéder aux locaux à le jour-J à 07 heures"
+    )

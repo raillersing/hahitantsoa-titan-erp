@@ -57,21 +57,35 @@ def _customer() -> Customer:
     )
 
 
-def _reservation_draft() -> ReservationDraft:
+def _reservation_draft(*, contract_signed: bool = True, actor=None) -> ReservationDraft:
     start_at = timezone.now().replace(microsecond=0) + timedelta(days=3)
     end_at = start_at + timedelta(hours=6)
-    return ReservationDraft.objects.create(
+    if contract_signed and actor is None:
+        from django.contrib.auth import get_user_model
+
+        user_model = get_user_model()
+        actor = user_model.objects.filter(is_staff=True).first()
+        if not actor:
+            actor = user_model.objects.create_user(
+                username="default-contract-actor", password="test-pass", is_staff=True
+            )
+    draft = ReservationDraft.objects.create(
         customer=_customer(),
         start_at=start_at,
         end_at=end_at,
         notes="Payment service reservation draft",
     )
+    if contract_signed:
+        draft.contract_signed_at = timezone.now()
+        draft.contract_signed_by = actor
+        draft.save(update_fields=["contract_signed_at", "contract_signed_by"])
+    return draft
 
 
-def _hahitantsoa_event_draft(*, actor) -> HahitantsoaEventDraft:
+def _hahitantsoa_event_draft(*, actor, contract_signed: bool = True) -> HahitantsoaEventDraft:
     start_at = timezone.now().replace(microsecond=0) + timedelta(days=3)
     end_at = start_at + timedelta(hours=6)
-    return HahitantsoaEventDraft.objects.create(
+    event_draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
         event_name="Payment service event",
         start_at=start_at,
@@ -79,6 +93,11 @@ def _hahitantsoa_event_draft(*, actor) -> HahitantsoaEventDraft:
         created_by=actor,
         updated_by=actor,
     )
+    if contract_signed:
+        event_draft.contract_signed_at = timezone.now()
+        event_draft.contract_signed_by = actor
+        event_draft.save(update_fields=["contract_signed_at", "contract_signed_by"])
+    return event_draft
 
 
 def test_create_payment_persists_generic_pending_payment(django_user_model) -> None:
@@ -107,7 +126,7 @@ def test_record_confirmed_deposit_is_atomic_and_replay_safe_for_titan(
         password="test-pass",
         is_staff=True,
     )
-    draft = _reservation_draft()
+    draft = _reservation_draft(contract_signed=True, actor=actor)
 
     with django_capture_on_commit_callbacks(execute=True):
         first = record_confirmed_deposit(
@@ -193,7 +212,7 @@ def test_record_confirmed_deposit_rejects_key_reused_with_different_amount(
         password="test-pass",
         is_staff=True,
     )
-    draft = _reservation_draft()
+    draft = _reservation_draft(contract_signed=True, actor=actor)
     with django_capture_on_commit_callbacks(execute=True):
         record_confirmed_deposit(
             actor=actor,
@@ -231,7 +250,7 @@ def test_record_confirmed_deposit_is_replay_safe_for_hahitantsoa(
         password="test-pass",
         is_staff=True,
     )
-    event_draft = _hahitantsoa_event_draft(actor=actor)
+    event_draft = _hahitantsoa_event_draft(actor=actor, contract_signed=True)
 
     with django_capture_on_commit_callbacks(execute=True):
         first = record_confirmed_deposit(
@@ -271,7 +290,7 @@ def test_record_confirmed_deposit_rolls_back_when_required_amount_is_not_reached
         password="test-pass",
         is_staff=True,
     )
-    event_draft = _hahitantsoa_event_draft(actor=actor)
+    event_draft = _hahitantsoa_event_draft(actor=actor, contract_signed=True)
     event_draft.required_deposit_amount = Decimal("225000.00")
     event_draft.save(update_fields=["required_deposit_amount", "updated_at"])
 
@@ -300,7 +319,7 @@ def test_record_confirmed_deposit_rolls_back_when_titan_contract_amount_is_not_r
         password="test-pass",
         is_staff=True,
     )
-    draft = _reservation_draft()
+    draft = _reservation_draft(contract_signed=True, actor=actor)
     draft.total_amount = Decimal("1000000.00")
     draft.required_deposit_amount = Decimal("250000.00")
     draft.save(update_fields=["total_amount", "required_deposit_amount", "updated_at"])
@@ -320,6 +339,101 @@ def test_record_confirmed_deposit_rolls_back_when_titan_contract_amount_is_not_r
     assert draft.required_deposit_received_by_id is None
     assert not Payment.objects.filter(reservation_draft=draft).exists()
     assert not DocumentInstance.objects.filter(reservation_draft=draft).exists()
+
+
+def test_record_confirmed_deposit_rejects_unsigned_contract_titan(django_user_model) -> None:
+    actor = django_user_model.objects.create_user(
+        username="deposit-titan-unsigned",
+        password="test-pass",
+        is_staff=True,
+    )
+    draft = _reservation_draft(contract_signed=False)
+    with pytest.raises(PaymentLifecycleError) as error_info:
+        record_confirmed_deposit(
+            actor=actor,
+            reservation_draft=draft,
+            payment_method=PaymentMethod.CASH,
+            amount=Decimal("125000.00"),
+            idempotency_key="deposit-titan-unsigned-001",
+        )
+    assert error_info.value.code == "contract_signature_required_before_payment"
+
+
+def test_record_confirmed_deposit_rejects_unsigned_contract_hahitantsoa(django_user_model) -> None:
+    actor = django_user_model.objects.create_user(
+        username="deposit-hahi-unsigned",
+        password="test-pass",
+        is_staff=True,
+    )
+    event_draft = _hahitantsoa_event_draft(actor=actor, contract_signed=False)
+    with pytest.raises(PaymentLifecycleError) as error_info:
+        record_confirmed_deposit(
+            actor=actor,
+            hahitantsoa_event_draft=event_draft,
+            payment_method=PaymentMethod.CASH,
+            amount=Decimal("225000.00"),
+            idempotency_key="deposit-hahi-unsigned-001",
+        )
+    assert error_info.value.code == "contract_signature_required_before_payment"
+
+
+def test_mark_contract_signed_rejects_expired_contract_hahitantsoa(django_user_model) -> None:
+    from apps.documents.models import DocumentInstanceStatus
+    from apps.hahitantsoa.services import (
+        HAHITANTSOA_CONTRACT_TEMPLATE_KEY,
+        ReservationLifecyclePrerequisiteError,
+        mark_hahitantsoa_event_draft_contract_signed,
+    )
+
+    actor = django_user_model.objects.create_user(
+        username="contract-sign-expired-hahi",
+        password="test-pass",
+        is_staff=True,
+    )
+    event_draft = _hahitantsoa_event_draft(actor=actor, contract_signed=False)
+    DocumentInstance.objects.create(
+        hahitantsoa_event_draft=event_draft,
+        customer=event_draft.customer,
+        template_key=HAHITANTSOA_CONTRACT_TEMPLATE_KEY,
+        status=DocumentInstanceStatus.GENERATED,
+        valid_until=timezone.now() - timedelta(days=1),
+    )
+
+    with pytest.raises(ReservationLifecyclePrerequisiteError) as error_info:
+        mark_hahitantsoa_event_draft_contract_signed(
+            event_draft=event_draft,
+            actor=actor,
+        )
+    assert error_info.value.code == "contract_expired"
+
+
+def test_mark_contract_signed_rejects_expired_contract_titan(django_user_model) -> None:
+    from apps.documents.models import DocumentInstanceStatus
+    from apps.reservations.confirmation import (
+        ReservationLifecyclePrerequisiteError,
+        mark_reservation_draft_contract_signed,
+    )
+
+    actor = django_user_model.objects.create_user(
+        username="contract-sign-expired-titan",
+        password="test-pass",
+        is_staff=True,
+    )
+    draft = _reservation_draft(contract_signed=False)
+    DocumentInstance.objects.create(
+        reservation_draft=draft,
+        customer=draft.customer,
+        template_key="titan.material_contract.v1",
+        status=DocumentInstanceStatus.GENERATED,
+        valid_until=timezone.now() - timedelta(days=1),
+    )
+
+    with pytest.raises(ReservationLifecyclePrerequisiteError) as error_info:
+        mark_reservation_draft_contract_signed(
+            reservation_draft=draft,
+            actor=actor,
+        )
+    assert error_info.value.code == "contract_expired"
 
 
 def test_confirm_payment_generates_and_links_receipt_document(

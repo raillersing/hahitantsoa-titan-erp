@@ -1058,6 +1058,11 @@ def mark_hahitantsoa_event_draft_required_deposit_received(
     with transaction.atomic():
         locked_event_draft = _get_locked_hahitantsoa_event_draft(event_draft=event_draft)
         _assert_active_draft_state(event_draft=locked_event_draft)
+        if not _is_contract_signed(event_draft=locked_event_draft):
+            raise ReservationLifecycleStateError(
+                "Le contrat doit être signé avant tout enregistrement de paiement.",
+                code="contract_signature_required_before_payment",
+            )
         locked_payments = _lock_confirmed_required_deposit_payments(event_draft=locked_event_draft)
         confirmed_amount = sum((payment.amount for payment in locked_payments), Decimal("0"))
         if not locked_payments or (
@@ -1100,10 +1105,17 @@ def mark_hahitantsoa_event_draft_contract_signed(
     with transaction.atomic():
         locked_event_draft = _get_locked_hahitantsoa_event_draft(event_draft=event_draft)
         _assert_active_draft_state(event_draft=locked_event_draft)
-        if not _lock_contract_truth_documents(event_draft=locked_event_draft):
+        contract_docs = _lock_contract_truth_documents(event_draft=locked_event_draft)
+        if not contract_docs:
             raise ReservationLifecyclePrerequisiteError(
                 "Hahitantsoa event draft must have a generated contract before it can be signed.",
                 code="missing_contract_document_truth",
+            )
+        latest_contract = contract_docs[-1]
+        if latest_contract.valid_until is not None and latest_contract.valid_until < timezone.now():
+            raise ReservationLifecyclePrerequisiteError(
+                "Le délai de validité du contrat est expiré.",
+                code="contract_expired",
             )
         if _is_contract_signed(event_draft=locked_event_draft):
             return locked_event_draft

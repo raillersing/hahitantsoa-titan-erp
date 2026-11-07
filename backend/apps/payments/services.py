@@ -509,6 +509,28 @@ def create_payment(
             code="dossier_already_closed",
         )
 
+    payment_kind = validated_data.get("payment_kind")
+    if payment_kind in (PaymentKind.DEPOSIT, PaymentKind.DATE_RESERVATION):
+        from apps.hahitantsoa.models import HahitantsoaEventDraft
+        from apps.reservations.models import ReservationDraft
+
+        if res_id:
+            draft_id = getattr(res_id, "pk", res_id)
+            r_draft = ReservationDraft.objects.filter(pk=draft_id).first()
+            if r_draft and r_draft.status == "draft" and r_draft.contract_signed_at is None:
+                raise PaymentLifecycleError(
+                    "Le contrat doit être signé avant tout enregistrement de paiement.",
+                    code="contract_signature_required_before_payment",
+                )
+        if evt_id:
+            draft_id = getattr(evt_id, "pk", evt_id)
+            e_draft = HahitantsoaEventDraft.objects.filter(pk=draft_id).first()
+            if e_draft and e_draft.status == "draft" and e_draft.contract_signed_at is None:
+                raise PaymentLifecycleError(
+                    "Le contrat doit être signé avant tout enregistrement de paiement.",
+                    code="contract_signature_required_before_payment",
+                )
+
     actor_id = getattr(actor, "pk", None)
     payment = Payment.objects.create(
         created_by_id=actor_id,
@@ -683,6 +705,11 @@ def record_confirmed_deposit(
         locked_reservation_draft = ReservationDraft.objects.select_for_update().get(
             pk=reservation_draft.pk
         )
+        if locked_reservation_draft.contract_signed_at is None:
+            raise PaymentLifecycleError(
+                "Le contrat doit être signé avant tout enregistrement de paiement.",
+                code="contract_signature_required_before_payment",
+            )
         payment = (
             Payment.objects.select_for_update()
             .filter(
@@ -749,6 +776,11 @@ def record_confirmed_deposit(
     locked_hahitantsoa_event_draft = HahitantsoaEventDraft.objects.select_for_update().get(
         pk=hahitantsoa_event_draft.pk
     )
+    if locked_hahitantsoa_event_draft.contract_signed_at is None:
+        raise PaymentLifecycleError(
+            "Le contrat doit être signé avant tout enregistrement de paiement.",
+            code="contract_signature_required_before_payment",
+        )
     payment = (
         Payment.objects.select_for_update()
         .filter(

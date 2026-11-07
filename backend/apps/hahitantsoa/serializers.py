@@ -785,6 +785,7 @@ class HahitantsoaCommercialTermsSerializer(serializers.ModelSerializer):
             "night_option_2_amount",
             "night_security_amount",
             "caution_amount",
+            "contract_validity_days",
             "updated_at",
         )
         read_only_fields = ("updated_at",)

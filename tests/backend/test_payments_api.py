@@ -50,11 +50,11 @@ def sensitive_client(sensitive_user):
     return client
 
 
-def _hahitantsoa_event_draft(*, user) -> HahitantsoaEventDraft:
+def _hahitantsoa_event_draft(*, user, contract_signed: bool = True) -> HahitantsoaEventDraft:
     start_at = timezone.now().replace(microsecond=0)
     end_at = start_at + timedelta(hours=4)
     customer = Customer.objects.create(display_name="Payments Hahitantsoa Customer")
-    return HahitantsoaEventDraft.objects.create(
+    draft = HahitantsoaEventDraft.objects.create(
         customer=customer,
         event_name="Payments linked event",
         start_at=start_at,
@@ -62,6 +62,11 @@ def _hahitantsoa_event_draft(*, user) -> HahitantsoaEventDraft:
         created_by=user,
         updated_by=user,
     )
+    if contract_signed:
+        draft.contract_signed_at = timezone.now()
+        draft.contract_signed_by = user
+        draft.save(update_fields=["contract_signed_at", "contract_signed_by"])
+    return draft
 
 
 def test_payment_list_requires_authentication(client) -> None:
@@ -90,13 +95,17 @@ def test_deposit_recording_requires_sensitive_access(authenticated_client) -> No
     assert response.status_code == 403
 
 
-def test_sensitive_user_can_record_and_replay_titan_deposit_atomically(sensitive_client) -> None:
+def test_sensitive_user_can_record_and_replay_titan_deposit_atomically(
+    sensitive_client, sensitive_user
+) -> None:
     customer = Customer.objects.create(display_name="Deposit recording API customer")
     start_at = timezone.now().replace(microsecond=0)
     draft = ReservationDraft.objects.create(
         customer=customer,
         start_at=start_at,
         end_at=start_at + timedelta(hours=4),
+        contract_signed_at=timezone.now(),
+        contract_signed_by=sensitive_user,
     )
     payload = {
         "reservation_draft": str(draft.id),
@@ -122,6 +131,29 @@ def test_sensitive_user_can_record_and_replay_titan_deposit_atomically(sensitive
     assert replay_response.json()["replayed"] is True
     assert replay_response.json()["payment"]["id"] == first_response.json()["payment"]["id"]
     assert Payment.objects.filter(reservation_draft=draft, payment_kind="deposit").count() == 1
+
+
+def test_deposit_recording_rejects_unsigned_contract(sensitive_client) -> None:
+    customer = Customer.objects.create(display_name="Unsigned draft customer")
+    start_at = timezone.now().replace(microsecond=0)
+    draft = ReservationDraft.objects.create(
+        customer=customer,
+        start_at=start_at,
+        end_at=start_at + timedelta(hours=4),
+    )
+    payload = {
+        "reservation_draft": str(draft.id),
+        "payment_method": "cash",
+        "amount": "125000.00",
+        "idempotency_key": "deposit-api-titan-unsigned-001",
+    }
+    response = sensitive_client.post(
+        PAYMENT_DEPOSIT_RECORD_URL,
+        data=payload,
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    assert response.json()["code"] == "contract_signature_required_before_payment"
 
 
 def test_sensitive_user_can_create_confirm_and_authenticated_user_can_list_payment(
