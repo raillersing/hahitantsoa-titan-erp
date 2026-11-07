@@ -12,7 +12,10 @@ async function login(page: Page) {
   await page.getByRole('textbox', { name: 'Nom d’utilisateur' }).fill(username);
   await page.getByLabel('Mot de passe').fill(password);
   await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page.getByRole('heading', { name: 'Assistant de Création' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Assistant de Création' }).or(page.getByRole('heading', { name: 'Parcours de réservation en cours' }))).toBeVisible({ timeout: 15_000 });
+  const newJourney = page.getByRole('button', { name: 'Nouvelle réservation', exact: true });
+  if (await newJourney.isVisible()) await newJourney.click();
+  await expect(page.getByRole('heading', { name: 'Assistant de Création' })).toBeVisible();
 }
 
 test('Titan : l’assistant émet les documents, enregistre l’acompte et persiste le dossier', async ({ page }) => {
@@ -46,12 +49,12 @@ test('Titan : l’assistant émet les documents, enregistre l’acompte et persi
 
   const persisted = page.waitForResponse((response) =>
     response.request().method() === 'POST'
-    && new URL(response.url()).pathname === '/api/v1/reservations/drafts/'
+    && /^\/api\/v1\/reservations\/wizard-sessions\/[^/]+\/draft\/$/.test(new URL(response.url()).pathname)
     && response.status() === 201,
   );
   await page.getByRole('button', { name: 'Vérifier le résumé' }).click();
   const persistedResponse = await persisted;
-  const persistedDraft = await persistedResponse.json() as { id: string; status: string };
+  const { draft: persistedDraft } = await persistedResponse.json() as { draft: { id: string; status: string } };
   expect(persistedDraft.id).toBeTruthy();
   expect(persistedDraft.status).toBe('draft');
 
