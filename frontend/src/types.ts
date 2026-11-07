@@ -13,6 +13,7 @@ export type InventoryItem = {
   breakage_price?: string | null;
   reported_inventory_quantity?: number;
   reported_damaged_quantity?: number;
+  low_stock_threshold?: number;
   image_url?: string;
   is_active?: boolean;
   is_deleted?: boolean;
@@ -25,6 +26,17 @@ export type InventoryItem = {
     out_stock: number;
     return_stock: number;
     damaged_lost_stock: number;
+    healthy_stock?: number;
+    historical_out_stock?: number;
+    historical_return_stock?: number;
+    availability_blocked?: boolean;
+    reservation_basis?: "whole_reference";
+    physical_status?: "inactive" | "out_of_stock" | "low" | "in_stock";
+    low_stock_threshold?: number;
+    as_of?: string;
+    period_start_at?: string;
+    period_end_at?: string;
+    stock_anomalies?: string[];
   };
 };
 

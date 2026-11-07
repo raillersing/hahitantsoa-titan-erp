@@ -2,7 +2,7 @@ import { useLiveRefresh } from "../useLiveRefresh";
 import React, { useState, useEffect, useMemo } from "react";
 import { createInventoryItem, createStockMovement, deleteInventoryItem, getInventoryItems, updateInventoryItem, ApiError } from "../api";
 import type { InventoryItem } from "../types";
-import { validateStockChange } from "./inventoryStockUtils";
+import { validateStockChange, getInventoryStock, normalizeInventorySearch, type PhysicalStockLabel } from "./inventoryStockUtils";
 import { useTableSort, SortableHeader } from "./tableSortUtils";
 
 /** Display-friendly shape that maps from the real InventoryItem API type. */
@@ -21,7 +21,10 @@ interface DisplayItem {
   purchasePrice: number;
   unitPrice: number;
   breakagePrice: number;
-  status: "OK" | "Bas" | "Rupture";
+  status: PhysicalStockLabel;
+  availabilityBlocked: boolean;
+  unavailablePhysicalStock: number;
+  lowStockThreshold: number;
   isActive: boolean;
   imageUrl?: string;
   description?: string;
@@ -60,18 +63,19 @@ function toDisplayItem(item: InventoryItem): DisplayItem {
     material_pack: "Uniforme",
   };
   const stock = item.stock_summary;
+  const physical = getInventoryStock(item);
   const reportedStock = stock?.reported_inventory_quantity ?? item.reported_inventory_quantity ?? 0;
-  const totalStock = stock?.current_stock ?? reportedStock;
+  const totalStock = physical.current;
   const brokenLostStock = stock?.damaged_lost_stock ?? item.reported_damaged_quantity ?? 0;
   return {
     id: item.id,
-    isActive: item.is_active !== false,
+    isActive: physical.active,
     name: item.name,
     kind: item.kind,
     type: typeMap[item.kind] ?? "Location",
     category: item.section || item.kind,
     totalStock,
-    availableStock: stock?.available_stock ?? Math.max(totalStock - brokenLostStock, 0),
+    availableStock: physical.available,
     reservedStock: stock?.reserved_stock ?? 0,
     outStock: stock?.out_stock ?? 0,
     expectedReturnStock: stock?.return_stock ?? 0,
@@ -79,11 +83,10 @@ function toDisplayItem(item: InventoryItem): DisplayItem {
     purchasePrice: Number(item.purchase_price ?? 0),
     unitPrice: Number(item.rental_price ?? 0),
     breakagePrice: Number(item.breakage_price ?? 0),
-    status: item.is_active === false
-      ? "Rupture"
-      : totalStock <= 0
-        ? "Rupture"
-        : "OK",
+    status: physical.label,
+    availabilityBlocked: physical.blocked,
+    unavailablePhysicalStock: physical.unavailablePhysical,
+    lowStockThreshold: physical.threshold,
     imageUrl: item.image_url || "",
     description: item.description,
     code: item.code,
@@ -153,6 +156,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
   const [stockError, setStockError] = useState("");
   const [isAdjustingStock, setIsAdjustingStock] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [stockConflict, setStockConflict] = useState(false);
   const [adjustItem, setAdjustItem] = useState<any>(null);
   const [stockDelta, setStockDelta] = useState(0);
 
@@ -219,12 +223,14 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
     "Réservé": inventory.filter((i) => i.reservedStock > 0).length,
     Sorti: inventory.filter((i) => i.outStock > 0).length,
     "En retour": inventory.filter((i) => i.expectedReturnStock > 0).length,
+    Inactifs: inventory.filter((i) => !i.isActive).length,
     Alertes: inventory.filter((i) => i.status === "Bas" || i.status === "Rupture").length,
   };
 
   const filteredData = inventory.filter(item => {
     let matchFilter = true;
     if (filter !== "Tous") {
+      if (filter === "Inactifs" && item.isActive) matchFilter = false;
       if (filter === "Disponible" && item.availableStock <= 0) matchFilter = false;
       if (filter === "Réservé" && item.reservedStock <= 0) matchFilter = false;
       if (filter === "Sorti" && item.outStock <= 0) matchFilter = false;
@@ -234,20 +240,13 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
 
     let matchSearch = true;
     if (searchQuery.trim() !== "") {
-      const normalizeSearchValue = (value: string) => {
-        return value
-          .trim()
-          .replace(/\s+/g, " ")
-          .toLocaleLowerCase("fr")
-          .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      };
-      
-      const query = normalizeSearchValue(searchQuery);
+      const query = normalizeInventorySearch(searchQuery);
       matchSearch = 
-        normalizeSearchValue(item.name).includes(query) ||
-        normalizeSearchValue(item.id).includes(query) ||
-        normalizeSearchValue(item.type).includes(query) ||
-        normalizeSearchValue(item.category).includes(query);
+        normalizeInventorySearch(item.name).includes(query) ||
+        normalizeInventorySearch(item.id).includes(query) ||
+        normalizeInventorySearch(item.code || "").includes(query) ||
+        normalizeInventorySearch(item.type).includes(query) ||
+        normalizeInventorySearch(item.category).includes(query);
     }
 
     return matchFilter && matchSearch;
@@ -278,6 +277,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
   const sortedData = useMemo(() => sortItems(filteredData), [sortItems, filteredData]);
 
   const handleOpenCreate = () => {
+    setStockConflict(false);
     setFormMode("create");
     setEditForm({
       code: "",
@@ -294,7 +294,8 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
       outStock: 0,
       expectedReturnStock: 0,
       brokenLostStock: 0,
-      status: "OK"
+      status: "OK",
+      isActive: true, lowStockThreshold: 0, availabilityBlocked: false, unavailablePhysicalStock: 0
     });
     setOriginalTotalStock(0);
     setStockChangeReason("");
@@ -304,6 +305,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
 
   const handleOpenEdit = (item: any) => {
     if (isSaving || stockRefreshRequired) return;
+    setStockConflict(false);
     setFormMode("edit");
     setEditForm({ ...item });
     setOriginalTotalStock(item.totalStock);
@@ -314,14 +316,14 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
 
   const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSaving || stockRefreshRequired) return;
+    if (isSaving || stockRefreshRequired || stockConflict) return;
     if (formMode === "edit" && editForm.totalStock !== originalTotalStock) {
       if (!stockChangeReason) {
         setStockError("Veuillez sélectionner un motif pour la modification du stock total.");
         return;
       }
       
-      const validation = validateStockChange(editForm.totalStock, editForm.reservedStock, editForm.outStock, editForm.expectedReturnStock, editForm.brokenLostStock);
+      const validation = validateStockChange(editForm.totalStock, editForm.unavailablePhysicalStock, editForm.availabilityBlocked || !editForm.isActive);
       if (!validation.isValid) {
         setStockError(validation.error || "Stock invalide.");
         return;
@@ -330,6 +332,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
     }
 
     setIsSaving(true);
+    let movementStarted = false;
     try {
       const kind: InventoryItem["kind"] = editForm.type === "Location" ? "material"
         : editForm.type === "Uniforme" ? "material_pack" : "article";
@@ -347,21 +350,25 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
         description: editForm.description || "",
         image_url: imageUrl,
         reported_inventory_quantity: formMode === "create" ? editForm.totalStock : undefined,
-        is_active: formMode === "edit" ? editForm.isActive : editForm.status !== "Rupture",
+        is_active: formMode === "edit" ? editForm.isActive : true,
+        low_stock_threshold: Number(editForm.lowStockThreshold ?? 0),
       };
       const saved = formMode === "create"
         ? await createInventoryItem(payload)
         : await updateInventoryItem(editForm.id, payload);
       if (formMode === "edit" && editForm.totalStock !== originalTotalStock) {
         const delta = editForm.totalStock - originalTotalStock;
-        await createStockMovement({
+        const movement: Parameters<typeof createStockMovement>[0] & { expected_current_stock: number } = {
           inventory_item: saved.id,
           movement_type: delta > 0 ? "adjustment_in" : "adjustment_out",
           direction: delta > 0 ? "inbound" : "outbound",
           quantity: Math.abs(delta),
           source_label: stockChangeReason,
           notes: stockChangeReason,
-        });
+          expected_current_stock: originalTotalStock,
+        };
+        movementStarted = true;
+        await createStockMovement(movement);
       }
       setInventory(prev => formMode === "create" ? [toDisplayItem(saved), ...prev]
         : prev.map(candidate => candidate.id === saved.id ? toDisplayItem(saved) : candidate));
@@ -373,18 +380,23 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
       setIsFormOpen(false);
       if (formMode === "edit" && editForm.totalStock !== originalTotalStock) await refreshInventory();
     } catch (err) {
-      setToast(err instanceof ApiError ? err.message : "La sauvegarde de l'article a échoué.");
+      const message = movementStarted
+        ? "La fiche est enregistrée, mais le résultat de l’ajustement du stock est incertain. Fermez et rouvrez le formulaire après actualisation pour vérifier le stock."
+        : err instanceof ApiError ? err.message : "La sauvegarde de l'article a échoué.";
+      setStockError(message);
+      setToast(message);
+      if (movementStarted) { setStockConflict(true); await refreshInventory(); }
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleToggleStatus = async (item: any) => {
-    const newStatus = (item.isActive ? "Rupture" : "OK") as "OK" | "Bas" | "Rupture";
+    const active = !item.isActive;
     try {
-      const saved = await updateInventoryItem(item.id, { is_active: newStatus === "OK" });
+      const saved = await updateInventoryItem(item.id, { is_active: active });
       setInventory(prev => prev.map(i => i.id === item.id ? toDisplayItem(saved) : i));
-      setToast(`L'article ${item.name} est maintenant en ${newStatus === "OK" ? "Disponibilité" : "Rupture"}`);
+      setToast(`L'article ${item.name} est maintenant ${active ? "actif" : "inactif"}.`);
     } catch (err) {
       setToast(err instanceof ApiError ? err.message : "Le changement de statut a échoué.");
     }
@@ -392,6 +404,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
 
   const handleOpenAdjustStock = (item: any) => {
     if (isSaving || stockRefreshRequired) return;
+    setStockConflict(false);
     setStockChangeReason("");
     setStockError("");
     setAdjustItem(item);
@@ -401,7 +414,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
 
   const handleSaveStock = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adjustItem || isSaving || stockRefreshRequired) return;
+    if (!adjustItem || isSaving || stockRefreshRequired || stockConflict) return;
     
     if (!stockChangeReason) {
       setStockError("Veuillez sélectionner un motif pour la modification du stock total.");
@@ -409,7 +422,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
     }
 
     const newTotal = adjustItem.totalStock + stockDelta;
-    const validation = validateStockChange(newTotal, adjustItem.reservedStock, adjustItem.outStock, adjustItem.expectedReturnStock, adjustItem.brokenLostStock);
+    const validation = validateStockChange(newTotal, adjustItem.unavailablePhysicalStock, adjustItem.availabilityBlocked || !adjustItem.isActive);
     
     if (!validation.isValid) {
       setStockError(validation.error || "Stock invalide.");
@@ -418,21 +431,27 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
 
     setIsSaving(true);
     try {
-      await createStockMovement({
+      const movement: Parameters<typeof createStockMovement>[0] & { expected_current_stock: number } = {
         inventory_item: adjustItem.id,
         movement_type: stockDelta > 0 ? "adjustment_in" : "adjustment_out",
         direction: stockDelta > 0 ? "inbound" : "outbound",
         quantity: Math.abs(stockDelta),
         source_label: stockChangeReason,
         notes: stockChangeReason,
-      });
+        expected_current_stock: adjustItem.totalStock,
+      };
+      await createStockMovement(movement);
       setToast(`Stock ajusté (${stockDelta > 0 ? '+' : ''}${stockDelta})`);
       setIsAdjustingStock(false);
       setStockDelta(0);
       setStockChangeReason("");
       await refreshInventory();
     } catch (err) {
-      setToast(err instanceof ApiError ? err.message : "L'ajustement du stock a échoué.");
+      const message = "Le résultat de l’ajustement du stock est incertain. Fermez et rouvrez ce formulaire après actualisation pour vérifier le stock.";
+      setStockError(message);
+      setToast(message);
+      setStockConflict(true);
+      await refreshInventory();
     } finally {
       setIsSaving(false);
     }
@@ -560,7 +579,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
           <div className="flex gap-2 flex-wrap items-center flex-1">
-            {["Tous", "Disponible", "Réservé", "Sorti", "En retour", "Alertes"].map(f => (
+            {["Tous", "Disponible", "Réservé", "Sorti", "En retour", "Alertes", "Inactifs"].map(f => (
               <button 
                 key={f}
                 onClick={() => setFilter(f)}
@@ -647,6 +666,10 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
           </div>
         </div>
         <div className="overflow-x-auto">
+          <p role="status" className="px-4 py-2 text-xs text-slate-600">
+            {filteredData.length} résultat(s) · Filtre actif : {filter}
+            {(filter !== "Tous" || searchQuery) && <button type="button" className="ml-3 underline" onClick={() => { setFilter("Tous"); setSearchQuery(""); }}>Effacer les filtres</button>}
+          </p>
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
@@ -696,6 +719,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                   {isColumnVisible("available") && (
                     <td className="p-4 text-right">
                       <span className="text-emerald-600 font-bold">{item.availableStock}</span>
+                      {item.availabilityBlocked && <p className="text-xs text-amber-700">Indisponible sur la période</p>}
                       {item.totalStock > 0 && (
                         <div className="w-16 ml-auto mt-1 h-1.5 bg-slate-100 rounded-full overflow-hidden flex" title={`Disponibilité: ${item.availableStock} / ${item.totalStock} (${Math.round((item.availableStock / item.totalStock) * 100)}%)`}>
                           <div
@@ -712,7 +736,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                       )}
                     </td>
                   )}
-                  {isColumnVisible("reserved") && <td className="p-4 text-blue-600 font-medium text-right">{item.reservedStock}</td>}
+                  {isColumnVisible("reserved") && <td className="p-4 text-blue-600 font-medium text-right" title="Stock bloqué par référence sur la période, sans nouvelle soustraction au stock physique">{item.reservedStock}</td>}
                   {isColumnVisible("out") && <td className="p-4 text-purple-600 font-medium text-right">{item.outStock}</td>}
                   {isColumnVisible("return") && <td className="p-4 text-amber-600 font-medium text-right">{item.expectedReturnStock}</td>}
                   {isColumnVisible("damaged") && <td className="p-4 text-red-600 font-medium text-right">{item.brokenLostStock}</td>}
@@ -721,6 +745,8 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                       <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">OK</span>
                     ) : item.status === "Bas" ? (
                       <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">Bas</span>
+                    ) : item.status === "Inactif" ? (
+                      <span className="px-2 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-full">Inactif</span>
                     ) : (
                       <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">Rupture</span>
                     )}
@@ -831,6 +857,11 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                   <label htmlFor="item-breakage-price" className="block text-sm font-medium text-slate-700 mb-1">Prix en cas de casse (Ar)</label>
                   <input id="item-breakage-price" type="number" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.breakagePrice} onChange={e => setEditForm({...editForm, breakagePrice: parseInt(e.target.value || '0', 10)})} />
                 </div>
+                <div>
+                  <label htmlFor="low-stock-threshold" className="block text-sm font-medium text-slate-700 mb-1">Seuil de stock faible</label>
+                  <input id="low-stock-threshold" type="number" min="0" step="1" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.lowStockThreshold ?? 0} onChange={e => setEditForm({...editForm, lowStockThreshold: e.target.value})} />
+                  <p className="text-xs text-slate-500">0 désactive l’alerte de stock faible. La rupture reste signalée.</p>
+                </div>
                 <div className="col-span-2">
                   <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
                     <div>
@@ -842,7 +873,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                     </div>
                     <div>
                       <label htmlFor="stock-dispo" className="block text-sm font-medium text-slate-700 mb-1">Stock Disponible (calculé)</label>
-                      <input id="stock-dispo" type="number" disabled className="w-full border border-slate-200 bg-slate-100 rounded p-2 text-sm text-slate-500 cursor-not-allowed" value={formMode === "edit" ? editForm.totalStock - (editForm.reservedStock + editForm.outStock + editForm.expectedReturnStock + editForm.brokenLostStock) : editForm.availableStock} />
+                      <input id="stock-dispo" type="number" disabled className="w-full border border-slate-200 bg-slate-100 rounded p-2 text-sm text-slate-500 cursor-not-allowed" value={formMode === "edit" ? validateStockChange(editForm.totalStock, editForm.unavailablePhysicalStock, editForm.availabilityBlocked || !editForm.isActive).newAvailable : editForm.availableStock} />
                     </div>
                     {formMode === "edit" && editForm.totalStock !== originalTotalStock && (
                       <div className="col-span-2 mt-2">
@@ -872,7 +903,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
               </div>
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200">
                 <button type="button" className="px-4 py-2 border border-slate-300 text-slate-700 rounded font-medium" onClick={() => setIsFormOpen(false)}>Annuler</button>
-                <button type="submit" disabled={isSaving} className="px-4 py-2 bg-tit-600 text-white rounded font-bold disabled:opacity-50">{isSaving ? "Enregistrement…" : "Enregistrer"}</button>
+                <button type="submit" disabled={isSaving || stockConflict} className="px-4 py-2 bg-tit-600 text-white rounded font-bold disabled:opacity-50">{isSaving ? "Enregistrement…" : "Enregistrer"}</button>
               </div>
             </form>
           </div>
@@ -894,7 +925,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Nouveau Stock Total</label>
-                    <input type="number" className="w-full border border-slate-300 rounded p-2 text-sm mb-3" min={adjustItem ? adjustItem.reservedStock + adjustItem.outStock + adjustItem.expectedReturnStock + adjustItem.brokenLostStock : 0} value={adjustItem ? adjustItem.totalStock + stockDelta : 0} onChange={e => {
+                    <input type="number" className="w-full border border-slate-300 rounded p-2 text-sm mb-3" min={0} value={adjustItem ? adjustItem.totalStock + stockDelta : 0} onChange={e => {
                       const val = parseInt(e.target.value || '0', 10);
                       setStockDelta(val - (adjustItem?.totalStock || 0));
                       setStockError("");
@@ -909,8 +940,8 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                   <div>
                     <div className="text-sm bg-slate-50 p-3 rounded border border-slate-200 space-y-2 h-full">
                       <div>Total actuel: <span className="font-bold">{adjustItem?.totalStock}</span></div>
-                      <div>Engagé (min): <span className="font-bold">{adjustItem ? adjustItem.reservedStock + adjustItem.outStock + adjustItem.expectedReturnStock + adjustItem.brokenLostStock : 0}</span></div>
-                      <div>Nouveau dispo: <span className="font-bold text-emerald-600">{adjustItem ? (adjustItem.totalStock + stockDelta) - (adjustItem.reservedStock + adjustItem.outStock + adjustItem.expectedReturnStock + adjustItem.brokenLostStock) : 0}</span></div>
+                      <div>Indisponible physiquement : <span className="font-bold">{adjustItem ? adjustItem.unavailablePhysicalStock : 0}</span></div>
+                      <div>Nouveau dispo: <span className="font-bold text-emerald-600">{adjustItem ? validateStockChange(adjustItem.totalStock + stockDelta, adjustItem.unavailablePhysicalStock, adjustItem.availabilityBlocked || !adjustItem.isActive).newAvailable : 0}</span></div>
                     </div>
                   </div>
                 </div>
@@ -933,7 +964,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
               {stockError && <div className="text-sm text-rose-600 font-medium"><i className="fas fa-exclamation-circle mr-1"></i>{stockError}</div>}
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200">
                 <button type="button" className="px-4 py-2 border border-slate-300 text-slate-700 rounded font-medium" onClick={() => { setIsAdjustingStock(false); setStockDelta(0); setStockChangeReason(""); setStockError(""); }}>Annuler</button>
-                <button type="submit" className="px-4 py-2 bg-tit-600 text-white rounded font-bold">Appliquer</button>
+                <button type="submit" disabled={isSaving || stockConflict} className="px-4 py-2 bg-tit-600 text-white rounded font-bold">Appliquer</button>
               </div>
             </form>
           </div>
