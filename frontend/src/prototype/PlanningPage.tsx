@@ -1,4 +1,5 @@
 import { useLiveRefresh } from "../useLiveRefresh";
+import { DATA_CHANGED_EVENT } from "../liveDataEvents";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AvailabilityDatePicker, AvailabilityInspectorModal } from "../components";
@@ -631,7 +632,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
       events.sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
       if (!signal?.aborted) setItemsState({ status: "loaded", events });
     } catch (err: unknown) {
-      if (!signal?.aborted && !background) setItemsState({
+      if ((!signal?.aborted || signal.reason?.name === "TimeoutError") && !background) setItemsState({
         status: "error",
         message: err instanceof Error ? err.message : "Échec du chargement du planning.",
       });
@@ -1155,7 +1156,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
           <p className="text-xs text-rose-600 dark:text-rose-400 mb-4">{itemsState.message}</p>
           <button
             type="button"
-            onClick={() => { void loadData(); }}
+            onClick={() => window.dispatchEvent(new Event(DATA_CHANGED_EVENT))}
             className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition"
           >
             Réessayer

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as api from "../api";
@@ -30,6 +30,22 @@ describe("PlanningPage (Modern Enterprise Agenda)", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("leaves initial loading with a retry when the read times out", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(api.getReservationDrafts).mockImplementation((_, signal) => new Promise((_, reject) => signal?.addEventListener("abort", () => reject(signal.reason))));
+      render(<PlanningPage onNavigate={vi.fn()} />);
+      await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+      expect(screen.getByText("Erreur lors du chargement du planning")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Réessayer/i })).toBeInTheDocument();
+      vi.mocked(api.getReservationDrafts).mockResolvedValue([]);
+      fireEvent.click(screen.getByRole("button", { name: /Réessayer/i }));
+      await act(async () => {});
+      expect(screen.queryByText("Erreur lors du chargement du planning")).not.toBeInTheDocument();
+      expect(vi.mocked(api.getReservationDrafts).mock.calls.at(-1)?.[1]).toBeInstanceOf(AbortSignal);
+    } finally { vi.useRealTimers(); }
   });
 
   it("shows an ongoing Titan reservation during the visible week", async () => {
