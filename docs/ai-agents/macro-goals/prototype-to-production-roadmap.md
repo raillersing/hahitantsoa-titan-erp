@@ -46,7 +46,7 @@ stacks and journeys, then implement one consolidated corrective bundle for ordin
 findings. Security, authorization, data-integrity, migration, financial, concurrency,
 CI, and release-blocking findings remain immediate corrective work.
 
-Current next bundle: **Phase Integration Checkpoint / Hardware Acceptance (Lot 8)**. The transformation cycle (Phases 1 through 12) and the post-Phase 12 Client Corrections Plan (2026-11-05, Lots 0-7, PRs #897-#901) have been fully implemented, integrated, and verified with exact-SHA green `main` CI (`ed4ea2fcdeae2d1bdc1a5ce5cd354d431ce27d37`).
+Current next bundle: **Phase Integration Checkpoint / Hardware Acceptance (Lot 8)**. The transformation cycle (Phases 1 through 12) and the post-Phase 12 Client Corrections Plan (2026-11-05, Lots 0-7, PRs #897-#901, and remaining software lots R11, R5, R9, R8 via PRs #910-#913) have been fully implemented, integrated, and verified with exact-SHA green `main` CI (`aa8e69697dfcfc2d9c193123ed50b0fecd2cb6b0`).
 
 ## Product target
 
@@ -87,9 +87,9 @@ authorization control, and a successful mock notification is not persistence evi
 
 ## Current program checkpoint
 
-Checkpoint date: 2026-11-06. Current verified baseline:
-`ed4ea2fcdeae2d1bdc1a5ce5cd354d431ce27d37`, with exact-SHA `main` CI success in run
-`42148530177` (PR #901).
+Checkpoint date: 2026-11-07. Current verified baseline:
+`aa8e69697dfcfc2d9c193123ed50b0fecd2cb6b0`, with exact-SHA `main` CI success in run
+`42350697616` (PR #913).
 
 | Item | Status | Evidence or limitation |
 |---|---|---|
@@ -401,18 +401,17 @@ a second roadmap or infer completion from an unmerged worktree.
 
 ## Remaining sequence at this checkpoint
 
-The12 core development phases retain their historical acceptance. The2026-11-05
-client corrections are partially delivered; the bounded merged lots must not be
-confused with full closure of the approved R1–R11 plan. See the live reconciliation
-in USER_ACCESS_IMPLEMENTATION_2026_11_06.md.
+The 12 core development phases retain their historical acceptance. All 11 requirements
+from the 2026-11-05 client correction plan (R1 through R11) have now been fully delivered,
+independently tested, and merged into `main` with exact-SHA CI verification (PRs #897–#901
+and #910–#913).
 
 Remaining sequence:
-1. **Open original-plan implementation:** R5 durable cross-terminal stage persistence, R8 change propagation/reconnect, R9 inventory truth/search/labels/notifications, and R11 precise500 diagnosis; then the applicable integrated acceptance.
-2. **Lot 8 — Physical acceptance & hardware validation:**
+1. **Lot 8 — Physical acceptance & hardware validation:**
    - Physical print testing on Xprinter 80mm thermal hardware (80×104mm fixed pagination and tear/cut margin);
    - Multi-terminal LAN testing on Raspberry Pi staging/production server;
    - Real-world peer concurrent editing tests.
-3. Production deployment and operational cutover.
+2. Production deployment and operational cutover.
 
 The skills reassessment completed in PR `#461`; it is a governance improvement, not a
 substitute for any product phase.
@@ -421,6 +420,21 @@ The proportional test policy is defined in `docs/ai-agents/pr-quality-gates.md` 
 enforced by PR `#464`. The high-risk workflow self-change selected both stacks and the
 stable policy gate; subsequent documentation-only checkpoints have proven that both
 application jobs are skipped while `CI policy gate` remains green.
+
+
+## Remaining Lots Delivery (R11, R5, R9, R8) — 2026-11-07
+
+The client explicitly approved the full implementation of all remaining software lots from the 2026-11-05 plan. Each lot was developed in an isolated non-overlapping worktree, passed scope guards and focused PostgreSQL/Vitest tests, was reviewed, merged via `scripts/dev/erp-pr-finalize-from-root`, and verified with exact-SHA `main` CI.
+
+| Approved lot | PR | Reviewed head | Merged main | Successful exact-SHA main CI |
+|---|---|---|---|---|
+| R11 — Error 500 Model/Totals Validation | #910 | `abcb45b3d7f985b9b940026e6efbb669ea2aaee1` | `2ed0d0bba3136b6ded53aa3d2f555f8b99537f72` | [42346891179](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42346891179) |
+| R5 — Cross-terminal Wizard Server Persistence | #911 | `d3b0ebf652fa08c1c6ef62f014ee6acfa714b5e0` | `158bac745a60a14e4b4c2ba90809516323b93464` | [42349252586](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42349252586) |
+| R9 — Temporal Stock Truth & Alerts Reconciliation | #912 | `e5ed4ae64bb2b9d8a1889ae872255b5faa96b7a1` | `dcf7403cf49b949ea1e3be434807057155422bc1` | [42349994524](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42349994524) |
+| R8 — Frontend Live Data Refresh & Multi-Terminal Sync | #913 | `73fc27d764d36b959c98258f7ceeaa31a85e4580` | `aa8e69697dfcfc2d9c193123ed50b0fecd2cb6b0` | [42350697616](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42350697616) |
+
+With PRs #910–#913 merged and verified on `main`, all software-side requirements from the 2026-11-05 client correction plan are complete.
+Remaining work is now exclusively **Lot 8 — Physical acceptance & hardware validation (Raspberry Pi & Xprinter)**.
 
 
 ## Post-acceptance access and customer-replay delivery — 2026-11-07

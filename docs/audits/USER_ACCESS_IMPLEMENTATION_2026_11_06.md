@@ -325,3 +325,41 @@ Agent F independently approved the publication records and partial-plan
 reconciliation; final CI result is recorded only after live verification. Future
 agents must reconcile requirements against actual code, not infer full delivery
 from green PRs or from the CI policy gate alone.
+
+
+## Complete Delivery of Remaining Software Lots (R11, R5, R9, R8) — 2026-11-07
+
+The client explicitly approved the full, attentive, and meticulous implementation of all remaining software lots from the 2026-11-05 client correction plan. Each lot was implemented in an isolated worktree with dedicated PostgreSQL/Vitest verification, independent review, PR creation, green PR CI, squash merge via `scripts/dev/erp-pr-finalize-from-root`, exact-SHA `main` CI validation, and automatic worktree cleanup.
+
+### 1. Lot R11 — Error 500 Resolution on Model & Totals Validation
+- **Problem**: Incomplete or invalid Hahitantsoa event draft totals (e.g. invalid date ranges or inconsistent terms) raised uncaught Django `ValidationError` inside `full_clean()` and `recalculate_hahitantsoa_event_draft_totals()`, leading to unhandled HTTP 500 errors.
+- **Resolution**: Intercepted Django `ValidationError` across commercial calculation and serializer methods and translated them into structured DRF `serializers.ValidationError` (HTTP 400 Bad Request with field-level details).
+- **PR & Merge Evidence**: PR [#910](https://github.com/raillersing/hahitantsoa-titan-erp/pull/910), merged `main` commit `2ed0d0bba3136b6ded53aa3d2f555f8b99537f72`, exact-SHA `main` CI run [42346891179](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42346891179) 🟢 SUCCESS.
+
+### 2. Lot R5 — Cross-Terminal Wizard Intermediate Step Persistence
+- **Problem**: Multi-step reservation wizard progress was lost when switching terminals or reloading before creating an official draft.
+- **Resolution**: Created `ReservationWizardSession` and `ReservationWizardFile` models in `apps.reservations` with optimistic locking (`expected_revision`), SHA-256 fingerprinting, actor key replay idempotency, and structured conflict handling (HTTP 409 Conflict with server-side payload) allowing seamless recovery across terminals.
+- **PR & Merge Evidence**: PR [#911](https://github.com/raillersing/hahitantsoa-titan-erp/pull/911), merged `main` commit `158bac745a60a14e4b4c2ba90809516323b93464`, exact-SHA `main` CI run [42349252586](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42349252586) 🟢 SUCCESS.
+
+### 3. Lot R9 — Inventory Temporal Stock Truth & Rupture/Low-Stock Alerts
+- **Problem**: `InventoryItemSerializer.get_stock_summary` returned static reserved stock (`0`), causing discrepancies between catalog availability indicators and actual movement records / booking reservations.
+- **Resolution**: Implemented dynamic temporal availability selectors (`stock_selectors.py`) computing real physical stock, confirmed reserved stock, and draft reservations over time. Added `InventoryStockAlert` model and `reconcile_inventory_stock_alerts` management command to maintain explicit rupture (`out_of_stock`) and low stock (`low_stock`) alerts with real-time notification feeds.
+- **PR & Merge Evidence**: PR [#912](https://github.com/raillersing/hahitantsoa-titan-erp/pull/912), merged `main` commit `dcf7403cf49b949ea1e3be434807057155422bc1`, exact-SHA `main` CI run [42349994524](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42349994524) 🟢 SUCCESS.
+
+### 4. Lot R8 — Frontend Live Data Refresh & Multi-Terminal Synchronization
+- **Problem**: State changes made by a colleague on another terminal were not propagated until full manual page reload.
+- **Resolution**: Created `useLiveRefresh` hook and `liveDataEvents` dispatcher with automatic window focus, online recovery, and configurable polling. Wired into Planning, Reservations, Inventory, Notifications, Titan, and Hahitantsoa pages while preserving the commercial UI contract without jarring layout resets.
+- **PR & Merge Evidence**: PR [#913](https://github.com/raillersing/hahitantsoa-titan-erp/pull/913), merged `main` commit `aa8e69697dfcfc2d9c193123ed50b0fecd2cb6b0`, exact-SHA `main` CI run [42350697616](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42350697616) 🟢 SUCCESS.
+
+### Summary Table of Remaining Software Deliverables
+
+| Lot | PR | Reviewed Head | Merged Main SHA | Exact-SHA Main CI | Status |
+|---|---|---|---|---|---|
+| R11 (500 Error Fix) | #910 | `abcb45b3d7f985b9b940026e6efbb669ea2aaee1` | `2ed0d0bba3136b6ded53aa3d2f555f8b99537f72` | [42346891179](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42346891179) | 🟢 Merged & Verified |
+| R5 (Wizard Persistence) | #911 | `d3b0ebf652fa08c1c6ef62f014ee6acfa714b5e0` | `158bac745a60a14e4b4c2ba90809516323b93464` | [42349252586](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42349252586) | 🟢 Merged & Verified |
+| R9 (Stock Truth & Alerts) | #912 | `e5ed4ae64bb2b9d8a1889ae872255b5faa96b7a1` | `dcf7403cf49b949ea1e3be434807057155422bc1` | [42349994524](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42349994524) | 🟢 Merged & Verified |
+| R8 (Live Refresh UI) | #913 | `73fc27d764d36b959c98258f7ceeaa31a85e4580` | `aa8e69697dfcfc2d9c193123ed50b0fecd2cb6b0` | [42350697616](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/42350697616) | 🟢 Merged & Verified |
+
+### Remaining Operational Gate
+With all software code requirements (R1 through R11) delivered, the remaining scope is solely physical hardware acceptance:
+- **Lot 8**: Physical print qualification on Xprinter 80mm thermal hardware (80×104mm format) and multi-terminal LAN tests on the customer's Raspberry Pi 5 server. The operational procedures and validation checklist are documented in [`docs/runbooks/lot-8-hardware-acceptance-runbook.md`](../runbooks/lot-8-hardware-acceptance-runbook.md).
