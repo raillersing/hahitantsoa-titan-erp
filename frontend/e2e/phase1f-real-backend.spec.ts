@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Request } from '@playwright/test';
+import { expect, test, type Page, type Request, type BrowserContext } from '@playwright/test';
 
 // This is the repository's non-secret, test-only backend fixture.  Do not replace
 // it with values read from .env or with a mock response: this suite is the
@@ -220,3 +220,78 @@ for (const scenario of [
     await expect.poll(() => evidence.failedApi.length).toBe(scenario.failures);
   });
 }
+
+test('R5 réel : reprise privée sur un autre appareil, fichiers et conflit de deux rédacteurs', async ({ browser, baseURL }) => {
+  const contexts: BrowserContext[] = [];
+  const marker = `R5 reprise ${Date.now()} ${test.info().project.name}`;
+  const pdf = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF\n');
+  const openOperator = async () => {
+    const context = await browser.newContext({ baseURL });
+    contexts.push(context);
+    const page = await context.newPage();
+    const evidence = collectRuntimeEvidence(page);
+    // seed_dev_admin is the existing DEBUG-only fixture authorized for assistant writes.
+    await page.goto('/#reservation-new');
+    await expect(page.getByRole('heading', { name: 'Connexion opérateur' })).toBeVisible();
+    await page.getByRole('textbox', { name: 'Nom d’utilisateur' }).fill('admin');
+    await page.getByLabel('Mot de passe').fill('admin');
+    await page.getByRole('button', { name: 'Se connecter' }).click();
+    await expect(page.getByRole('heading', { name: 'Parcours de réservation en cours', exact: true }).or(page.getByRole('heading', { name: 'Assistant de Création', exact: true }))).toBeVisible();
+    return { context, page, evidence };
+  };
+  const snapshotWrite = (page: Page, name: string, needsFile = false) => page.waitForResponse(response => {
+    if (response.request().method() !== 'PUT' || !/\/wizard-sessions\/[^/]+\/$/.test(new URL(response.url()).pathname)) return false;
+    const state = response.request().postDataJSON()?.state;
+    return state?.newClient?.name === name && (!needsFile || state?.dedicatedAttachments?.CIN?.length === 1);
+  });
+  try {
+    const first = await openOperator();
+    const fresh = first.page.getByRole('button', { name: 'Nouvelle réservation', exact: true });
+    if (await fresh.isVisible()) await fresh.click();
+    await first.page.getByText('Commencer par le client', { exact: true }).click();
+    await first.page.getByRole('button', { name: 'Nouveau client', exact: true }).click();
+    await first.page.getByPlaceholder('Ex: Jean Dupont').fill(marker);
+    const savedWithFile = snapshotWrite(first.page, marker, true);
+    await first.page.getByLabel('Ajouter une pièce jointe pour CIN', { exact: true }).setInputFiles({ name: 'r5-identite.pdf', mimeType: 'application/pdf', buffer: pdf });
+    const firstResponse = await savedWithFile;
+    expect(firstResponse.status()).toBe(200);
+    const saved = await firstResponse.json();
+    expect(saved.state.step).toBe(1);
+    expect(saved.files).toHaveLength(1);
+    expect(saved.reservation_draft_id).toBeNull();
+    expect(saved.hahitantsoa_event_draft_id).toBeNull();
+    await first.context.close();
+
+    const second = await openOperator();
+    expect(await second.page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('prototypeReservationDraft')))).toEqual([]);
+    const downloaded = second.page.waitForResponse(response => new URL(response.url()).pathname === `/api/v1/reservations/wizard-sessions/${saved.id}/files/${saved.files[0].id}/download/`);
+    await second.page.getByTestId(`wizard-session-${saved.id}`).getByRole('button', { name: 'Reprendre cette version serveur' }).click();
+    expect((await downloaded).status()).toBe(200);
+    expect(await (await downloaded).body()).toEqual(pdf);
+    await expect(second.page.getByPlaceholder('Ex: Jean Dupont')).toHaveValue(marker);
+    await expect(second.page.getByLabel('Aperçu de r5-identite.pdf')).toBeVisible();
+    await expect(second.page.getByText('Sauvegardé sur le serveur privé.', { exact: false })).toBeVisible();
+
+    const third = await openOperator();
+    await third.page.getByTestId(`wizard-session-${saved.id}`).getByRole('button', { name: 'Reprendre cette version serveur' }).click();
+    await expect(third.page.getByText('Sauvegardé sur le serveur privé.', { exact: false })).toBeVisible();
+    const remoteName = `${marker} serveur`;
+    const remoteWrite = snapshotWrite(third.page, remoteName, true);
+    await third.page.getByPlaceholder('Ex: Jean Dupont').fill(remoteName);
+    expect((await remoteWrite).status()).toBe(200);
+
+    const localName = `${marker} local conservé`;
+    const conflict = snapshotWrite(second.page, localName, true);
+    await second.page.getByPlaceholder('Ex: Jean Dupont').fill(localName);
+    expect((await conflict).status()).toBe(409);
+    await expect(second.page.getByText(/^Conflit : une autre version est enregistrée/)).toBeVisible();
+    await expect(second.page.getByPlaceholder('Ex: Jean Dupont')).toHaveValue(localName);
+    const persisted = await third.page.request.get(`/api/v1/reservations/wizard-sessions/${saved.id}/`);
+    expect(persisted.status()).toBe(200);
+    expect((await persisted.json()).state.newClient.name).toBe(remoteName);
+    expect(second.evidence.pageErrors).toEqual([]);
+    expect(third.evidence.pageErrors).toEqual([]);
+  } finally {
+    await Promise.all(contexts.map(context => context.close()));
+  }
+});
