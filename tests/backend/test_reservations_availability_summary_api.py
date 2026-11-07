@@ -244,6 +244,7 @@ def test_reservations_app_contains_draft_models() -> None:
         ReservationDraftAmendment,
         ReservationDraftLine,
         ReservationWizardFile,
+        ReservationWizardProformaOperation,
         ReservationWizardSession,
     )
 
@@ -256,4 +257,5 @@ def test_reservations_app_contains_draft_models() -> None:
         ReservationCloseout,
         ReservationWizardSession,
         ReservationWizardFile,
+        ReservationWizardProformaOperation,
     }
