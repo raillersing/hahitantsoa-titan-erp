@@ -118,6 +118,7 @@ class InventoryItem(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel
     breakage_price = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     reported_inventory_quantity = models.PositiveIntegerField(default=0)
     reported_damaged_quantity = models.PositiveIntegerField(default=0)
+    low_stock_threshold = models.PositiveIntegerField(default=0)
     image_url = models.CharField(max_length=500, blank=True, default="")
     is_active = models.BooleanField(default=True)
 
@@ -1050,3 +1051,27 @@ class InventoryDamageLossExcessReceivable(UUIDModel, TimestampedModel, Auditable
 
     def __str__(self) -> str:
         return f"Excess receivable {self.amount} ({self.status})"
+
+
+class InventoryStockAlert(UUIDModel, TimestampedModel):
+    """An attributed alert episode; resolved episodes remain in history."""
+
+    inventory_item = models.ForeignKey(
+        InventoryItem, on_delete=models.PROTECT, related_name="stock_alerts"
+    )
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="inventory_stock_alerts"
+    )
+    notification = models.OneToOneField(
+        "notifications.SystemNotification", on_delete=models.CASCADE, related_name="stock_alert"
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("inventory_item", "recipient"),
+                condition=models.Q(resolved_at__isnull=True),
+                name="inventory_stock_alert_active_unique",
+            ),
+        ]

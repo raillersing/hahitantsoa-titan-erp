@@ -1,6 +1,5 @@
 import logging
 
-from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
@@ -9,7 +8,8 @@ from rest_framework.views import APIView
 
 from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.identity.permissions import HasReservationSensitiveAccess
-from apps.notifications.models import BugReport, PaymentReminderDispatch, SystemNotification
+from apps.notifications.models import BugReport, PaymentReminderDispatch
+from apps.notifications.selectors import visible_notifications
 from apps.notifications.serializers import (
     BugReportSerializer,
     BugReportStatusSerializer,
@@ -33,9 +33,7 @@ class SystemNotificationListAPIView(generics.ListAPIView):
     serializer_class = SystemNotificationSerializer
 
     def get_queryset(self):
-        qs = SystemNotification.objects.filter(
-            Q(recipient__isnull=True) | Q(recipient=self.request.user)
-        )
+        qs = visible_notifications(actor=self.request.user)
         unread_only = self.request.query_params.get("unread_only")
         if unread_only == "true":
             qs = qs.filter(is_read=False)
@@ -88,9 +86,7 @@ class SystemNotificationMarkReadAPIView(APIView):
         from django.shortcuts import get_object_or_404
 
         notification = get_object_or_404(
-            SystemNotification.objects.filter(
-                Q(recipient__isnull=True) | Q(recipient=request.user)
-            ),
+            visible_notifications(actor=request.user),
             pk=id,
         )
         serializer = SystemNotificationMarkReadSerializer(data=request.data)
@@ -105,10 +101,7 @@ class SystemNotificationMarkAllReadAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        count = SystemNotification.objects.filter(
-            Q(recipient__isnull=True) | Q(recipient=request.user),
-            is_read=False,
-        ).update(is_read=True)
+        count = visible_notifications(actor=request.user).filter(is_read=False).update(is_read=True)
         return Response({"marked_read": count}, status=status.HTTP_200_OK)
 
 
