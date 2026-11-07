@@ -113,7 +113,9 @@
 
         <h2>Article 3 : Durée</h2>
         <p>La présente location est consentie et acceptée du {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.startDate {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"dd/mm/aaaa" }}{% endif %} à {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.startTime {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"H:i"|default:"……………" }}{% endif %} heures au {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.endDate {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.end_at|date:"d/m/Y"|default:"dd/mm/aaaa" }}{% endif %} à {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.endTime {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.end_at|date:"H:i"|default:"……………" }}{% endif %} heures.</p>
-        {% if context.event_draft.access_schedule == "day_before" %}
+        {% if context.event_draft.article_3_access_text %}
+            <p>{{ context.event_draft.article_3_access_text }}.</p>
+        {% elif context.event_draft.access_schedule == "day_before" %}
             <p>Les intervenants du client accèderont aux locaux la veille à 15 heures 30 si aucune réception n’a lieu sur les lieux, à 23 heures 30 dans le cas contraire.</p>
         {% elif context.event_draft.access_schedule == "same_day" or context.event_draft.access_schedule == "day_of" %}
             <p>Les intervenants du client accèderont aux locaux le jour-J à 07 heures.</p>
@@ -142,18 +144,18 @@
                 <li>Utilisation de nuit Option 2 : Arrêt de fête 00:00 / Sortie J+1 à 03:30</li>
             </ul>
         {% endif %}
-        <p>Une facture sera établie après la réception de la totalité du règlement. Un reçu sera établi lors de la réception des fonds pour acompte.</p>
+        <p>Une facture sera établie après la réception de la totalité du règlement. Un reçu sera établi lors de la réception des fonds pour versement contractuel.</p>
         <p>Dans le cas où le client n’aurait pas quitté les Lieux Loués aux date et heure indiquées à l’article 3, le Client devra payer la somme supplémentaire de 50 000,00 Ariary TTC par tranche de 30 minutes mais selon les besoins du prestataire, il se réserve le droit de sortir tous les intervenants et leurs matériels en dehors de l’enceinte et décline toute responsabilité en cas de perte ou de détérioration.</p>
 
         <h2>Article 5 : Modalités de paiement</h2>
         {% if context.event_draft.rental_type == "logistics" or context.event_draft.rental_type == "Location + logistique" or context.event_draft.rental_type == "Location nue + logistique" %}
-            <p>La présente location est consentie et acceptée moyennant le versement d’un acompte de <strong>1 500 000,00 Ariary</strong> (Un million cinq cent mille Ariary).</p>
+            <p>La présente location est consentie et acceptée moyennant le versement de <strong>1 500 000,00 Ariary</strong> (Un million cinq cent mille Ariary).</p>
         {% elif context.event_draft.rental_type == "bare" or context.event_draft.rental_type == "Location nue" %}
-            <p>La présente location est consentie et acceptée moyennant le versement d’un acompte de <strong>1 000 000,00 Ariary</strong> (Un million d’Ariary).</p>
+            <p>La présente location est consentie et acceptée moyennant le versement de <strong>1 000 000,00 Ariary</strong> (Un million d’Ariary).</p>
         {% elif context.event_draft.required_deposit_amount and context.event_draft.required_deposit_amount != "0,00" and context.event_draft.required_deposit_amount != 0 %}
-            <p>La présente location est consentie et acceptée moyennant le versement d’un acompte de <strong>{{ context.event_draft.required_deposit_amount }} Ariary</strong>.</p>
+            <p>La présente location est consentie et acceptée moyennant le versement de <strong>{{ context.event_draft.required_deposit_amount }} Ariary</strong>.</p>
         {% else %}
-            <p>La présente location est consentie et acceptée moyennant le versement d’un acompte de :</p>
+            <p>La présente location est consentie et acceptée moyennant le versement de :</p>
             <ul class="dash-list">
                 <li>1 000 000,00 Ariary dans le cas d’une location nue ;</li>
                 <li>1 500 000,00 Ariary dans le cas d’une location nue avec logistique.</li>

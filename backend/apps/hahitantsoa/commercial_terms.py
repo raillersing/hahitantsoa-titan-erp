@@ -71,19 +71,63 @@ def get_hahitantsoa_event_draft_access_schedule(*, event_draft: HahitantsoaEvent
         datetime.combine(previous_day, time.min), current_timezone
     )
     event_day_start = timezone.make_aware(datetime.combine(event_day, time.min), current_timezone)
-    prior_night_2_exists = (
+    prior_night_exists = (
         HahitantsoaEventDraft.objects.filter(
             status="confirmed",
             is_deleted=False,
             venue_key=event_draft.venue_key,
-            duration_option=HahitantsoaDurationOption.NIGHT_2,
+            duration_option__in=[
+                HahitantsoaDurationOption.NIGHT_1,
+                HahitantsoaDurationOption.NIGHT_2,
+            ],
             start_at__gte=previous_day_start,
             start_at__lt=event_day_start,
         )
         .exclude(pk=event_draft.pk)
         .exists()
     )
-    return "same_day" if prior_night_2_exists else "day_before"
+    return "same_day" if prior_night_exists else "day_before"
+
+
+def get_hahitantsoa_contract_article_3_access_text(*, event_draft: HahitantsoaEventDraft) -> str:
+    """Return the exact Article 3 access text based on confirmed event on the eve (D-1)."""
+    event_day = timezone.localtime(event_draft.start_at).date()
+    previous_day = event_day - timedelta(days=1)
+    current_timezone = timezone.get_current_timezone()
+    previous_day_start = timezone.make_aware(
+        datetime.combine(previous_day, time.min), current_timezone
+    )
+    event_day_start = timezone.make_aware(datetime.combine(event_day, time.min), current_timezone)
+
+    prior_event = (
+        HahitantsoaEventDraft.objects.filter(
+            status="confirmed",
+            is_deleted=False,
+            venue_key=event_draft.venue_key,
+            start_at__gte=previous_day_start,
+            start_at__lt=event_day_start,
+        )
+        .exclude(pk=event_draft.pk)
+        .order_by("-start_at")
+        .first()
+    )
+
+    if prior_event is None:
+        # Case 1: no event on D-1
+        return "Les intervenants du client peuvent accéder aux locaux à 15 heures 30"
+
+    if prior_event.duration_option == HahitantsoaDurationOption.DAY:
+        # Case 2: event on D-1 fête de jour (sortie 20:00)
+        return "Les intervenants du client peuvent accéder aux locaux à 23 heures 30"
+
+    if prior_event.duration_option in (
+        HahitantsoaDurationOption.NIGHT_1,
+        HahitantsoaDurationOption.NIGHT_2,
+    ):
+        # Cases 3 & 4: Utilisation de nuit Option 1 ou Option 2
+        return "Les intervenants du client peuvent accéder aux locaux à le jour-J à 07 heures"
+
+    return "Les intervenants du client peuvent accéder aux locaux à 23 heures 30"
 
 
 def default_deposit_amount(*, terms: HahitantsoaCommercialTerms, rental_type: str) -> Decimal:

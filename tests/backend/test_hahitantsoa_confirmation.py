@@ -112,6 +112,7 @@ def _create_confirmation_truth(
     if not with_deposit:
         return
 
+    _mark_contract_signed_for_test(event_draft=event_draft, actor=actor)
     payment = create_payment(
         actor=actor,
         hahitantsoa_event_draft=event_draft,

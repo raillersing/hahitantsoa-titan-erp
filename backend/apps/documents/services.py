@@ -469,6 +469,11 @@ def commercial_document_context_to_document_instance_kwargs(
         "proforma_validity_days": (
             proforma_validity_days if context.template.document_type == "proforma" else None
         ),
+        "valid_until": (
+            timezone.now() + timedelta(days=15)
+            if context.template.document_type == "contract"
+            else None
+        ),
         "document_date": document_date,
         "notes": notes,
     }
@@ -549,6 +554,13 @@ def hahitantsoa_event_draft_document_instance_kwargs(
             "The selected bank does not belong to the document business scope.",
             code="bank_scope_mismatch",
         )
+
+    contract_valid_until = None
+    if template_definition.document_type == "contract":
+        from apps.hahitantsoa.commercial_terms import get_hahitantsoa_commercial_terms
+
+        terms = get_hahitantsoa_commercial_terms()
+        contract_valid_until = timezone.now() + timedelta(days=terms.contract_validity_days)
 
     return {
         "hahitantsoa_event_draft": event_draft,
@@ -634,6 +646,7 @@ def hahitantsoa_event_draft_document_instance_kwargs(
         "proforma_validity_days": (
             proforma_validity_days if template_definition.document_type == "proforma" else None
         ),
+        "valid_until": contract_valid_until,
         "document_date": document_date,
         "notes": notes,
     }
@@ -1241,6 +1254,16 @@ def generate_document_instance_pdf(
         locked_instance.valid_until = issued_at + timedelta(days=validity_days)
         locked_instance.status = DocumentInstanceStatus.ISSUED
         update_fields.extend(["proforma_validity_days", "issued_at", "valid_until", "status"])
+    elif locked_instance.document_type == "contract":
+        validity_days = 15
+        if locked_instance.hahitantsoa_event_draft_id is not None:
+            from apps.hahitantsoa.commercial_terms import get_hahitantsoa_commercial_terms
+
+            validity_days = get_hahitantsoa_commercial_terms().contract_validity_days
+        locked_instance.issued_at = issued_at
+        locked_instance.valid_until = issued_at + timedelta(days=validity_days)
+        locked_instance.status = DocumentInstanceStatus.ISSUED
+        update_fields.extend(["issued_at", "valid_until", "status"])
     locked_instance.save(update_fields=update_fields)
 
     record_audit_event_on_commit(
