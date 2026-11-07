@@ -340,3 +340,97 @@ class ReservationDraftAmendment(UUIDModel, TimestampedModel, AuditableModel):
         super().clean()
         if not self.reason.strip():
             raise ValidationError({"reason": "An amendment requires a reason."})
+
+
+class ReservationWizardSession(UUIDModel, TimestampedModel):
+    """Private recovery state; never a reservation or stock allocation."""
+
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    client_key = models.UUIDField()
+    schema_version = models.PositiveSmallIntegerField(default=1)
+    version = models.PositiveIntegerField(default=1)
+    domain = models.CharField(max_length=16, blank=True, default="")
+    step = models.PositiveSmallIntegerField(default=0)
+    state = models.JSONField(default=dict)
+    status = models.CharField(max_length=16, default="active")
+    customer = models.ForeignKey(
+        Customer, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    reservation_draft = models.ForeignKey(
+        ReservationDraft, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    hahitantsoa_event_draft = models.ForeignKey(
+        "hahitantsoa.HahitantsoaEventDraft",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    creation_fingerprint = models.CharField(max_length=64, editable=False)
+    last_write_fingerprint = models.CharField(max_length=64, blank=True, default="", editable=False)
+
+    class Meta:
+        ordering = ["-updated_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "client_key"], name="wizard_owner_client_key_unique"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(version__gte=1), name="wizard_version_positive"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(schema_version=1), name="wizard_schema_supported"
+            ),
+            models.CheckConstraint(condition=models.Q(step__lte=9), name="wizard_step_allowed"),
+            models.CheckConstraint(
+                condition=models.Q(status__in=["active", "completed"]), name="wizard_status_allowed"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(domain__in=["", "titan", "hahitantsoa"]),
+                name="wizard_domain_allowed",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(reservation_draft__isnull=True)
+                    | models.Q(domain="titan", hahitantsoa_event_draft__isnull=True)
+                ),
+                name="wizard_titan_link_scope",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(hahitantsoa_event_draft__isnull=True)
+                    | models.Q(domain="hahitantsoa", reservation_draft__isnull=True)
+                ),
+                name="wizard_hahitantsoa_link_scope",
+            ),
+        ]
+
+
+def reservation_wizard_file_path(instance, filename):
+    from pathlib import Path
+
+    suffix = Path(filename).suffix.lower()
+    return f"private_attachments/wizard_sessions/{instance.session_id}/{uuid.uuid4().hex}{suffix}"
+
+
+class ReservationWizardFile(UUIDModel, TimestampedModel):
+    session = models.ForeignKey(
+        ReservationWizardSession, on_delete=models.PROTECT, related_name="files"
+    )
+    client_file_key = models.UUIDField()
+    category = models.CharField(max_length=80)
+    label = models.CharField(max_length=255, blank=True, default="")
+    original_name = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=100)
+    size_bytes = models.PositiveIntegerField()
+    sha256 = models.CharField(max_length=64)
+    file = models.FileField(upload_to=reservation_wizard_file_path, max_length=512)
+    is_deleted = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["session", "client_file_key"], name="wizard_file_operation_unique"
+            ),
+        ]

@@ -19,6 +19,15 @@ from apps.reservations.views import (
     ReservationItemAvailabilityPreviewAPIView,
 )
 
+# Recovery sessions stay private and do not use commercial dossier identifiers.
+from apps.reservations.wizard_views import (
+    ReservationWizardFileCreateAPIView,
+    ReservationWizardFileDetailAPIView,
+    ReservationWizardFileDownloadAPIView,
+    ReservationWizardSessionDetailAPIView,
+    ReservationWizardSessionListCreateAPIView,
+)
+
 urlpatterns = [
     path(
         "api/v1/reservations/drafts/<uuid:pk>/update-reference/",
@@ -99,5 +108,33 @@ urlpatterns = [
         "api/v1/reservations/drafts/<uuid:pk>/closeout/execute/",
         ReservationDraftCloseoutExecuteAPIView.as_view(),
         name="reservation-draft-closeout-execute",
+    ),
+]
+
+urlpatterns += [
+    path(
+        "api/v1/reservations/wizard-sessions/",
+        ReservationWizardSessionListCreateAPIView.as_view(),
+        name="reservation-wizard-session-list",
+    ),
+    path(
+        "api/v1/reservations/wizard-sessions/<uuid:session_id>/",
+        ReservationWizardSessionDetailAPIView.as_view(),
+        name="reservation-wizard-session-detail",
+    ),
+    path(
+        "api/v1/reservations/wizard-sessions/<uuid:session_id>/files/",
+        ReservationWizardFileCreateAPIView.as_view(),
+        name="reservation-wizard-file-create",
+    ),
+    path(
+        "api/v1/reservations/wizard-sessions/<uuid:session_id>/files/<uuid:file_id>/",
+        ReservationWizardFileDetailAPIView.as_view(),
+        name="reservation-wizard-file-detail",
+    ),
+    path(
+        "api/v1/reservations/wizard-sessions/<uuid:session_id>/files/<uuid:file_id>/download/",
+        ReservationWizardFileDownloadAPIView.as_view(),
+        name="reservation-wizard-file-download",
     ),
 ]
