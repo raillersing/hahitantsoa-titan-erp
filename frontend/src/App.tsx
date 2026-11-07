@@ -215,12 +215,14 @@ function App() {
       case "reservation-detail":
         return activeParam?.startsWith("hahitantsoa:") ? (
           <HahitantsoaEventDraftDetailPage
+            key={activeParam}
             onNavigate={navigate}
             param={activeParam.slice("hahitantsoa:".length)}
             onBack={navigateBack}
           />
         ) : (
           <ReservationDetailPage
+            key={activeParam}
             onNavigate={navigate}
             param={activeParam?.startsWith("titan:") ? activeParam.slice("titan:".length) : activeParam}
             onBack={navigateBack}
@@ -296,6 +298,7 @@ function App() {
 
   return (
     <AppShell
+      key={state.user.id}
       activeScope={activeScope}
       activeParam={activeParam}
       onNavigate={navigate}

@@ -594,13 +594,25 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   useLiveRefresh(async (signal) => {
     if (!param) return;
     const current = await getHahitantsoaEventDraft(param, signal);
-    const [nextDocuments, nextPayments, nextPreflight, nextLifecycle] = await Promise.all([
+    const [nextDocuments, nextPayments, nextPreflight, nextLifecycle, summary, returns, settlements, executions] = await Promise.all([
       optionalLiveRead(getHahitantsoaEventDraftDocumentInstances(param, signal)),
       optionalLiveRead(getHahitantsoaEventDraftPayments(param, signal)),
       optionalLiveRead(getHahitantsoaEventDraftConfirmationPreflight(param, signal)),
       optionalLiveRead(getHahitantsoaEventDraftLifecycle(param, signal)),
+      current.status === "confirmed" ? optionalLiveRead(getHahitantsoaEventDraftCloseoutSummary(param, signal)) : Promise.resolve(null),
+      optionalLiveRead(getReturnOperations(signal)),
+      optionalLiveRead(getDamageLossSettlements(signal)),
+      optionalLiveRead(getDamageLossSettlementExecutions(undefined, signal)),
     ]);
     if (signal.aborted) return;
+    const draftReturns = (returns ?? []).filter((item) => item.hahitantsoa_event_draft === param);
+    const returnIds = new Set(draftReturns.map((item) => item.id));
+    const draftSettlements = (settlements ?? []).filter((item) => returnIds.has(item.return_operation));
+    const settlementIds = new Set(draftSettlements.map((item) => item.id));
+    setReturnOperations(draftReturns);
+    setDamageSettlements(draftSettlements);
+    setDamageSettlementExecutions((executions ?? []).filter((item) => settlementIds.has(item.settlement)));
+    setCloseoutSummary(summary);
     setDraft(current);
     setDocuments(nextDocuments ?? []);
     setPayments(nextPayments ?? []);

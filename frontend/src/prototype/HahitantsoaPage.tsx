@@ -1,4 +1,5 @@
 import { useLiveRefresh } from "../useLiveRefresh";
+import { DATA_CHANGED_EVENT } from "../liveDataEvents";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import BrandIdentity from "./BrandIdentity";
 import { LoadingSpinner, EmptyState } from "../components";
@@ -123,13 +124,13 @@ export default function HahitantsoaPage({
       setDrafts(draftsData);
       setDiscoveryItems(discoveryData.items);
     } catch (err: any) {
-      if (!signal?.aborted && !background) setError(
+      if ((!signal?.aborted || signal.reason?.name === "TimeoutError") && !background) setError(
         err.message ||
           "Erreur lors du chargement des réservations Hahitantsoa."
       );
       if (signal) throw err;
     } finally {
-      if (!signal?.aborted) setLoading(false);
+      if (!signal?.aborted || signal.reason?.name === "TimeoutError") setLoading(false);
     }
   }, []);
 
@@ -296,6 +297,7 @@ export default function HahitantsoaPage({
         <div className="bg-white rounded-2xl border border-rose-200 p-6 text-center">
           <i className="fa-solid fa-circle-exclamation text-2xl text-rose-500 mb-3"></i>
           <p className="text-sm text-rose-600 font-medium">{error}</p>
+          <button type="button" className="btn-secondary mt-3" onClick={() => window.dispatchEvent(new Event(DATA_CHANGED_EVENT))}>Réessayer</button>
         </div>
       )}
 

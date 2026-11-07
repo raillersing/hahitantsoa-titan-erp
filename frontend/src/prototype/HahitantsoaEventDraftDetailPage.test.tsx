@@ -292,6 +292,23 @@ describe("HahitantsoaEventDraftDetailPage", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
+  it("refreshes operational reads on focus without resetting the dossier", async () => {
+    currentDraft = { ...DRAFT, status: "confirmed" };
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+    expect(await screen.findByText(DRAFT.public_reference)).toBeInTheDocument();
+    await waitFor(() => expect(mockGetReturnOperations).toHaveBeenCalledTimes(2));
+    mockGetReturnOperations.mockClear();
+    mockGetDamageLossSettlements.mockClear();
+    mockGetDamageLossSettlementExecutions.mockClear();
+    mockGetCloseoutSummary.mockClear();
+    fireEvent(window, new Event("focus"));
+    await waitFor(() => expect(mockGetCloseoutSummary).toHaveBeenCalled());
+    expect(mockGetReturnOperations).toHaveBeenCalled();
+    expect(mockGetDamageLossSettlements).toHaveBeenCalled();
+    expect(mockGetDamageLossSettlementExecutions).toHaveBeenCalled();
+    expect(screen.getByText(DRAFT.public_reference)).toBeInTheDocument();
+  });
+
   it("renders customer card, venue info, and itemized lines table", async () => {
     const onNavigate = vi.fn();
     render(<HahitantsoaEventDraftDetailPage onNavigate={onNavigate} param={DRAFT.id} />);

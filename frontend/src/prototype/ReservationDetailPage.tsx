@@ -389,12 +389,20 @@ export default function ReservationDetailPage({
   useLiveRefresh(async (signal) => {
     if (!draftId) return;
     const current = await getReservationDraft(draftId, signal);
-    const [instances, records, lifecycle] = await Promise.all([
+    const [instances, records, lifecycle, summary, returns, settlements, executions] = await Promise.all([
       optionalLiveRead(getReservationDraftDocumentInstances(draftId, signal)),
       optionalLiveRead(getPayments(draftId, signal)),
       optionalLiveRead(getReservationDraftLifecycle(draftId, signal)),
+      optionalLiveRead(getReservationDraftCloseoutSummary(draftId, signal)),
+      optionalLiveRead(getReturnOperations(signal)),
+      optionalLiveRead(getDamageLossSettlements(signal)),
+      optionalLiveRead(getDamageLossSettlementExecutions(undefined, signal)),
     ]);
     if (signal.aborted) return;
+    setCloseoutSummary(summary);
+    setReturnOperations(returns ?? []);
+    setDamageSettlements(settlements ?? []);
+    setDamageSettlementExecutions(executions ?? []);
     setDraft(current);
     setDocumentInstances(instances ?? []);
     setPayments((records ?? []).filter((payment) => payment.payment_status === "confirmed" || payment.payment_status === "reconciled").map((payment) => ({
