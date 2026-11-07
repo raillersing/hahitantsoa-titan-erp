@@ -2,17 +2,21 @@
 
 ## Current State
 
-- `main` application/test baseline before this documentation checkpoint is `e87bf84559c727028704712072c678249b88910f`.
-- `main` CI is green as verified on 2026-11-07 (run 42307437015).
+- `main` application/test baseline is `aa8e69697dfcfc2d9c193123ed50b0fecd2cb6b0`.
+- `main` CI is green as verified on 2026-11-07 (run 42350697616).
 - **Transformation complete**: All 12 prototype-to-production transformation phases are fully implemented, tested, and commercially accepted (`docs/audits/PHASE_12_COMMERCIAL_ACCEPTANCE_AUDIT.md`, PR #830).
-- **Client Corrections Plan (2026-11-05) partially delivered**: These 5 bounded correction lots are merged and verified on `main`, but do not cover every approved R1–R11 requirement:
+- **Client Corrections Plan (2026-11-05) fully delivered**: All 11 requirements (R1 through R11) are fully merged and verified on `main`:
   - PR #897: Lot 2A (R5) — Idempotence création client
   - PR #898: Lot 3A (R8) — Modification partagée collègues
   - PR #899: Lot 4A (R3, R10) — Intégrité DB ensembles & packs
   - PR #900: Lot 6A (R4, R7) — Reçus thermiques 80×104 mm & snapshot facture
   - PR #901: Lots 1, 2B, 6B, 7B (R1, R2, R4, R5, R6, R10) — UI client & aperçu
-- User-access corrections and the approved customer-replay correction are merged with green exact-SHA main CI; see the publication checkpoint below.
-- Current publication bundle: access/customer corrective delivery and runtime checkpoint. Open original-plan code slices: R5 cross-terminal stage persistence, R8 change propagation, R9 inventory counters/search/labels/notifications; R11 original500 diagnosis. Lot8 physical/Raspberry acceptance follows applicable code delivery.
+  - PR #910: Lot R11 — Traitement structuré des erreurs de validation modèles & totaux devis (HTTP 400 au lieu de 500)
+  - PR #911: Lot R5 — Persistance serveur des sessions d'étapes intermédiaires du wizard & gestion de conflits optimistes (HTTP 409)
+  - PR #912: Lot R9 — Vérité temporelle des stocks & réconciliation des alertes rupture / stock faible
+  - PR #913: Lot R8 — Hook de rafraîchissement temps-réel (live refresh) & synchronisation multi-terminaux sur les vues opérationnelles
+- User-access corrections and customer-replay corrections are merged with green exact-SHA main CI (PRs #903–#907).
+- Current active task: **Lot 8 — Physical acceptance & hardware validation (Raspberry Pi & Xprinter)** runbook and on-prem execution. All software implementation requirements are completed.
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
 - No new backend feature bundles shall be started without explicit human authorization.
 - F145A through F145H are merged on `main`.
