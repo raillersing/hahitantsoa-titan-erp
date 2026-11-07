@@ -69,6 +69,19 @@ def _actor(*, django_user_model, username: str = "confirmation-staff", is_staff:
 
 
 def _confirmed_deposit_payment(*, reservation_draft: ReservationDraft, actor) -> None:
+    if reservation_draft.id:
+        reservation_draft.refresh_from_db()
+    if reservation_draft.contract_signed_at is None:
+        if not DocumentInstance.objects.filter(
+            reservation_draft=reservation_draft,
+            document_type__in=["material_contract", "contract"],
+        ).exists():
+            _generated_contract_document(reservation_draft=reservation_draft)
+        mark_reservation_draft_contract_signed(
+            reservation_draft=reservation_draft,
+            actor=actor,
+        )
+        reservation_draft.refresh_from_db()
     payment = create_payment(
         actor=actor,
         reservation_draft=reservation_draft,
@@ -328,15 +341,38 @@ def test_mark_required_deposit_received_success_by_staff(client, django_user_mod
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["status"] == ReservationDraftStatus.DRAFT
+    assert payload["status"] == ReservationDraftStatus.CONFIRMED
     assert payload["public_reference"] == draft.public_reference
 
     draft.refresh_from_db()
     assert draft.required_deposit_received_at is not None
     assert draft.required_deposit_received_by_id == staff.id
+    assert draft.status == ReservationDraftStatus.CONFIRMED
 
 
 def test_mark_required_deposit_received_rejects_missing_confirmed_payment_truth(
+    client,
+    django_user_model,
+) -> None:
+    staff = _actor(django_user_model=django_user_model, is_staff=True)
+    draft = _draft()
+    _line(reservation_draft=draft, inventory_item=_item())
+    _generated_contract_document(reservation_draft=draft)
+    mark_reservation_draft_contract_signed(reservation_draft=draft, actor=staff)
+
+    client.force_login(staff)
+    response = client.post(_required_deposit_url(draft=draft))
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["code"] == REQUIRED_DEPOSIT_PAYMENT_TRUTH_MISSING
+
+    draft.refresh_from_db()
+    assert draft.required_deposit_received_at is None
+    assert draft.required_deposit_received_by_id is None
+
+
+def test_mark_required_deposit_received_rejects_unsigned_contract(
     client,
     django_user_model,
 ) -> None:
@@ -349,7 +385,7 @@ def test_mark_required_deposit_received_rejects_missing_confirmed_payment_truth(
 
     assert response.status_code == 400
     payload = response.json()
-    assert payload["code"] == REQUIRED_DEPOSIT_PAYMENT_TRUTH_MISSING
+    assert payload["code"] == "contract_signature_required_before_payment"
 
     draft.refresh_from_db()
     assert draft.required_deposit_received_at is None

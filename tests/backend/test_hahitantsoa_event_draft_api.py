@@ -222,6 +222,15 @@ def _create_confirmation_truth(*, event_draft: HahitantsoaEventDraft, actor) -> 
     from apps.documents.runtime import generate_document_instance_html
 
     generate_document_instance_html(document_instance=instance, actor=actor)
+    now = timezone.now()
+    event_draft.contract_signed_at = now
+    event_draft.contract_signed_by = actor
+    event_draft.save(
+        update_fields=[
+            "contract_signed_at",
+            "contract_signed_by",
+        ]
+    )
     payment = create_payment(
         actor=actor,
         hahitantsoa_event_draft=event_draft,
@@ -232,15 +241,10 @@ def _create_confirmation_truth(*, event_draft: HahitantsoaEventDraft, actor) -> 
         notes="API confirmation deposit",
     )
     confirm_payment(payment=payment, actor=actor)
-    now = timezone.now()
-    event_draft.contract_signed_at = now
-    event_draft.contract_signed_by = actor
     event_draft.required_deposit_received_at = now
     event_draft.required_deposit_received_by = actor
     event_draft.save(
         update_fields=[
-            "contract_signed_at",
-            "contract_signed_by",
             "required_deposit_received_at",
             "required_deposit_received_by",
         ]
@@ -1034,6 +1038,10 @@ def test_event_draft_confirmation_preflight_blocks_when_signed_contract_marker_i
         quantity=1,
         created_by=user,
     )
+    draft.contract_signed_at = timezone.now()
+    draft.contract_signed_by = actor
+    draft.save(update_fields=["contract_signed_at", "contract_signed_by"])
+
     payment = create_payment(
         actor=actor,
         hahitantsoa_event_draft=draft,
@@ -1044,6 +1052,10 @@ def test_event_draft_confirmation_preflight_blocks_when_signed_contract_marker_i
     )
     confirm_payment(payment=payment, actor=actor)
     _mark_deposit_received_for_test(event_draft=draft, actor=actor)
+
+    draft.contract_signed_at = None
+    draft.contract_signed_by = None
+    draft.save(update_fields=["contract_signed_at", "contract_signed_by"])
 
     response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/")
 

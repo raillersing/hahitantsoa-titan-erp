@@ -116,6 +116,8 @@ def test_required_deposit_can_be_paid_in_multiple_confirmed_payments(django_user
         required_deposit_amount=Decimal("1500000"),
         start_at=start_at,
         end_at=start_at + timedelta(hours=6),
+        contract_signed_at=timezone.now(),
+        contract_signed_by=actor,
         created_by=actor,
     )
     from apps.payments.services import confirm_payment, create_payment

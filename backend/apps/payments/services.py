@@ -510,7 +510,7 @@ def create_payment(
         )
 
     payment_kind = validated_data.get("payment_kind")
-    if payment_kind in (PaymentKind.DEPOSIT, PaymentKind.BALANCE, PaymentKind.DATE_RESERVATION):
+    if payment_kind in (PaymentKind.DEPOSIT, PaymentKind.DATE_RESERVATION):
         from apps.hahitantsoa.models import HahitantsoaEventDraft
         from apps.reservations.models import ReservationDraft
 
