@@ -1,3 +1,4 @@
+import { useLiveRefresh } from "../useLiveRefresh";
 import React, { useState, useEffect } from "react";
 import { EmptyState, LoadingSpinner } from "../components";
 import { getInventoryItems } from "../api";
@@ -40,23 +41,19 @@ export default function InventoryPage({ onNavigate, canSensitiveWrite = false }:
   const [filter, setFilter] = useState<string>("Tous");
   const [viewMode, setViewMode] = useState<"grid-large" | "grid-medium" | "list" | "compact">("grid-large");
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    setError(null);
-    getInventoryItems(controller.signal)
-      .then((data) => {
-        setItems(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (err.name !== "AbortError") {
-          setError(err.message || "Erreur lors du chargement du catalogue.");
-          setLoading(false);
-        }
-      });
-    return () => controller.abort();
-  }, []);
+  useLiveRefresh(async (signal, background) => {
+    try {
+      const data = await getInventoryItems(signal);
+      if (signal.aborted) return;
+      setItems(data);
+      setError(null);
+    } catch (error) {
+      if ((!signal.aborted || signal.reason?.name === "TimeoutError") && !background) setError(error instanceof Error ? error.message : "Chargement impossible.");
+      throw error;
+    } finally {
+      if (!signal.aborted || signal.reason?.name === "TimeoutError") setLoading(false);
+    }
+  });
 
   const kindCounts = items.reduce<Record<string, number>>((acc, item) => {
     acc[item.kind] = (acc[item.kind] || 0) + 1;

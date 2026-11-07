@@ -1,3 +1,4 @@
+import { useLiveRefresh } from "../useLiveRefresh";
 import React, { useEffect, useMemo, useState } from "react";
 import { AppScope } from "../App";
 import { EmptyState, LoadingSpinner } from "../components";
@@ -74,22 +75,13 @@ export default function ReservationsPage({
     }
   };
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    setError(null);
-
-    Promise.all([
-      getReservationDrafts(undefined, controller.signal).catch((err) => {
-        if (err.name === "AbortError") throw err;
-        return [] as ReservationDraft[];
-      }),
-      getHahitantsoaEventDrafts(undefined, controller.signal).catch((err) => {
-        if (err.name === "AbortError") throw err;
-        return [] as HahitantsoaEventDraft[];
-      }),
-    ])
-      .then(([titanData, hahitantsoaData]) => {
+  useLiveRefresh(async (signal, background) => {
+    try {
+      const [titanData, hahitantsoaData] = await Promise.all([
+        getReservationDrafts(undefined, signal),
+        getHahitantsoaEventDrafts(undefined, signal),
+      ]);
+      if (signal.aborted) return;
         const unified: UnifiedReservationItem[] = [
           ...titanData.map((r): UnifiedReservationItem => ({
             id: r.id,
@@ -127,18 +119,15 @@ export default function ReservationsPage({
           return timeB - timeA;
         });
 
-        setItems(unified);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (err.name !== "AbortError") {
-          setError(err.message || "Erreur lors du chargement des réservations.");
-          setLoading(false);
-        }
-      });
-
-    return () => controller.abort();
-  }, []);
+      setItems(unified);
+      setError(null);
+    } catch (error) {
+      if ((!signal.aborted || signal.reason?.name === "TimeoutError") && !background) setError(error instanceof Error ? error.message : "Chargement impossible.");
+      throw error;
+    } finally {
+      if (!signal.aborted || signal.reason?.name === "TimeoutError") setLoading(false);
+    }
+  });
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

@@ -1,3 +1,4 @@
+import { useLiveRefresh } from "../useLiveRefresh";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import BrandIdentity from "./BrandIdentity";
 import { LoadingSpinner, EmptyState } from "../components";
@@ -110,23 +111,25 @@ export default function HahitantsoaPage({
   const [conflictModalTarget, setConflictModalTarget] = useState<ConflictResolutionTarget | null>(null);
   const [conflictModalTab, setConflictModalTab] = useState<"reschedule" | "waitlist" | "cancel">("reschedule");
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const loadData = useCallback(async (signal?: AbortSignal, background = false) => {
+    if (!background) setLoading(true);
     try {
       const [draftsData, discoveryData] = await Promise.all([
-        getHahitantsoaEventDrafts(),
-        getHahitantsoaDiscoveryItems(),
+        getHahitantsoaEventDrafts(undefined, signal),
+        getHahitantsoaDiscoveryItems(signal),
       ]);
+      if (signal?.aborted) return;
+      setError(null);
       setDrafts(draftsData);
       setDiscoveryItems(discoveryData.items);
     } catch (err: any) {
-      setError(
+      if (!signal?.aborted && !background) setError(
         err.message ||
           "Erreur lors du chargement des réservations Hahitantsoa."
       );
+      if (signal) throw err;
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
@@ -141,9 +144,7 @@ export default function HahitantsoaPage({
     }
   };
 
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
+  useLiveRefresh(loadData);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

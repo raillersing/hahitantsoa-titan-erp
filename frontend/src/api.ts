@@ -1,3 +1,4 @@
+import { DATA_CHANGED_EVENT } from "./liveDataEvents";
 import type {
   ApplicationRole,
   BillingInvoice,
@@ -191,6 +192,7 @@ async function getAuthenticatedJson<T>(
 ): Promise<T> {
   const response = await fetch(url, {
     credentials: "include",
+    cache: "no-store",
     signal,
   });
 
@@ -225,12 +227,16 @@ async function unsafeAuthenticatedRequest(
   const headers = new Headers(init.headers);
   headers.set("X-CSRFToken", csrfToken);
 
-  return fetch(url, {
+  const response = await fetch(url, {
     ...init,
     credentials: "include",
     headers,
     signal,
   });
+  if (response.ok && !url.startsWith("/api/v1/auth/")) {
+    window.dispatchEvent(new Event(DATA_CHANGED_EVENT));
+  }
+  return response;
 }
 
 async function postAuthenticatedJson<T>(
@@ -1490,6 +1496,7 @@ export async function downloadAttachment(
 ): Promise<Blob> {
   const response = await fetch(`/api/v1/documents/attachments/${id}/download/`, {
     credentials: "include",
+    cache: "no-store",
     signal,
   });
   if (!response.ok) {
