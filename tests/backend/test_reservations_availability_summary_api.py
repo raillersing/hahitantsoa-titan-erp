@@ -243,6 +243,8 @@ def test_reservations_app_contains_draft_models() -> None:
         ReservationDraft,
         ReservationDraftAmendment,
         ReservationDraftLine,
+        ReservationWizardFile,
+        ReservationWizardSession,
     )
 
     app_config = apps.get_app_config("reservations")
@@ -252,4 +254,6 @@ def test_reservations_app_contains_draft_models() -> None:
         ReservationDraftAmendment,
         ReservationDraftLine,
         ReservationCloseout,
+        ReservationWizardSession,
+        ReservationWizardFile,
     }

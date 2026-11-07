@@ -5,6 +5,8 @@ from apps.reservations.models import (
     ReservationDraft,
     ReservationDraftAmendment,
     ReservationDraftLine,
+    ReservationWizardFile,
+    ReservationWizardSession,
 )
 
 
@@ -27,4 +29,6 @@ def test_reservations_app_registry_contains_draft_models() -> None:
         ReservationDraftLine,
         ReservationDraftAmendment,
         ReservationCloseout,
+        ReservationWizardSession,
+        ReservationWizardFile,
     }
