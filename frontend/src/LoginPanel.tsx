@@ -9,6 +9,7 @@ function LoginPanel() {
   const { themeMode, cycleThemeMode } = useTheme();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const errorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -93,8 +94,8 @@ function LoginPanel() {
             </div>
           ) : null}
 
-          <label className="login-form__field" htmlFor="login-username">
-            <span>Nom d’utilisateur</span>
+          <div className="login-form__field">
+            <label htmlFor="login-username">Nom d’utilisateur</label>
             <input
               id="login-username"
               type="text"
@@ -107,23 +108,38 @@ function LoginPanel() {
               autoComplete="username"
               aria-describedby={state.status === "unauthenticated" && state.error ? "login-error" : undefined}
             />
-          </label>
+          </div>
 
-          <label className="login-form__field" htmlFor="login-password">
-            <span>Mot de passe</span>
-            <input
-              id="login-password"
-              type="password"
-              name="password"
-              className="login-form__input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={isSubmitting}
-              autoComplete="current-password"
-              aria-describedby={state.status === "unauthenticated" && state.error ? "login-error" : undefined}
-            />
-          </label>
+          <div className="login-form__field">
+            <label htmlFor="login-password">Mot de passe</label>
+            <div className="login-form__password-wrapper">
+              <input
+                id="login-password"
+                type={showPassword ? "text" : "password"}
+                name="password"
+                className="login-form__input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={isSubmitting}
+                autoComplete="current-password"
+                aria-describedby={state.status === "unauthenticated" && state.error ? "login-error" : undefined}
+              />
+              <button
+                type="button"
+                className="login-form__password-toggle"
+                onClick={() => setShowPassword((prev) => !prev)}
+                disabled={isSubmitting}
+                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                title={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+              >
+                <i
+                  className={showPassword ? "fa-solid fa-eye-slash" : "fa-solid fa-eye"}
+                  aria-hidden="true"
+                />
+              </button>
+            </div>
+          </div>
 
           <button type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Connexion en cours…" : "Se connecter"}

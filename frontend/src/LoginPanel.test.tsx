@@ -62,6 +62,7 @@ describe("LoginPanel", () => {
     expect(await screen.findByRole("heading", { name: "Connexion opérateur" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Nom d’utilisateur" })).toHaveAttribute("autocomplete", "username");
     expect(screen.getByLabelText("Mot de passe")).toHaveAttribute("autocomplete", "current-password");
+    expect(screen.getByRole("button", { name: "Afficher le mot de passe" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Se connecter" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Hahitantsoa" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Titan Rental" })).toBeInTheDocument();
@@ -77,6 +78,7 @@ describe("LoginPanel", () => {
     await fillAndSubmit();
     expect(await screen.findByRole("button", { name: "Connexion en cours…" })).toBeDisabled();
     expect(screen.getByRole("textbox", { name: "Nom d’utilisateur" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Afficher le mot de passe" })).toBeDisabled();
     expect(loginSpy).toHaveBeenCalledTimes(1);
     resolveLogin(authenticatedSession);
   });
@@ -96,5 +98,21 @@ describe("LoginPanel", () => {
     const button = await screen.findByRole("button", { name: "Mode de thème : system" });
     fireEvent.click(button);
     expect(document.documentElement.dataset.theme).toBe("light");
+  });
+
+  it("toggles password visibility between masked and plain text", async () => {
+    renderLoginPanel();
+    const passwordInput = await screen.findByLabelText("Mot de passe");
+    expect(passwordInput).toHaveAttribute("type", "password");
+
+    const toggleButton = screen.getByRole("button", { name: "Afficher le mot de passe" });
+    fireEvent.click(toggleButton);
+
+    expect(passwordInput).toHaveAttribute("type", "text");
+    expect(screen.getByRole("button", { name: "Masquer le mot de passe" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Masquer le mot de passe" }));
+    expect(passwordInput).toHaveAttribute("type", "password");
+    expect(screen.getByRole("button", { name: "Afficher le mot de passe" })).toBeInTheDocument();
   });
 });

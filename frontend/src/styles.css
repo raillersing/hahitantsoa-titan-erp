@@ -66,6 +66,12 @@ input:focus,select:focus,textarea:focus { outline:none;border-color:#14b8a6; }
 .login-form__input:hover:not(:disabled) { border-color:#94a3b8; }
 .login-form__input:focus-visible { outline:3px solid rgba(20,184,166,.22);outline-offset:1px;border-color:#0f766e;box-shadow:0 0 0 1px #0f766e; }
 .login-form__input:disabled { cursor:not-allowed;opacity:.7;background:#f1f5f9; }
+.login-form__password-wrapper { position:relative;display:flex;align-items:center;width:100%; }
+.login-form__password-wrapper .login-form__input { padding-right:2.75rem; }
+.login-form__password-toggle { position:absolute;right:.5rem;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;padding:0;border:0;border-radius:.4rem;background:transparent;color:#64748b;cursor:pointer;font-size:1rem;transition:color .15s,background-color .15s; }
+.login-form__password-toggle:hover:not(:disabled) { color:#0f172a;background-color:#f1f5f9; }
+.login-form__password-toggle:focus-visible { outline:2px solid #0f766e;outline-offset:1px; }
+.login-form__password-toggle:disabled { cursor:not-allowed;opacity:.5; }
 .login-form > button[type="submit"] { min-height:2.75rem;border:0;border-radius:.65rem;background:#0f766e;color:#fff;padding:.7rem 1rem;font-weight:800;transition:background-color .15s,opacity .15s; }
 .login-form > button[type="submit"]:hover:not(:disabled) { background:#115e59; }
 .login-form > button[type="submit"]:focus-visible { outline:3px solid rgba(20,184,166,.28);outline-offset:2px; }
@@ -98,6 +104,8 @@ input:focus,select:focus,textarea:focus { outline:none;border-color:#14b8a6; }
 .dark .bg-slate-200 { background-color: #334155 !important; }
 .dark .border-slate-100, .dark .border-slate-200, .dark .border-slate-300 { border-color: #334155 !important; }
 .dark select, .dark input, .dark textarea { background-color: #1e293b; color: #f8fafc; border-color: #334155; }
+.dark .login-form__password-toggle { color: #94a3b8; }
+.dark .login-form__password-toggle:hover:not(:disabled) { color: #f8fafc; background-color: #334155; }
 .dark .legacy-page .page-title h2 { color: #f8fafc; }
 .dark .brand-identity__mark, .dark .topbar-brand-scope { background:#fff !important;border-color:#cbd5e1 !important; }
 .dark .topbar-brand-scope .brand-identity__label { color:#334155 !important; }
