@@ -10,6 +10,7 @@ const mockTerms: HahitantsoaCommercialTerms = {
   excess_guest_amount: "5000.00",
   bare_deposit_amount: "1000000.00",
   logistics_deposit_amount: "1500000.00",
+  contract_validity_days: 15,
   night_option_1_amount: "300000.00",
   night_option_2_amount: "500000.00",
   night_security_amount: "120000.00",
@@ -43,8 +44,11 @@ describe("HahitantsoaCommercialTermsPage", () => {
     expect(screen.getByLabelText("Option Nuit 2 (Fin 00h00 / Sortie 03h30)")).toHaveValue(500000);
     expect(screen.getByLabelText("Sécurité nocturne obligatoire")).toHaveValue(120000);
 
-    // Check Section 3: Caution
-    expect(screen.getByText("3. Acomptes & Caution de Garantie")).toBeInTheDocument();
+    // Check Section 3: Versement Contractuel, Caution & Validité
+    expect(screen.getByText("3. Versement Contractuel, Caution & Validité du Contrat")).toBeInTheDocument();
+    expect(screen.getByLabelText("Versement contractuel — location nue")).toHaveValue(1000000);
+    expect(screen.getByLabelText("Versement contractuel — location + logistique")).toHaveValue(1500000);
+    expect(screen.getByLabelText("Délai de validité du contrat")).toHaveValue(15);
     expect(screen.getByLabelText("Caution de garantie forfaitaire")).toHaveValue(500000);
 
     // Check Hub Navigation

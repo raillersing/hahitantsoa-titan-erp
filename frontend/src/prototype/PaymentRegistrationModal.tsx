@@ -37,6 +37,8 @@ export interface PaymentRegistrationModalProps {
   onPaymentRecorded: (result: DepositRecordingResult) => Promise<void> | void;
   initialAmount?: string;
   initialPaymentKind?: string;
+  contractSigned?: boolean;
+  contractExpired?: boolean;
 }
 
 // ─── Currency & Words Helpers ──────────────────────────────────────────────────
@@ -180,7 +182,7 @@ export function getPaymentMethodLabel(method: string): string {
 export function getPaymentKindLabel(kind: string, domain?: "titan" | "hahitantsoa"): string {
   switch (kind) {
     case "deposit":
-      return domain === "titan" ? "Acompte Réservation (25%)" : "Acompte Réservation (50%)";
+      return domain === "titan" ? "Acompte Réservation (25%)" : "Versement contractuel";
     case "installment_1":
       return "1ère Tranche (M-1)";
     case "installment_2":
@@ -566,6 +568,8 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
   onPaymentRecorded,
   initialAmount = "",
   initialPaymentKind = "deposit",
+  contractSigned,
+  contractExpired,
 }) => {
   const isTitan = domain === "titan";
   const depositRecordingKeyRef = useRef<string | null>(null);
@@ -1047,7 +1051,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                   </label>
                   <div className={`grid grid-cols-2 ${!isTitan ? "sm:grid-cols-5" : "sm:grid-cols-4"} gap-2`}>
                     {[
-                      { id: "deposit", label: isTitan ? "Acompte (25%)" : "Acompte (50%)", icon: "fa-shield-halved" },
+                      { id: "deposit", label: isTitan ? "Acompte (25%)" : "Versement contractuel", icon: "fa-shield-halved" },
                       { id: "installment_1", label: "1ère Tranche", icon: "fa-layer-group" },
                       { id: "balance", label: "Solde final", icon: "fa-flag-checkered" },
                       { id: "caution", label: "Caution", icon: "fa-lock" },
@@ -1370,6 +1374,20 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                   />
                 </div>
 
+                {/* Messages d'avertissement signature / validité contrat pour Hahitantsoa */}
+                {!isTitan && contractExpired === true && (
+                  <div className="rounded-xl bg-rose-50 border border-rose-300 p-3 text-xs text-rose-800 flex items-center gap-2">
+                    <i className="fa-solid fa-triangle-exclamation text-rose-600 text-sm"></i>
+                    <span>Le contrat officiel a expiré. Une nouvelle révision du contrat doit être générée avant de pouvoir signer et enregistrer un versement.</span>
+                  </div>
+                )}
+                {!isTitan && !contractExpired && contractSigned === false && paymentKind === "deposit" && (
+                  <div className="rounded-xl bg-amber-50 border border-amber-300 p-3 text-xs text-amber-800 flex items-center gap-2">
+                    <i className="fa-solid fa-triangle-exclamation text-amber-600 text-sm"></i>
+                    <span>Le contrat officiel doit être signé par le client avant de pouvoir enregistrer le versement contractuel.</span>
+                  </div>
+                )}
+
                 {/* Messages d'erreur ou succès */}
                 {errorMessage && (
                   <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-700 flex items-center gap-2">
@@ -1396,7 +1414,12 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmitting || Boolean(successMessage) || numericAmount <= 0}
+                    disabled={
+                      isSubmitting ||
+                      Boolean(successMessage) ||
+                      numericAmount <= 0 ||
+                      (!isTitan && (contractExpired || (contractSigned === false && paymentKind === "deposit")))
+                    }
                     className="rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center gap-2"
                   >
                     {isSubmitting ? (

@@ -10,6 +10,7 @@ type FormState = {
   excess_guest_amount: string;
   bare_deposit_amount: string;
   logistics_deposit_amount: string;
+  contract_validity_days: string;
   night_option_1_amount: string;
   night_option_2_amount: string;
   night_security_amount: string;
@@ -22,6 +23,7 @@ const emptyForm: FormState = {
   excess_guest_amount: "",
   bare_deposit_amount: "",
   logistics_deposit_amount: "",
+  contract_validity_days: "",
   night_option_1_amount: "",
   night_option_2_amount: "",
   night_security_amount: "",
@@ -35,6 +37,7 @@ function toForm(terms: HahitantsoaCommercialTerms): FormState {
     excess_guest_amount: terms.excess_guest_amount,
     bare_deposit_amount: terms.bare_deposit_amount,
     logistics_deposit_amount: terms.logistics_deposit_amount,
+    contract_validity_days: String(terms.contract_validity_days ?? 15),
     night_option_1_amount: terms.night_option_1_amount || "300000",
     night_option_2_amount: terms.night_option_2_amount || "500000",
     night_security_amount: terms.night_security_amount || "150000",
@@ -83,8 +86,9 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
       ["base_space_rental_amount", "Tarif de base"],
       ["included_guest_count", "Nombre de pax inclus"],
       ["excess_guest_amount", "Tarif par pax excédentaire"],
-      ["bare_deposit_amount", "Acompte location nue"],
-      ["logistics_deposit_amount", "Acompte location + logistique"],
+      ["bare_deposit_amount", "Versement location nue"],
+      ["logistics_deposit_amount", "Versement location + logistique"],
+      ["contract_validity_days", "Délai de validité du contrat"],
       ["night_option_1_amount", "Tarif option nuit 1"],
       ["night_option_2_amount", "Tarif option nuit 2"],
       ["night_security_amount", "Tarif sécurité nuit"],
@@ -95,6 +99,11 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
       setError(`${invalid[1]} doit être un nombre positif ou nul.`);
       return;
     }
+    const validityDays = Number(form.contract_validity_days);
+    if (!Number.isInteger(validityDays) || validityDays < 1) {
+      setError("Le délai de validité du contrat doit être un entier supérieur ou égal à 1 jour.");
+      return;
+    }
     setSaving(true); setError(null); setNotice(null);
     const payload: HahitantsoaCommercialTermsUpdatePayload = {
       bare_rental_composition: composition,
@@ -103,6 +112,7 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
       excess_guest_amount: form.excess_guest_amount,
       bare_deposit_amount: form.bare_deposit_amount,
       logistics_deposit_amount: form.logistics_deposit_amount,
+      contract_validity_days: validityDays,
       night_option_1_amount: form.night_option_1_amount,
       night_option_2_amount: form.night_option_2_amount,
       night_security_amount: form.night_security_amount,
@@ -131,8 +141,9 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
   ];
 
   const depositFields: Array<[keyof FormState, string, string]> = [
-    ["bare_deposit_amount", "Acompte — location nue", "Ar"],
-    ["logistics_deposit_amount", "Acompte — location + logistique", "Ar"],
+    ["bare_deposit_amount", "Versement contractuel — location nue", "Ar"],
+    ["logistics_deposit_amount", "Versement contractuel — location + logistique", "Ar"],
+    ["contract_validity_days", "Délai de validité du contrat", "jours"],
     ["caution_amount", "Caution de garantie forfaitaire", "Ar"],
   ];
 
@@ -238,11 +249,11 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
                 </div>
               </div>
 
-              {/* Section 3 : Acomptes et Caution */}
+              {/* Section 3 : Versement contractuel, caution et validité */}
               <div className="space-y-3 border-t border-slate-100 pt-4">
                 <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                   <i className="fa-solid fa-shield-halved text-indigo-500"></i>
-                  <span>3. Acomptes & Caution de Garantie</span>
+                  <span>3. Versement Contractuel, Caution & Validité du Contrat</span>
                 </h3>
                 <div className="space-y-3">
                   {depositFields.map(([field, label, suffix]) => (
@@ -252,8 +263,8 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
                         <input
                           aria-label={label}
                           type="number"
-                          min="0"
-                          step="0.01"
+                          min={field === "contract_validity_days" ? "1" : "0"}
+                          step={field === "contract_validity_days" ? "1" : "0.01"}
                           value={form[field]}
                           onChange={(event) => setField(field, event.target.value)}
                           disabled={!canEdit || saving}
@@ -313,6 +324,18 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
                   <dd className="font-bold text-hah-950">+{formatAmount(form.night_security_amount)}</dd>
                 </div>
                 <div className="flex justify-between gap-4 border-t border-hah-200 pt-2">
+                  <dt className="text-hah-800">Versement location nue</dt>
+                  <dd className="font-bold text-hah-950">{formatAmount(form.bare_deposit_amount)}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-hah-800">Versement location + logistique</dt>
+                  <dd className="font-bold text-hah-950">{formatAmount(form.logistics_deposit_amount)}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-hah-800">Validité du contrat</dt>
+                  <dd className="font-bold text-hah-950">{form.contract_validity_days || 15} jours</dd>
+                </div>
+                <div className="flex justify-between gap-4 border-t border-hah-200 pt-2">
                   <dt className="text-hah-800">Caution de garantie</dt>
                   <dd className="font-bold text-hah-950">{formatAmount(form.caution_amount)}</dd>
                 </div>
@@ -324,8 +347,8 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
             <h2 className="text-lg font-bold text-slate-900">Échéancier de Règlement</h2>
             <ul className="mt-3 space-y-2 text-sm text-slate-600">
               <li className="flex items-start gap-2">
-                <span className="font-bold text-indigo-600">1. Acompte :</span>
-                <span>Exigible à la signature ({formatAmount(form.bare_deposit_amount)} ou {formatAmount(form.logistics_deposit_amount)}).</span>
+                <span className="font-bold text-indigo-600">1. Versement contractuel :</span>
+                <span>Exigible après signature du contrat ({formatAmount(form.bare_deposit_amount)} ou {formatAmount(form.logistics_deposit_amount)}). Validité contrat : {form.contract_validity_days || 15} jours.</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="font-bold text-indigo-600">2. 1ère tranche :</span>

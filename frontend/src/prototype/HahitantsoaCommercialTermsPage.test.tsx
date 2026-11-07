@@ -6,7 +6,7 @@ import type { HahitantsoaCommercialTerms } from "../types";
 
 vi.mock("../api", () => ({ getHahitantsoaCommercialTerms: vi.fn(), updateHahitantsoaCommercialTerms: vi.fn() }));
 const terms: HahitantsoaCommercialTerms = {
-  base_space_rental_amount: "6500000", included_guest_count: 250, excess_guest_amount: "5000", bare_deposit_amount: "1000000", logistics_deposit_amount: "1500000", night_option_1_amount: "300000", night_option_2_amount: "500000", night_security_amount: "150000", caution_amount: "500000", updated_at: "2026-10-21",
+  base_space_rental_amount: "6500000", included_guest_count: 250, excess_guest_amount: "5000", bare_deposit_amount: "1000000", logistics_deposit_amount: "1500000", contract_validity_days: 15, night_option_1_amount: "300000", night_option_2_amount: "500000", night_security_amount: "150000", caution_amount: "500000", updated_at: "2026-10-21",
   bare_rental_composition: [{ label: "Salle", quantity: 1 }, { label: "Chaises pliables", quantity: 10 }],
 };
 beforeEach(() => {
