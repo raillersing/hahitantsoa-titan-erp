@@ -391,7 +391,7 @@ describe("HahitantsoaEventDraftDetailPage", () => {
   });
 
   it("keeps the dossier visible when the lifecycle read model is unavailable", async () => {
-    mockGetLifecycle.mockRejectedValueOnce(new Error("Accès refusé"));
+    mockGetLifecycle.mockRejectedValue(new Error("Accès refusé"));
     render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
 
     expect(await screen.findByText(/parcours opérationnel indisponible/i)).toBeInTheDocument();
