@@ -1,9 +1,9 @@
 # DEC-009 — Séquencement contractuel (Signature avant paiement), délai de validité paramétrable et horaires d'accès veille (Article 3)
 
-Status: Accepted  
-Scope: Hahitantsoa & Titan ERP / Transversal  
-Type: Business-domain, Financial & Architecture Decision  
-Date: 2026-11-07  
+Status: Accepted
+Scope: Hahitantsoa & Titan ERP / Transversal
+Type: Business-domain, Financial & Architecture Decision
+Date: 2026-11-07
 
 ---
 
@@ -13,27 +13,27 @@ Dans les procédures initiales de réservation d'événements Hahitantsoa, le ve
 
 Des directives impératives ont été arrêtées par le client pour clarifier et verrouiller les règles de gestion et décisions métiers applicables à l'ensemble du système :
 
-1. **Séquencement strict : signature préalable obligatoire**  
+1. **Séquencement strict : signature préalable obligatoire**
    Après émission d'un devis / proforma, un contrat officiel peut être généré. Dès son émission, une période de réflexion est ouverte pour le client. **Le contrat doit être obligatoirement signé par le client avant que celui-ci ne puisse passer au paiement**. Aucun paiement (versement contractuel de réservation) ne peut être accepté ou enregistré dans le système tant que le contrat n'est pas formellement signé.
 
-2. **Délai de validité du contrat paramétrable et caducité**  
+2. **Délai de validité du contrat paramétrable et caducité**
    Il peut exister un temps d'attente entre l'émission du contrat et sa signature. Si le client ne signe pas le contrat, la réservation n'est pas effective. Tout contrat émis dispose d'un délai de validité paramétrable dans la configuration commerciale (`contract_validity_days`, fixé par défaut à 15 jours). Un contrat dont la date de validité est dépassée est **expiré (caduc)** : il ne peut plus être signé et ne peut plus recevoir de paiement. Une nouvelle révision du contrat doit être générée pour réenclencher la procédure.
 
-3. **Validation définitive de la réservation**  
+3. **Validation définitive de la réservation**
    Ce n'est qu'après la signature du contrat ET l'encaissement du versement contractuel requis que la réservation est définitivement confirmée et validée (avec recontrôle transactionnel des disponibilités et archivage automatique des options concurrentes).
 
-4. **Bannissement du terme « acompte » au profit de « versement contractuel »**  
+4. **Bannissement du terme « acompte » au profit de « versement contractuel »**
    Dans les procédures Hahitantsoa, il n'y a pas d'« acompte » au sens comptable standard d'un pourcentage indéterminé : un montant forfaitaire a déjà été établi par contrat (Article 5 : `1 000 000 Ar` en formule location nue, `1 500 000 Ar` en formule location + logistique). Les libellés d'interface, bannières, reçus et textes contractuels doivent employer exclusivement « Versement contractuel » / « Versement de réservation ».
 
-5. **Règles d'accès aux locaux selon l'occupation de la veille (Article 3 du contrat Hahitantsoa)**  
+5. **Règles d'accès aux locaux selon l'occupation de la veille (Article 3 du contrat Hahitantsoa)**
    Dans le contrat officiel Hahitantsoa, l'horaire auquel les intervenants et prestataires du client peuvent accéder aux locaux pour les préparatifs dépend strictement de l'occupation de la veille ($J-1$) :
-   - **Cas 1 — Aucun événement la veille ($J-1$)** :  
+   - **Cas 1 — Aucun événement la veille ($J-1$)** :
      Texte Article 3 : `« Les intervenants du client peuvent accéder aux locaux à 15 heures 30 »`
-   - **Cas 2 — Événement la veille ($J-1$) Fête de jour** (fin à 22h00 / sortie 23h00) :  
+   - **Cas 2 — Événement la veille ($J-1$) Fête de jour** (fin à 22h00 / sortie 23h00) :
      Texte Article 3 : `« Les intervenants du client peuvent accéder aux locaux à 23 heures 30 »`
-   - **Cas 3 — Événement la veille ($J-1$) Utilisation de nuit Option 1** (fin à 21h00 / sortie 22h30) :  
+   - **Cas 3 — Événement la veille ($J-1$) Utilisation de nuit Option 1** (fin à 21h00 / sortie 22h30) :
      Texte Article 3 : `« Les intervenants du client peuvent accéder aux locaux à le jour-J à 07 heures »`
-   - **Cas 4 — Événement la veille ($J-1$) Utilisation de nuit Option 2** (fin à 00h00 / sortie 03h30) :  
+   - **Cas 4 — Événement la veille ($J-1$) Utilisation de nuit Option 2** (fin à 00h00 / sortie 03h30) :
      Texte Article 3 : `« Les intervenants du client peuvent accéder aux locaux à le jour-J à 07 heures »`
 
 ---
