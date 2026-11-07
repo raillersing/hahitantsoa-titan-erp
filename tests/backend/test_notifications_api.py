@@ -223,7 +223,7 @@ def test_mark_other_recipient_notification_as_read_is_not_allowed(authenticated_
 # --- Mark all as read (authenticated) ---
 
 
-def test_mark_all_as_read(authenticated_client, user):
+def test_mark_all_as_read_only_affects_visible_notifications(authenticated_client, user):
     SystemNotification.objects.create(
         recipient=user,
         notification_type="payment",
@@ -241,8 +241,9 @@ def test_mark_all_as_read(authenticated_client, user):
         content_type="application/json",
     )
     assert response.status_code == 200
-    assert response.json()["marked_read"] == 2
-    assert not SystemNotification.objects.filter(is_read=False).exists()
+    assert response.json()["marked_read"] == 1
+    assert SystemNotification.objects.get(notification_type="payment").is_read is True
+    assert SystemNotification.objects.get(notification_type="stock").is_read is False
 
 
 def test_mark_all_as_read_when_none_unread(authenticated_client):

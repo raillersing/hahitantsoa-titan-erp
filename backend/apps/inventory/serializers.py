@@ -14,7 +14,6 @@ from apps.inventory.models import (
     InventoryReturnOperation,
     InventoryReturnOperationLine,
     InventoryStockMovement,
-    InventoryStockMovementType,
     InventoryStorageLocation,
 )
 from apps.inventory.scope import assert_titan_allowed_item_kind
@@ -22,84 +21,35 @@ from apps.logistics.models import LogisticsEvent
 from apps.reservations.models import ReservationDraft
 
 
+class InventoryItemListSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        from apps.inventory.stock_selectors import inventory_stock_summaries
+
+        items = list(data.all() if hasattr(data, "all") else data)
+        self.context["inventory_stock_summaries"] = inventory_stock_summaries(
+            items,
+            **self.context.get("inventory_stock_period", {}),
+        )
+        return super().to_representation(items)
+
+
 class InventoryItemSerializer(serializers.ModelSerializer):
     kind = serializers.CharField(max_length=32)
     stock_summary = serializers.SerializerMethodField()
 
     def get_stock_summary(self, obj):
-        if obj._state.adding:
-            return {
-                "reported_inventory_quantity": obj.reported_inventory_quantity,
-                "reported_damaged_quantity": obj.reported_damaged_quantity,
-                "current_stock": obj.reported_inventory_quantity,
-                "available_stock": max(
-                    obj.reported_inventory_quantity - obj.reported_damaged_quantity, 0
-                ),
-                "reserved_stock": 0,
-                "out_stock": 0,
-                "return_stock": 0,
-                "damaged_lost_stock": 0,
-            }
+        from apps.inventory.stock_selectors import inventory_stock_summaries
 
-        movements = list(obj.stock_movements.all()) if not obj._state.adding else []
-        initial_movements = [
-            movement
-            for movement in movements
-            if movement.source_label == "Initial inventory import"
+        cache = self.context.get("inventory_stock_summaries", {})
+        if obj.pk in cache:
+            return cache[obj.pk]
+        return inventory_stock_summaries([obj], **self.context.get("inventory_stock_period", {}))[
+            obj.pk
         ]
-        if initial_movements:
-            baseline = sum(movement.quantity for movement in initial_movements)
-            operational_movements = [
-                movement for movement in movements if movement not in initial_movements
-            ]
-        else:
-            baseline = obj.reported_inventory_quantity
-            operational_movements = movements
-
-        current_stock = max(
-            baseline + sum(movement.signed_quantity for movement in operational_movements),
-            0,
-        )
-        outbound = sum(
-            movement.quantity
-            for movement in operational_movements
-            if movement.movement_type == InventoryStockMovementType.OUTBOUND_DELIVERY
-        )
-        returns = sum(
-            movement.quantity
-            for movement in operational_movements
-            if movement.movement_type == InventoryStockMovementType.INBOUND_RETURN
-        )
-        damaged_lost = sum(
-            movement.quantity
-            for movement in operational_movements
-            if movement.movement_type
-            in {InventoryStockMovementType.DAMAGE, InventoryStockMovementType.LOSS}
-        )
-        canonical_breakage_without_legacy_movement = sum(
-            line.effective_breakage_quantity
-            for line in obj.return_operation_lines.filter(
-                return_operation__status="validated"
-            ).prefetch_related("stock_movements")
-            if not any(
-                movement.movement_type
-                in {InventoryStockMovementType.DAMAGE, InventoryStockMovementType.LOSS}
-                for movement in line.stock_movements.all()
-            )
-        )
-        return {
-            "reported_inventory_quantity": obj.reported_inventory_quantity,
-            "reported_damaged_quantity": obj.reported_damaged_quantity,
-            "current_stock": current_stock,
-            "available_stock": max(current_stock - obj.reported_damaged_quantity, 0),
-            "reserved_stock": 0,
-            "out_stock": outbound,
-            "return_stock": returns,
-            "damaged_lost_stock": damaged_lost + canonical_breakage_without_legacy_movement,
-        }
 
     class Meta:
         model = InventoryItem
+        list_serializer_class = InventoryItemListSerializer
         fields = (
             "id",
             "name",
@@ -113,6 +63,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             "breakage_price",
             "reported_inventory_quantity",
             "reported_damaged_quantity",
+            "low_stock_threshold",
             "image_url",
             "stock_summary",
             "is_active",
@@ -205,6 +156,7 @@ class InventoryStockMovementSerializer(serializers.ModelSerializer):
 
 
 class InventoryStockMovementCreateSerializer(serializers.Serializer):
+    expected_current_stock = serializers.IntegerField(required=False, min_value=0)
     inventory_item = serializers.PrimaryKeyRelatedField(
         queryset=InventoryItem.objects.filter(is_active=True, is_deleted=False),
     )

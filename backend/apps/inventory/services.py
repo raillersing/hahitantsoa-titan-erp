@@ -131,7 +131,8 @@ def issue_delivery_note_stock(
 
     item_ids = sorted({line.inventory_item_id for line in lines})
     locked_items = {
-        item.id: item for item in InventoryItem.objects.select_for_update().filter(id__in=item_ids)
+        item.id: item
+        for item in InventoryItem.objects.select_for_update().filter(id__in=item_ids).order_by("id")
     }
     movements: list[InventoryStockMovement] = []
     for line in lines:
@@ -168,8 +169,12 @@ def issue_delivery_note_stock(
                 source_label=f"document_instance:{document.id}",
                 notes=line.notes or "Sortie de stock liée au bon de livraison.",
                 effective_at=timezone.now(),
+                _reconcile_alerts=False,
             )
         )
+    from apps.inventory.stock_alerts import reconcile_inventory_stock_alerts
+
+    reconcile_inventory_stock_alerts(item_ids=item_ids)
     return tuple(movements)
 
 
@@ -386,7 +391,31 @@ def create_inventory_stock_movement(
     source_label: str = "",
     notes: str = "",
     effective_at=None,
+    _reconcile_alerts=True,
+    expected_current_stock=None,
 ) -> InventoryStockMovement:
+    inventory_item = InventoryItem.objects.select_for_update().get(pk=inventory_item.pk)
+    if expected_current_stock is not None:
+        from apps.inventory.stock_selectors import inventory_stock_summaries
+
+        if (
+            isinstance(expected_current_stock, bool)
+            or not isinstance(expected_current_stock, int)
+            or expected_current_stock < 0
+        ):
+            raise InventoryStockMovementError(
+                "Expected stock must be a non-negative integer.", code="invalid_expected_stock"
+            )
+        current = inventory_stock_summaries([inventory_item])[inventory_item.pk]["current_stock"]
+        if current != expected_current_stock:
+            raise InventoryStockMovementError(
+                "Le stock a changé depuis l'ouverture de l'écran. Actualisez avant d'ajuster.",
+                code="inventory_stock_conflict",
+            )
+        if movement_type == InventoryStockMovementType.ADJUSTMENT_OUT and quantity > current:
+            raise InventoryStockMovementError(
+                "La sortie dépasse le stock actuel.", code="insufficient_stock_for_adjustment"
+            )
     actor_id = getattr(actor, "pk", None)
     resolved_direction = resolve_inventory_stock_movement_direction(
         movement_type=movement_type,
@@ -453,6 +482,10 @@ def create_inventory_stock_movement(
             ),
         },
     )
+    from apps.inventory.stock_alerts import reconcile_inventory_stock_alerts
+
+    if _reconcile_alerts:
+        reconcile_inventory_stock_alerts(item_ids=[inventory_item.pk])
     return movement
 
 
@@ -1152,6 +1185,11 @@ def validate_inventory_return_operation(
     validated_at = timezone.now()
     stock_movements: list[InventoryStockMovement] = []
 
+    list(
+        InventoryItem.objects.select_for_update()
+        .filter(pk__in=[line.inventory_item_id for line in locked_lines])
+        .order_by("id")
+    )
     for line in locked_lines:
         movement_specs = []
         if line.effective_conforming_quantity > 0:
@@ -1178,6 +1216,7 @@ def validate_inventory_return_operation(
                 source_label=source_label,
                 notes=movement_notes,
                 effective_at=validated_at,
+                _reconcile_alerts=False,
             )
             stock_movements.append(movement)
 
@@ -1195,6 +1234,9 @@ def validate_inventory_return_operation(
             code=INVALID_RETURN_OPERATION,
         ) from error
     locked_return_operation.save()
+    from apps.inventory.stock_alerts import reconcile_inventory_stock_alerts
+
+    reconcile_inventory_stock_alerts(item_ids=[line.inventory_item_id for line in locked_lines])
 
     record_audit_event_on_commit(
         actor=actor,
@@ -1670,3 +1712,35 @@ def check_event_operations_completeness(
         all_lines_accounted=all_lines_accounted,
         is_complete=is_complete,
     )
+
+
+@transaction.atomic
+def save_inventory_catalog_item(*, actor, attributes, instance=None):
+    from apps.identity.authorization import is_inventory_management_actor
+    from apps.inventory.stock_alerts import reconcile_inventory_stock_alerts
+
+    if not is_inventory_management_actor(actor=actor):
+        raise PermissionError("Inventory management access is required.")
+    item = (
+        InventoryItem.objects.select_for_update().get(pk=instance.pk)
+        if instance is not None
+        else InventoryItem(created_by=actor)
+    )
+    if instance is not None:
+        for field in ("reported_inventory_quantity", "reported_damaged_quantity"):
+            if field in attributes and attributes[field] != getattr(item, field):
+                raise ValidationError(
+                    {
+                        field: (
+                            "La quantité initiale est immuable. "
+                            "Utilisez un mouvement de stock motivé."
+                        )
+                    }
+                )
+    for key, value in attributes.items():
+        setattr(item, key, value)
+    item.updated_by = actor
+    item.full_clean()
+    item.save()
+    reconcile_inventory_stock_alerts(item_ids=[item.pk])
+    return item
