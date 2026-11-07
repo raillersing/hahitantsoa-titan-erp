@@ -2972,3 +2972,68 @@ export function previewNextPublicReference(
   if (sequenceType) params.set("sequence_type", sequenceType);
   return getAuthenticatedJson(`/api/v1/numbering/sequences/preview-next/?${params.toString()}`, signal);
 }
+
+// Private recovery records never allocate a commercial reference.
+export interface WizardFile {
+  id: string; client_file_key: string; category: string; label: string;
+  original_name: string; content_type: string; size_bytes: number; download_url: string;
+}
+export interface WizardSession {
+  id: string; client_key: string; version: number; domain: "titan" | "hahitantsoa" | null;
+  step: number; status: "active" | "completed"; updated_at: string;
+  state: Record<string, unknown>; files: WizardFile[];
+  customer_id?: string | null; reservation_draft_id?: string | null; hahitantsoa_event_draft_id?: string | null;
+}
+export type WizardSessionMetadata = Omit<WizardSession, "state" | "files">;
+export interface WizardWrite {
+  domain?: "titan" | "hahitantsoa" | null; step?: number; state?: Record<string, unknown>;
+  status?: "active" | "completed"; customer_id?: string | null;
+  reservation_draft_id?: string | null; hahitantsoa_event_draft_id?: string | null;
+}
+const wizardSessionsUrl = "/api/v1/reservations/wizard-sessions/";
+export function getWizardSessions(): Promise<WizardSessionMetadata[]> { return getAuthenticatedJson(wizardSessionsUrl, AbortSignal.timeout(10_000)); }
+export function getWizardSession(id: string): Promise<WizardSession> { return getAuthenticatedJson(`${wizardSessionsUrl}${id}/`, AbortSignal.timeout(10_000)); }
+export function createWizardSession(clientKey: string, value: WizardWrite): Promise<WizardSession> {
+  return postAuthenticatedJson(wizardSessionsUrl, { ...value, client_key: clientKey }, AbortSignal.timeout(10_000));
+}
+export async function updateWizardSession(id: string, version: number, value: WizardWrite): Promise<WizardSession> {
+  return parseJsonResponse(await unsafeAuthenticatedRequest(`${wizardSessionsUrl}${id}/`, {
+    method: "PUT", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...value, expected_version: version }),
+  }, AbortSignal.timeout(10_000)));
+}
+export function uploadWizardFile(id: string, version: number, key: string, file: File, category: string, label: string): Promise<{ file: WizardFile; version: number }> {
+  const body = new FormData();
+  body.append("expected_version", String(version)); body.append("client_file_key", key);
+  body.append("file", file); body.append("category", category); body.append("label", label);
+  return postAuthenticatedMultipart(`${wizardSessionsUrl}${id}/files/`, body, AbortSignal.timeout(10_000));
+}
+export async function deleteWizardFile(id: string, version: number, fileId: string): Promise<{ version: number }> {
+  return parseJsonResponse(await unsafeAuthenticatedRequest(`${wizardSessionsUrl}${id}/files/${fileId}/`, {
+    method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ expected_version: version }),
+  }, AbortSignal.timeout(10_000)));
+}
+export async function downloadWizardFile(sessionId: string, file: WizardFile): Promise<File> {
+  const response = await fetch(`${wizardSessionsUrl}${sessionId}/files/${file.id}/download/`, { credentials: "include", cache: "no-store", signal: AbortSignal.timeout(10_000) });
+  if (!response.ok) { const error = await parseErrorResponse(response); requestSessionRevalidation(response.status); throw new ApiError(error.message, response.status); }
+  return new File([await response.arrayBuffer()], file.original_name, { type: file.content_type });
+}
+
+export type WizardDraftPayload = ReservationDraftCreatePayload | HahitantsoaEventDraftCreatePayload;
+export interface WizardDraftResult {
+  draft: ReservationDraft | HahitantsoaEventDraft;
+  version: number;
+  proforma_id: string | null;
+}
+export function createWizardDraft(id: string, version: number, domain: "titan" | "hahitantsoa", payload: WizardDraftPayload, validity: number): Promise<WizardDraftResult> {
+  return postAuthenticatedJson(`${wizardSessionsUrl}${id}/draft/`, { expected_version: version, domain, payload, proforma_validity_days: validity }, AbortSignal.timeout(10_000));
+}
+export function promoteWizardFile(id: string, version: number, fileId: string, target: "customer" | "draft"): Promise<{ attachment: UploadedAttachment; version: number }> {
+  return postAuthenticatedJson(`${wizardSessionsUrl}${id}/files/${fileId}/promote/`, { expected_version: version, target }, AbortSignal.timeout(10_000));
+}
+export function createWizardDischarge(id: string, version: number, payload: DocumentInstanceCreatePayload): Promise<{ document: DocumentInstance; version: number }> {
+  return postAuthenticatedJson(`${wizardSessionsUrl}${id}/discharge/`, { expected_version: version, payload }, AbortSignal.timeout(10_000));
+}
+export function prepareWizardProforma(id: string, version: number, validity: number, options?: { proforma_id?: string; revision_key?: string }): Promise<{ document: DocumentInstance; version: number }> {
+  return postAuthenticatedJson(`${wizardSessionsUrl}${id}/proforma/`, { expected_version: version, proforma_validity_days: validity, ...options }, AbortSignal.timeout(10_000));
+}
