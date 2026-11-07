@@ -11,8 +11,9 @@ Voir aussi `docs/audits/F92_HAHITANTSOA_LIFECYCLE_SOURCE_TRACE.md`.
   `RECONCILED` sont des statuts de paiement et ne doivent pas etre reutilises comme statuts de
   cycle de vie de reservation Hahitantsoa.
 - INV-016 : les factures portent le suffixe `-FA` (ex. `T-003/2026-FA`, `H-001/2026-FA`) et les reçus portent la séquence `-REC-{seq:02d}` rattachée au dossier canonique. Voir [`DEC-008`](../decisions/DEC-008-dossier-and-document-numbering-standards.md).
+- INV-018 : dans le domaine Hahitantsoa, aucun paiement ou versement contractuel de reservation (`deposit`, `date_reservation`) ne peut etre cree ou confirme tant que le contrat officiel n'a pas ete signe par le client et que son delai de validite n'est pas expire (`contract_valid_until >= now()`). Le terme « acompte » est proscrit des procedures Hahitantsoa au profit de « versement contractuel ». Voir [`DEC-009`](../decisions/DEC-009-reservation-contract-sequencing-and-access-rules.md).
 
 Un proforma reste une estimation. Un contrat signe est immuable ; toute modification passe par proforma de modification puis avenant.
 
-Pour les montants officiels, cautions, acomptes, TVA, pénalités et références administratives, voir [`official-amounts.md`](official-amounts.md).
+Pour les montants officiels, cautions, versements contractuels, TVA, pénalités et références administratives, voir [`official-amounts.md`](official-amounts.md).
 
