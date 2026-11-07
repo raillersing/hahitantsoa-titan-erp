@@ -380,6 +380,7 @@ class HahitantsoaCommercialTerms(UUIDModel, TimestampedModel, AuditableModel):
     night_option_2_amount = models.DecimalField(max_digits=14, decimal_places=2, default=500000)
     night_security_amount = models.DecimalField(max_digits=14, decimal_places=2, default=150000)
     caution_amount = models.DecimalField(max_digits=14, decimal_places=2, default=500000)
+    contract_validity_days = models.PositiveIntegerField(default=15)
 
     class Meta:
         verbose_name = "Hahitantsoa commercial terms"
@@ -416,6 +417,10 @@ class HahitantsoaCommercialTerms(UUIDModel, TimestampedModel, AuditableModel):
             models.CheckConstraint(
                 condition=models.Q(caution_amount__gte=0),
                 name="hahitantsoa_terms_caution_amount_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(contract_validity_days__gt=0),
+                name="hahitantsoa_terms_contract_validity_days_positive",
             ),
         ]
 

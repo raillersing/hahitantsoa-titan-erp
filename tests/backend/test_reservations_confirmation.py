@@ -22,6 +22,7 @@ from apps.reservations.confirmation import (
     ReservationDraftCancellationResult,
     ReservationDraftConfirmationResult,
     ReservationLifecycleError,
+    ReservationLifecyclePrerequisiteError,
     ReservationLifecycleStateError,
     cancel_confirmed_reservation_draft,
     confirm_reservation_draft,
@@ -93,6 +94,19 @@ class InventoryItemFactory:
 
 
 def _confirmed_deposit_payment(*, reservation_draft: ReservationDraft, actor) -> None:
+    if reservation_draft.id:
+        reservation_draft.refresh_from_db()
+    if reservation_draft.contract_signed_at is None:
+        if not DocumentInstance.objects.filter(
+            reservation_draft=reservation_draft,
+            document_type__in=["material_contract", "contract"],
+        ).exists():
+            _generated_contract_document(reservation_draft=reservation_draft)
+        mark_reservation_draft_contract_signed(
+            reservation_draft=reservation_draft,
+            actor=actor,
+        )
+        reservation_draft.refresh_from_db()
     payment = create_payment(
         actor=actor,
         reservation_draft=reservation_draft,
@@ -140,6 +154,7 @@ def _prepare_confirmable_draft(*, django_user_model):
     _line(reservation_draft=draft)
     _generated_contract_document(reservation_draft=draft)
     mark_reservation_draft_contract_signed(reservation_draft=draft, actor=actor)
+    draft.refresh_from_db()
     _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
     mark_reservation_draft_required_deposit_received(
         reservation_draft=draft,
@@ -201,22 +216,22 @@ def test_mark_required_deposit_received_persists_timestamp_and_actor(
     assert draft.required_deposit_received_by_id == actor.pk
 
 
-def test_mark_required_deposit_received_does_not_sign_contract(
+def test_mark_required_deposit_received_refuses_when_contract_not_signed(
     django_user_model,
 ) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
-    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
 
-    mark_reservation_draft_required_deposit_received(
-        reservation_draft=draft,
-        actor=actor,
-    )
+    with pytest.raises(ReservationLifecyclePrerequisiteError) as exc_info:
+        mark_reservation_draft_required_deposit_received(
+            reservation_draft=draft,
+            actor=actor,
+        )
 
+    assert exc_info.value.code == "contract_signature_required_before_payment"
     draft.refresh_from_db()
-    assert draft.required_deposit_received_at is not None
-    assert draft.contract_signed_at is None
-    assert draft.contract_signed_by_id is None
+    assert draft.required_deposit_received_at is None
+    assert draft.required_deposit_received_by_id is None
 
 
 def test_lifecycle_exceptions_subclass_value_error() -> None:
@@ -346,7 +361,6 @@ def test_prerequisite_marker_write_rolls_back_with_outer_transaction(
 ) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
-    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
     _generated_contract_document(reservation_draft=draft)
 
     with pytest.raises(RuntimeError):
@@ -367,6 +381,8 @@ def test_mark_required_deposit_received_requires_confirmed_deposit_payment_truth
 ) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
+    _generated_contract_document(reservation_draft=draft)
+    mark_reservation_draft_contract_signed(reservation_draft=draft, actor=actor)
 
     with pytest.raises(ReservationLifecycleError) as error_info:
         mark_reservation_draft_required_deposit_received(
@@ -497,17 +513,15 @@ def test_confirmation_refuses_missing_contract_marker(django_user_model) -> None
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
     _line(reservation_draft=draft)
-    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
-    mark_reservation_draft_required_deposit_received(
-        reservation_draft=draft,
-        actor=actor,
-    )
+    draft.required_deposit_received_at = timezone.now()
+    draft.required_deposit_received_by = actor
+    draft.save(update_fields=["required_deposit_received_at", "required_deposit_received_by"])
 
     with pytest.raises(ReservationConfirmationPreflightError) as error_info:
         confirm_reservation_draft(reservation_draft=draft, actor=actor)
 
     assert error_info.value.code == "confirmation_preflight_failed"
-    assert error_info.value.blockers == ("missing_signed_contract",)
+    assert "missing_signed_contract" in error_info.value.blockers
 
 
 def test_confirmation_refuses_missing_deposit_marker(django_user_model) -> None:

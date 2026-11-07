@@ -285,7 +285,13 @@ def _build_hahitantsoa_contract_runtime_context(
     *, document_instance: DocumentInstance
 ) -> dict[str, object]:
     linked_event_draft = document_instance.hahitantsoa_event_draft
-    from apps.hahitantsoa.commercial_terms import get_hahitantsoa_event_draft_access_schedule
+    from apps.hahitantsoa.commercial_terms import (
+        get_hahitantsoa_commercial_terms,
+        get_hahitantsoa_contract_article_3_access_text,
+        get_hahitantsoa_event_draft_access_schedule,
+    )
+
+    terms = get_hahitantsoa_commercial_terms()
 
     event_lines = (
         linked_event_draft.lines.filter(is_deleted=False)
@@ -443,6 +449,15 @@ def _build_hahitantsoa_contract_runtime_context(
             "duration_option": linked_event_draft.duration_option,
             "access_schedule": get_hahitantsoa_event_draft_access_schedule(
                 event_draft=linked_event_draft
+            ),
+            "article_3_access_text": get_hahitantsoa_contract_article_3_access_text(
+                event_draft=linked_event_draft
+            ),
+            "contract_validity_days": terms.contract_validity_days,
+            "contract_valid_until": (
+                document_instance.valid_until.strftime("%d/%m/%Y")
+                if document_instance.valid_until
+                else ""
             ),
             "guest_count": linked_event_draft.guest_count,
             "required_deposit_amount": _format_ariary_amount(
