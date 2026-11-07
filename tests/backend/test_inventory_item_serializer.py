@@ -22,6 +22,7 @@ def test_inventory_item_serializer_fields() -> None:
         "breakage_price",
         "reported_inventory_quantity",
         "reported_damaged_quantity",
+        "low_stock_threshold",
         "image_url",
         "stock_summary",
         "is_active",
@@ -108,16 +109,13 @@ def test_inventory_item_serializer_serializes_unsaved_instance() -> None:
     assert data["breakage_price"] == "2000.00"
     assert data["reported_inventory_quantity"] == 12
     assert data["reported_damaged_quantity"] == 1
-    assert data["stock_summary"] == {
-        "reported_inventory_quantity": 12,
-        "reported_damaged_quantity": 1,
-        "current_stock": 12,
-        "available_stock": 11,
-        "reserved_stock": 0,
-        "out_stock": 0,
-        "return_stock": 0,
-        "damaged_lost_stock": 0,
-    }
+    summary = data["stock_summary"]
+    assert summary["current_stock"] == 12
+    assert summary["healthy_stock"] == summary["available_stock"] == 11
+    assert summary["damaged_lost_stock"] == 1
+    assert summary["physical_status"] == "in_stock"
+    assert summary["reserved_stock"] == summary["out_stock"] == summary["return_stock"] == 0
+    assert summary["reservation_basis"] == "whole_reference"
     assert data["image_url"] == ""
     assert data["is_active"] is True
 

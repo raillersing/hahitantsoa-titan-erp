@@ -17,6 +17,7 @@ INVENTORY_ITEM_FIELDS = {
     "breakage_price",
     "reported_inventory_quantity",
     "reported_damaged_quantity",
+    "low_stock_threshold",
     "stock_summary",
     "image_url",
     "is_active",

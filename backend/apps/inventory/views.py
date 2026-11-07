@@ -42,6 +42,7 @@ from apps.inventory.services import (
     create_inventory_stock_movement,
     create_inventory_storage_location,
     execute_inventory_damage_loss_settlement_execution,
+    save_inventory_catalog_item,
     validate_inventory_damage_loss_settlement,
     validate_inventory_return_operation,
 )
@@ -51,18 +52,35 @@ def active_inventory_items():
     return InventoryItem.objects.filter(is_active=True, is_deleted=False).order_by("name")
 
 
+def inventory_stock_period_context(request):
+    from django.utils import timezone
+
+    from apps.inventory.availability import validate_availability_period
+
+    period = {"at": timezone.now()}
+    start, end = request.query_params.get("start_at"), request.query_params.get("end_at")
+    if start is not None or end is not None:
+        if not start or not end:
+            raise serializers.ValidationError(
+                {"period": "start_at et end_at sont tous les deux requis."}
+            )
+        field = serializers.DateTimeField()
+        period.update(start_at=field.run_validation(start), end_at=field.run_validation(end))
+        try:
+            validate_availability_period(start_at=period["start_at"], end_at=period["end_at"])
+        except ValueError as error:
+            raise serializers.ValidationError({"period": str(error)}) from error
+    return period
+
+
 class InventoryItemListAPIView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = InventoryItemSerializer
 
     def get_queryset(self):
-        qs = active_inventory_items().prefetch_related("stock_movements")
+        qs = active_inventory_items()
         if self.request.query_params.get("include_inactive") == "true":
-            qs = (
-                InventoryItem.objects.filter(is_deleted=False)
-                .order_by("name")
-                .prefetch_related("stock_movements")
-            )
+            qs = InventoryItem.objects.filter(is_deleted=False).order_by("name")
         name_param = self.request.query_params.get("name")
         if name_param:
             qs = qs.filter(name__icontains=name_param)
@@ -85,8 +103,19 @@ class InventoryItemListAPIView(generics.ListCreateAPIView):
             return [HasInventoryManagementAccess()]
         return super().get_permissions()
 
+    def get_serializer_context(self):
+        return {
+            **super().get_serializer_context(),
+            "inventory_stock_period": inventory_stock_period_context(self.request),
+        }
+
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+        try:
+            serializer.instance = save_inventory_catalog_item(
+                actor=self.request.user, attributes=serializer.validated_data
+            )
+        except ValidationError as error:
+            raise serializers.ValidationError(error.message_dict) from error
 
 
 class InventoryItemRetrieveAPIView(generics.RetrieveUpdateDestroyAPIView):
@@ -97,9 +126,7 @@ class InventoryItemRetrieveAPIView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         # Detail writes must also be able to reactivate an inactive item that is
         # still retained in the catalogue. Soft-deleted items remain hidden.
-        queryset = InventoryItem.objects.filter(is_deleted=False).prefetch_related(
-            "stock_movements"
-        )
+        queryset = InventoryItem.objects.filter(is_deleted=False)
         if self.request.method.lower() in {"get", "head", "options"} and not (
             HasInventoryManagementAccess().has_permission(self.request, self)
         ):
@@ -111,18 +138,33 @@ class InventoryItemRetrieveAPIView(generics.RetrieveUpdateDestroyAPIView):
             return [HasInventoryManagementAccess()]
         return super().get_permissions()
 
+    def get_serializer_context(self):
+        return {
+            **super().get_serializer_context(),
+            "inventory_stock_period": inventory_stock_period_context(self.request),
+        }
+
     def perform_update(self, serializer):
-        serializer.save(updated_by=self.request.user)
+        try:
+            serializer.instance = save_inventory_catalog_item(
+                actor=self.request.user,
+                attributes=serializer.validated_data,
+                instance=serializer.instance,
+            )
+        except ValidationError as error:
+            raise serializers.ValidationError(error.message_dict) from error
 
     def perform_destroy(self, instance):
         from django.utils import timezone
 
-        instance.is_active = False
-        instance.is_deleted = True
-        instance.deleted_at = timezone.now()
-        instance.updated_by = self.request.user
-        instance.save(
-            update_fields=["is_active", "is_deleted", "deleted_at", "updated_by", "updated_at"]
+        save_inventory_catalog_item(
+            actor=self.request.user,
+            instance=instance,
+            attributes={
+                "is_active": False,
+                "is_deleted": True,
+                "deleted_at": timezone.now(),
+            },
         )
 
 
@@ -194,6 +236,9 @@ class InventoryStockMovementListCreateAPIView(generics.ListCreateAPIView):
         responses={
             201: InventoryStockMovementSerializer,
             400: OpenApiResponse(description="Stock movement validation failed."),
+            409: OpenApiResponse(
+                description="The observed stock changed; refresh before adjusting."
+            ),
         },
     )
     def post(self, request, *args, **kwargs):
@@ -207,7 +252,11 @@ class InventoryStockMovementListCreateAPIView(generics.ListCreateAPIView):
         except InventoryStockMovementError as error:
             return Response(
                 {"detail": str(error), "code": error.code},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=(
+                    status.HTTP_409_CONFLICT
+                    if error.code == "inventory_stock_conflict"
+                    else status.HTTP_400_BAD_REQUEST
+                ),
             )
 
         return Response(
