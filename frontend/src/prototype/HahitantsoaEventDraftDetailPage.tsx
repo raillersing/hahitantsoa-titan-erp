@@ -677,10 +677,10 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     setActionNotice(null);
     try {
       await markHahitantsoaEventDraftRequiredDepositReceived(param);
-      setActionNotice("L'acompte déjà confirmé a été rattaché au dossier.");
+      setActionNotice("Le versement déjà confirmé a été rattaché au dossier.");
       await load();
     } catch (err) {
-      setError(errorMessage(err, "Impossible de rattacher l'acompte déjà confirmé."));
+      setError(errorMessage(err, "Impossible de rattacher le versement déjà confirmé."));
     } finally {
       setBusy(null);
     }
@@ -1381,7 +1381,15 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     return map;
   }, [documents]);
 
-  const contractDoc = docMap.get("hahitantsoa.contract.v1");
+  const contractDocs = useMemo(() => {
+    return documents
+      .filter((d) => d.template_key === "hahitantsoa.contract.v1" && d.status !== "voided")
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [documents]);
+  const contractDoc = contractDocs[0] || docMap.get("hahitantsoa.contract.v1");
+  const isContractExpired = Boolean(
+    contractDoc?.valid_until && new Date(contractDoc.valid_until) < new Date()
+  );
   const proformaDoc = docMap.get("hahitantsoa.proforma.v1");
   const dischargeDoc = docMap.get("hahitantsoa.liability_release.v1");
   const prepSheetDoc = docMap.get("hahitantsoa.preparation_sheet.v1");
@@ -1801,7 +1809,8 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           {draft.status === "draft" && contractExists && !contractSigned && (
             <button
               className="flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 font-bold text-white shadow-sm hover:bg-teal-700 disabled:opacity-50 transition-all text-sm"
-              disabled={busy !== null}
+              disabled={busy !== null || isContractExpired}
+              title={isContractExpired ? "Ce contrat a expiré. Une nouvelle révision doit être générée." : undefined}
               onClick={() => void markContractSigned()}
             >
               <i className="fa-solid fa-signature"></i> Marquer le contrat signé
@@ -1814,7 +1823,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
               disabled={busy !== null}
               onClick={() => void markExistingDepositReceived()}
             >
-              <i className="fa-solid fa-receipt"></i> Valider l'acompte déjà confirmé
+              <i className="fa-solid fa-receipt"></i> Valider le versement déjà confirmé
             </button>
           )}
 
@@ -1860,7 +1869,15 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           <button
             type="button"
             onClick={() => setShowPaymentModal(true)}
-            className="flex items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2 font-semibold text-white shadow-sm hover:bg-slate-800 text-sm transition-all"
+            disabled={draft.status === "draft" && (!contractSigned || isContractExpired)}
+            title={
+              draft.status === "draft" && !contractSigned
+                ? "Le contrat doit être signé avant d'enregistrer le versement contractuel."
+                : draft.status === "draft" && isContractExpired
+                ? "Le contrat a expiré. Une nouvelle révision doit être générée."
+                : undefined
+            }
+            className="flex items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2 font-semibold text-white shadow-sm hover:bg-slate-800 text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <i className="fa-solid fa-plus"></i> Enregistrer versement
           </button>
@@ -1925,6 +1942,34 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         </div>
       )}
 
+      {/* ── Contract Expired Alert Banner ── */}
+      {draft.status === "draft" && contractExists && isContractExpired && (
+        <div
+          data-testid="contract-expired-alert"
+          className="rounded-3xl border-2 border-rose-300 dark:border-rose-700 bg-rose-50/90 dark:bg-rose-950/40 p-4 text-rose-900 dark:text-rose-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <i className="fa-solid fa-triangle-exclamation text-rose-600 dark:text-rose-400 text-xl shrink-0"></i>
+            <div>
+              <p className="font-bold text-sm">
+                Le contrat officiel a expiré {contractDoc?.valid_until ? `le ${formatDateFr(contractDoc.valid_until)}` : ""}.
+              </p>
+              <p className="text-xs text-rose-700 dark:text-rose-300 mt-0.5">
+                Le délai de validité est dépassé. Conformément aux procédures, le contrat ne peut plus être signé ni recevoir de versement. Veuillez générer une nouvelle révision du contrat.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => void generateDocument("hahitantsoa.contract.v1", "Contrat officiel")}
+            className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shrink-0 shadow-sm transition cursor-pointer"
+          >
+            <i className="fa-solid fa-rotate mr-1.5"></i> Générer nouvelle révision
+          </button>
+        </div>
+      )}
+
       {/* ── Unconfirmed Reservation Highlight & Confirmation Studio Banner ── */}
       {draft.status === "draft" && !conflictedWithEvent && (
         <div
@@ -1943,10 +1988,10 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   </span>
                 </div>
                 <h2 className="text-lg font-black text-amber-950 dark:text-amber-100 mt-1">
-                  En attente de l'acompte obligatoire de confirmation
+                  En attente du contrat signé et du versement contractuel
                 </h2>
                 <p className="text-xs text-amber-800 dark:text-amber-200 mt-0.5 leading-relaxed max-w-3xl">
-                  Ce dossier est actuellement une option / devis. La réservation devient <strong>définitivement confirmée</strong> dès encaissement de l'acompte contractuel (<strong>{String(draft?.rental_type || "").toLowerCase().includes("logistic") ? "1 500 000 Ar" : "1 000 000 Ar"}</strong> selon l'Article 5).
+                  Ce dossier est actuellement une option / devis. La réservation devient <strong>définitivement confirmée</strong> après signature du contrat et encaissement du versement contractuel (<strong>{String(draft?.rental_type || "").toLowerCase().includes("logistic") ? "1 500 000 Ar" : "1 000 000 Ar"}</strong> selon l'Article 5).
                 </p>
               </div>
             </div>
@@ -1957,12 +2002,20 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   setPaymentKindSelection("deposit");
                   setShowPaymentModal(true);
                 }}
-                className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 font-bold text-white shadow-sm hover:bg-amber-700 text-xs transition-all cursor-pointer"
+                disabled={!contractSigned || isContractExpired}
+                title={
+                  !contractSigned
+                    ? "Le contrat doit être signé avant d'enregistrer le versement contractuel."
+                    : isContractExpired
+                    ? "Le contrat a expiré. Une nouvelle révision doit être générée."
+                    : undefined
+                }
+                className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 font-bold text-white shadow-sm hover:bg-amber-700 text-xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <i className="fa-solid fa-money-bill-transfer"></i>
                 {confirmedDepositAmount >= requiredDepositAmount
                   ? "Encaisser un versement"
-                  : `Encaisser l'acompte (${formatMoney(depositShortfall > 0 ? depositShortfall : requiredDepositAmount)})`}
+                  : `Encaisser le versement (${formatMoney(depositShortfall > 0 ? depositShortfall : requiredDepositAmount)})`}
               </button>
             </div>
           </div>
@@ -1970,15 +2023,15 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           {/* Metrics & Progress Bar */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-amber-200/70 dark:border-amber-800/70">
             <div className="rounded-2xl bg-white/90 dark:bg-slate-900/70 p-3.5 border border-amber-200 dark:border-amber-800 shadow-2xs">
-              <span className="text-[10px] font-bold text-slate-500 uppercase block">Acompte Requis (Article 5)</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase block">Versement Contractuel Requis (Article 5)</span>
               <span className="text-base font-black text-amber-950 dark:text-amber-100">{formatMoney(requiredDepositAmount)}</span>
               <span className="text-[10px] text-slate-400 block mt-0.5">{String(draft?.rental_type || "").toLowerCase().includes("logistic") ? "Formule Logistique" : "Formule Salle Nue"}</span>
             </div>
             <div className="rounded-2xl bg-white/90 dark:bg-slate-900/70 p-3.5 border border-amber-200 dark:border-amber-800 shadow-2xs">
-              <span className="text-[10px] font-bold text-slate-500 uppercase block">Acompte Réglé à ce jour</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase block">Versement Réglé à ce jour</span>
               <span className="text-base font-black text-emerald-700 dark:text-emerald-300">{formatMoney(confirmedDepositAmount)}</span>
               <span className="text-[10px] text-emerald-600 block mt-0.5">
-                {requiredDepositAmount > 0 ? `${Math.min(100, Math.round((confirmedDepositAmount / requiredDepositAmount) * 100))}% de l'acompte couvert` : "—"}
+                {requiredDepositAmount > 0 ? `${Math.min(100, Math.round((confirmedDepositAmount / requiredDepositAmount) * 100))}% du versement couvert` : "—"}
               </span>
             </div>
             <div className="rounded-2xl bg-white/90 dark:bg-slate-900/70 p-3.5 border border-amber-200 dark:border-amber-800 shadow-2xs">
@@ -2000,17 +2053,17 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           {/* Confirmation Pre-requisites Checklist & Actions */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-amber-200/70 dark:border-amber-800/70 text-xs">
             <div className="flex flex-wrap items-center gap-4">
-              <span className={`flex items-center gap-1.5 font-bold ${confirmedDepositAmount >= requiredDepositAmount ? "text-emerald-800 dark:text-emerald-200" : "text-amber-900 dark:text-amber-100"}`}>
-                <i className={`fa-solid ${confirmedDepositAmount >= requiredDepositAmount ? "fa-circle-check text-emerald-600" : "fa-circle-xmark text-amber-500"}`}></i>
-                1. Acompte de confirmation ({confirmedDepositAmount >= requiredDepositAmount ? "Reçu" : "En attente"})
-              </span>
-              <span className={`flex items-center gap-1.5 font-bold ${contractExists ? "text-emerald-800 dark:text-emerald-200" : "text-slate-500"}`}>
-                <i className={`fa-solid ${contractExists ? "fa-circle-check text-emerald-600" : "fa-circle-xmark text-slate-400"}`}></i>
-                2. Contrat officiel ({contractExists ? "Généré" : "Non généré"})
+              <span className={`flex items-center gap-1.5 font-bold ${contractExists ? (isContractExpired ? "text-rose-700 dark:text-rose-300" : "text-emerald-800 dark:text-emerald-200") : "text-slate-500"}`}>
+                <i className={`fa-solid ${contractExists ? (isContractExpired ? "fa-circle-xmark text-rose-500" : "fa-circle-check text-emerald-600") : "fa-circle-xmark text-slate-400"}`}></i>
+                1. Contrat officiel ({contractExists ? (isContractExpired ? "Expiré" : "Généré") : "Non généré"})
               </span>
               <span className={`flex items-center gap-1.5 font-bold ${contractSigned ? "text-emerald-800 dark:text-emerald-200" : "text-slate-500"}`}>
                 <i className={`fa-solid ${contractSigned ? "fa-circle-check text-emerald-600" : "fa-circle-xmark text-slate-400"}`}></i>
-                3. Signature client ({contractSigned ? "Signé" : "En attente"})
+                2. Signature client ({contractSigned ? "Signé" : "En attente"})
+              </span>
+              <span className={`flex items-center gap-1.5 font-bold ${confirmedDepositAmount >= requiredDepositAmount ? "text-emerald-800 dark:text-emerald-200" : "text-amber-900 dark:text-amber-100"}`}>
+                <i className={`fa-solid ${confirmedDepositAmount >= requiredDepositAmount ? "fa-circle-check text-emerald-600" : "fa-circle-xmark text-amber-500"}`}></i>
+                3. Versement contractuel ({confirmedDepositAmount >= requiredDepositAmount ? "Reçu" : "En attente"})
               </span>
             </div>
 
@@ -2025,7 +2078,17 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   <i className="fa-solid fa-file-contract mr-1.5"></i> Générer le contrat
                 </button>
               )}
-              {contractExists && !contractSigned && (
+              {contractExists && !contractSigned && isContractExpired && (
+                <button
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => void generateDocument("hahitantsoa.contract.v1", "Contrat officiel")}
+                  className="px-3 py-1.5 rounded-xl bg-rose-600 text-white font-bold hover:bg-rose-700 disabled:opacity-50 transition shadow-2xs cursor-pointer"
+                >
+                  <i className="fa-solid fa-rotate mr-1.5"></i> Renouveler le contrat
+                </button>
+              )}
+              {contractExists && !contractSigned && !isContractExpired && (
                 <button
                   type="button"
                   disabled={busy !== null}
@@ -2033,6 +2096,18 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   className="px-3 py-1.5 rounded-xl bg-teal-600 text-white font-bold hover:bg-teal-700 disabled:opacity-50 transition shadow-2xs cursor-pointer"
                 >
                   <i className="fa-solid fa-signature mr-1.5"></i> Marquer contrat signé
+                </button>
+              )}
+              {contractSigned && confirmedDepositAmount < requiredDepositAmount && !isContractExpired && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentKindSelection("deposit");
+                    setShowPaymentModal(true);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700 disabled:opacity-50 transition shadow-2xs cursor-pointer"
+                >
+                  <i className="fa-solid fa-money-bill-transfer mr-1.5"></i> Encaisser le versement
                 </button>
               )}
               {preflight?.can_confirm && (
@@ -2267,7 +2342,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 <span className="text-sm font-black text-slate-900">{formatMoney(totalDossierAmount)}</span>
               </div>
               <div className="rounded-xl bg-white p-3 border border-slate-200/80 shadow-2xs">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Acompte Confirm.</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Versement Confirm.</span>
                 <span className="text-sm font-black text-amber-600">{formatMoney(requiredDepositAmount)}</span>
               </div>
               <div className="rounded-xl bg-white p-3 border border-slate-200/80 shadow-2xs">
@@ -2424,7 +2499,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 <div className="rounded-xl border border-indigo-100 bg-white/90 p-3 text-xs flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-indigo-700">1. Acompte Signature</span>
+                      <span className="font-bold text-indigo-700">1. Versement Signature</span>
                       {depositPaid >= depositTarget && depositTarget > 0 ? (
                         <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Réglé</span>
                       ) : depositPaid > 0 ? (
@@ -2510,32 +2585,52 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
           {/* Inline quick deposit recording for unconfirmed draft */}
           {draft.status === "draft" && canRecordDeposit && (
-            <div className="mt-4 pt-3 border-t border-indigo-100/60 flex flex-wrap items-end gap-3">
-              <label className="text-xs font-semibold text-slate-700 flex-1 min-w-[160px]">
-                Montant de l'acompte (Ar)
-                <input
-                  aria-describedby="deposit-help"
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-bold text-slate-900"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  placeholder="Montant"
-                />
-              </label>
-              <button
-                type="button"
-                className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                disabled={busy !== null}
-                onClick={() => void recordDeposit()}
-              >
-                {busy === "deposit" ? <i className="fa-solid fa-spinner fa-spin mr-1"></i> : <i className="fa-solid fa-check mr-1"></i>}
-                Enregistrer et confirmer l'acompte
-              </button>
-              <span id="deposit-help" className="w-full text-[11px] text-slate-500">
-                Montant restant requis : {formatMoney(remainingDepositAmount)}
-              </span>
+            <div className="mt-4 pt-3 border-t border-indigo-100/60">
+              {!contractSigned ? (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                  <i className="fa-solid fa-circle-info text-amber-600 shrink-0"></i>
+                  <span>
+                    {contractExists
+                      ? isContractExpired
+                        ? "Le contrat officiel a expiré. Une nouvelle révision doit être générée avant tout enregistrement de versement."
+                        : "Le contrat officiel doit être signé par le client avant de pouvoir enregistrer le versement contractuel."
+                      : "Le contrat officiel doit être généré puis signé avant d'enregistrer le versement contractuel."}
+                  </span>
+                </div>
+              ) : isContractExpired ? (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800">
+                  <i className="fa-solid fa-triangle-exclamation text-rose-600 shrink-0"></i>
+                  <span>Le contrat officiel a expiré. Une nouvelle révision doit être générée avant tout versement.</span>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-end gap-3">
+                  <label className="text-xs font-semibold text-slate-700 flex-1 min-w-[160px]">
+                    Montant du versement contractuel (Ar)
+                    <input
+                      aria-describedby="deposit-help"
+                      className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-bold text-slate-900"
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      placeholder="Montant"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    disabled={busy !== null}
+                    onClick={() => void recordDeposit()}
+                  >
+                    {busy === "deposit" ? <i className="fa-solid fa-spinner fa-spin mr-1"></i> : <i className="fa-solid fa-check mr-1"></i>}
+                    Enregistrer et confirmer le versement
+                  </button>
+                  <span id="deposit-help" className="w-full text-[11px] text-slate-500">
+                    Montant restant requis : {formatMoney(remainingDepositAmount)}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -2895,14 +2990,20 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                       <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-base">
                         <i className="fa-solid fa-file-contract"></i>
                       </div>
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${contractSigned ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
-                        {contractSigned ? "Signé" : contractDoc ? "Généré" : "Non généré"}
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${contractSigned ? "bg-emerald-100 text-emerald-800" : isContractExpired ? "bg-rose-100 text-rose-800" : contractDoc ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-800"}`}>
+                        {contractSigned ? "Signé" : isContractExpired ? "Expiré" : contractDoc ? "Généré" : "Non généré"}
                       </span>
                     </div>
                     <p className="font-bold text-slate-900 text-sm">Contrat Officiel</p>
                     <p className="text-xs text-slate-500 mt-1">
                       {contractDoc ? `Généré le ${formatDateFr(contractDoc.prepared_at || contractDoc.created_at)}` : "Disponible à l'aperçu"}
                     </p>
+                    {contractDoc?.valid_until && (
+                      <p className={`text-[11px] mt-0.5 font-medium ${isContractExpired ? "text-rose-600 font-bold" : "text-slate-500"}`}>
+                        {isContractExpired ? "Expiré le " : "Valide jusqu'au "}
+                        {formatDateFr(contractDoc.valid_until)}
+                      </p>
+                    )}
                   </div>
                   <div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2">
                     <button
@@ -2917,7 +3018,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     >
                       <i className="fa-solid fa-eye text-amber-600"></i> Aperçu
                     </button>
-                    {!contractDoc && (
+                    {!contractDoc ? (
                       <button
                         type="button"
                         onClick={() => void generateDocument("hahitantsoa.contract.v1", "Contrat officiel")}
@@ -2926,7 +3027,17 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                       >
                         Générer
                       </button>
-                    )}
+                    ) : isContractExpired && !contractSigned ? (
+                      <button
+                        type="button"
+                        onClick={() => void generateDocument("hahitantsoa.contract.v1", "Contrat officiel")}
+                        disabled={busy !== null}
+                        title="Générer une nouvelle révision du contrat expiré"
+                        className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 disabled:opacity-50"
+                      >
+                        Renouveler
+                      </button>
+                    ) : null}
                   </div>
                 </div>
 
@@ -3192,7 +3303,13 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                         {payments.map((p, idx) => (
                           <tr key={p.id || `payment-${idx}`} className="hover:bg-slate-50/60">
                             <td className="py-2.5 px-3 font-semibold">{formatDateFr(p.paid_at || p.created_at)}</td>
-                            <td className="py-2.5 px-3 capitalize">{p.payment_kind || "Acompte"}</td>
+                            <td className="py-2.5 px-3 capitalize">
+                              {p.payment_kind
+                                ? p.payment_kind === "deposit"
+                                  ? "Versement contractuel"
+                                  : p.payment_kind
+                                : "Versement contractuel"}
+                            </td>
                             <td className="py-2.5 px-3 capitalize">{p.payment_method || "Espèces"}</td>
                             <td className="py-2.5 px-3 text-right font-bold text-slate-900">{formatMoney(p.amount)}</td>
                             <td className="py-2.5 px-3">
@@ -4327,6 +4444,8 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           paidAmount={totalPaidAmount}
           requiredDepositAmount={requiredDepositAmount}
           cautionAmount={cautionAmount}
+          contractSigned={contractSigned}
+          contractExpired={isContractExpired}
           existingPayments={payments.map((p) => ({
             id: p.id,
             date: p.paid_at || p.created_at,
@@ -4340,20 +4459,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           }))}
           onPaymentRecorded={async (result) => {
             if (param) {
-              // 1. Auto-generate official contract if missing
-              if (!contractExists) {
-                try {
-                  const contractInst = await createHahitantsoaEventDraftDocumentInstance(param, {
-                    template_key: "hahitantsoa.contract.v1",
-                  });
-                  await generateHahitantsoaEventDraftDocumentInstance(param, contractInst.id);
-                  await generateHahitantsoaEventDraftDocumentInstancePdf(param, contractInst.id);
-                } catch (cErr) {
-                  console.warn("Auto contract generation after payment:", cErr);
-                }
-              }
-
-              // 2. Auto-regenerate Proforma and Invoice to sync with all lines and totals
+              // 1. Auto-regenerate Proforma and Invoice to sync with all lines and totals
               try {
                 const pfInst = await createHahitantsoaEventDraftDocumentInstance(param, {
                   template_key: "hahitantsoa.proforma.v1",
@@ -5423,7 +5529,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     <div className="grid grid-cols-3 gap-2 text-xs pt-2">
                       <div className="rounded-lg bg-white p-2.5 border border-slate-200 text-center">
                         <span className="text-[10px] font-semibold text-slate-400 uppercase block">
-                          Nouvel Acompte (50%)
+                          Nouveau Versement Contractuel
                         </span>
                         <span className="font-bold text-amber-600 block mt-0.5">
                           {formatMoney(amendmentFinancialPreview.effectiveNewDeposit)}

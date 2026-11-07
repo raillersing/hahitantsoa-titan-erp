@@ -361,13 +361,13 @@ describe("HahitantsoaEventDraftDetailPage", () => {
 
     expect(await screen.findByText("Contrat Officiel")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /marquer le contrat signé/i }));
-    await waitFor(() => expect(screen.getByRole("button", { name: /enregistrer et confirmer l'acompte/i })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: /enregistrer et confirmer le versement/i })).toBeInTheDocument());
 
-    fireEvent.change(screen.getByLabelText(/montant de l'acompte/i), { target: { value: "5000" } });
-    fireEvent.click(screen.getByRole("button", { name: /enregistrer et confirmer l'acompte/i }));
+    fireEvent.change(screen.getByLabelText(/montant du versement contractuel/i), { target: { value: "5000" } });
+    fireEvent.click(screen.getByRole("button", { name: /enregistrer et confirmer le versement/i }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Réseau interrompu");
 
-    fireEvent.click(screen.getByRole("button", { name: /enregistrer et confirmer l'acompte/i }));
+    fireEvent.click(screen.getByRole("button", { name: /enregistrer et confirmer le versement/i }));
     await waitFor(() => expect(screen.getByText("Confirmée")).toBeInTheDocument());
 
     expect(mockMarkContractSigned).toHaveBeenCalledWith(DRAFT.id);
@@ -420,7 +420,7 @@ describe("HahitantsoaEventDraftDetailPage", () => {
 
     render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /valider l'acompte déjà confirmé/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /valider le versement déjà confirmé/i }));
     await waitFor(() => expect(mockMarkDepositReceived).toHaveBeenCalledWith(DRAFT.id));
     expect(mockRecordConfirmedDeposit).not.toHaveBeenCalled();
   });
@@ -955,7 +955,7 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     const banner = screen.getByTestId("unconfirmed-highlight-banner");
     expect(banner).toBeInTheDocument();
     expect(banner).toHaveTextContent("Réservation non confirmée");
-    expect(banner).toHaveTextContent("En attente de l'acompte obligatoire de confirmation");
+    expect(banner).toHaveTextContent("En attente du contrat signé et du versement contractuel");
 
     // Check caution escrow card
     const cautionCard = screen.getByTestId("caution-escrow-card");
@@ -1671,6 +1671,28 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     fireEvent.click(within(breakdown).getByRole('button', { name: /Détail complet/ }));
     expect(within(breakdown).getByText('Composition de la location nue non archivée pour ce dossier.')).toBeInTheDocument();
     expect(within(breakdown).queryByText(/Inclusion actuelle non historique/)).not.toBeInTheDocument();
+  });
+
+  it("displays contract-expired-alert and blocks payment/signature when contract is expired", async () => {
+    currentDocuments = [
+      {
+        id: "doc-expired",
+        template_key: "hahitantsoa.contract.v1",
+        status: "generated",
+        template_label: "Contrat officiel",
+        valid_until: "2026-01-01T00:00:00Z",
+        created_at: "2026-01-01T00:00:00Z",
+      } as unknown as DocumentInstance,
+    ];
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    const expiredAlert = await screen.findByTestId("contract-expired-alert");
+    expect(expiredAlert).toBeInTheDocument();
+    expect(within(expiredAlert).getByText(/Le contrat officiel a expiré/i)).toBeInTheDocument();
+
+    const signBtn = screen.getByRole("button", { name: /marquer le contrat signé/i });
+    expect(signBtn).toBeDisabled();
+    expect(screen.getByRole("button", { name: /enregistrer versement/i })).toBeDisabled();
   });
 
   });

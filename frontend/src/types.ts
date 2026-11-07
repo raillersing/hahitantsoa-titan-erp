@@ -415,6 +415,7 @@ export type HahitantsoaCommercialTerms = {
   excess_guest_amount: string;
   bare_deposit_amount: string;
   logistics_deposit_amount: string;
+  contract_validity_days: number;
   night_option_1_amount: string;
   night_option_2_amount: string;
   night_security_amount: string;

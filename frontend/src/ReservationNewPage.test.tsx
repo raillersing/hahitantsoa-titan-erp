@@ -247,6 +247,7 @@ describe('ReservationNewPage', () => {
       excess_guest_amount: '5000.00',
       bare_deposit_amount: '1000000.00',
       logistics_deposit_amount: '1500000.00',
+      contract_validity_days: 15,
       night_option_1_amount: '300000.00',
       night_option_2_amount: '500000.00',
       night_security_amount: '120000.00',
