@@ -1,3 +1,7 @@
+import { validateWizardSnapshot } from "./wizardSnapshot";
+import { WizardServerRecovery } from "./wizardServerRecovery";
+import { getWizardSessions, getWizardSession, downloadWizardFile } from "../api";
+import type { WizardSessionMetadata, WizardWrite, WizardDraftPayload } from "../api";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { saveDraftFiles, readDraftFiles, clearDraftFiles } from "./wizardDraftFiles";
 import { AvailabilityDatePicker, parseAndNormalizeDate } from "../components/AvailabilityDatePicker";
@@ -6,6 +10,7 @@ import OfficialPaymentReceipt from "./OfficialPaymentReceipt";
 import BareRentalCompositionEditor from "./BareRentalCompositionEditor";
 import { calculateTitanCautionAmount } from "../utils";
 import {
+  getReservationDraftDocumentInstances,
   getCustomers,
   getHahitantsoaVenues,
   getHahitantsoaServices,
@@ -310,6 +315,10 @@ type ProspectProformaEmission = {
   documentId?: string;
   htmlGenerated: boolean;
   documentPdfGenerated?: boolean;
+  needsRevision?: boolean;
+  revisionKey?: string;
+  revisionSourceId?: string;
+  previousDocumentId?: string;
 };
 
 interface NewClientData {
@@ -651,6 +660,13 @@ export function calculateReservationTotals({
 export default function ReservationNewPage({ onNavigate, param, currentUserId }: ReservationNewPageProps) {
   // State
   const draftKey = (currentUserId ? `prototypeReservationDraft:${currentUserId}` : "prototypeReservationDraft") + (param?.startsWith("edit-") ? `:${param}` : "");
+  const recoveryRef = useRef<WizardServerRecovery | null>(null);
+  const wizardRootRef = useRef<HTMLDivElement>(null);
+  const [serverSessions, setServerSessions] = useState<WizardSessionMetadata[]>([]);
+  const [recoveryStatus, setRecoveryStatus] = useState("Secours local : sauvegarde serveur en attente.");
+  const [recoveryConflict, setRecoveryConflict] = useState(false);
+  const [checkingRecovery, setCheckingRecovery] = useState(true);
+  const snapshotRef = useRef<Record<string, unknown>>({});
   const draftClosedRef = useRef(false);
   const draftInitializingRef = useRef(false);
   const routeRequestRef = useRef(0);
@@ -984,6 +1000,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
               domain: 'titan',
               draftId: draft.id,
               htmlGenerated: false,
+              needsRevision: true,
             });
             setDocumentReference(draft.public_reference);
 
@@ -1055,6 +1072,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
               domain: 'hahitantsoa',
               draftId: draft.id,
               htmlGenerated: false,
+              needsRevision: true,
             });
             setDocumentReference(draft.public_reference);
 
@@ -1156,6 +1174,26 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     setDeliveryModifiedManually(false); setReturnModifiedManually(false); depositRecordingKeyRef.current = null;
   };
 
+  useEffect(() => {
+    if (restoredRouteRef.current) { setCheckingRecovery(false); return; }
+    let cancelled = false;
+    setCheckingRecovery(true);
+    getWizardSessions().then(rows => {
+      if (cancelled) return;
+      const compatible = rows.filter(row => row.status === "active");
+      setServerSessions(compatible);
+      if (compatible.length) { setShowDraftPrompt(true); draftInitializingRef.current = true; }
+    }).catch(() => { if (!cancelled) setRecoveryStatus("Serveur indisponible : seul le secours local est disponible. Réessayez avant de quitter."); })
+      .finally(() => { if (!cancelled) setCheckingRecovery(false); });
+    return () => { cancelled = true; };
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (checkingRecovery) return;
+    if (showDraftPrompt) document.getElementById("draft-prompt-title")?.focus();
+    else wizardRootRef.current?.focus();
+  }, [showDraftPrompt, checkingRecovery]);
+
   // Init from URL param if needed, or prompt to restore draft if unfinished
   useEffect(() => {
     if (param && param.startsWith('quote/')) {
@@ -1165,6 +1203,9 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     }
 
     if (restoredRouteRef.current) { restoredRouteRef.current = false; return; }
+    recoveryRef.current?.dispose();
+    recoveryRef.current = null;
+    snapshotRef.current = {};
     ++routeRequestRef.current;
     draftInitializingRef.current = true;
     draftClosedRef.current = false;
@@ -1265,8 +1306,43 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       discountValue, discountIsPercentage, discountReason,
       prospectProformaEmission,
     };
+    const confirmedEmission = snapshotRef.current.prospectProformaEmission as ProspectProformaEmission | undefined;
+    snapshotRef.current = { ...draft, ...(confirmedEmission && !draft.prospectProformaEmission ? { prospectProformaEmission: confirmedEmission } : {}) };
     try { localStorage.setItem(draftKey, JSON.stringify(draft)); }
     catch { setDraftWarning("La sauvegarde automatique est indisponible. Gardez cette page ouverte."); }
+  };
+
+  const persistRecovery = async (override: Partial<WizardWrite> = {}) => {
+    if (!currentUserId) return;
+    saveDraft();
+    const state = { ...snapshotRef.current };
+    if (clientMode === "new" && !selectedClientId && createdClientIdRef.current) { state.selectedClientId = createdClientIdRef.current; state.clientMode = "existing"; state.isEditingClient = false; }
+    state.customerCreationKey = customerCreationKeyRef.current;
+    state.depositRecordingKey = depositRecordingKeyRef.current;
+    if (!recoveryRef.current) {
+      const identityKey = `${draftKey}:server-client-key`;
+      let key = localStorage.getItem(identityKey);
+      if (!key) { key = crypto.randomUUID(); localStorage.setItem(identityKey, key); }
+      recoveryRef.current = new WizardServerRecovery(key);
+    }
+    const writer = recoveryRef.current;
+    const savedDomain = state.domain as "titan" | "hahitantsoa" | null;
+    const emission = state.prospectProformaEmission as ProspectProformaEmission | null;
+    const context = state.editingDraftContext as EditingDraftContext | undefined;
+    const draftId = emission?.draftId || context?.draftId;
+    const pages = [...clientAttachments, ...paymentAttachments, ...Object.values(dedicatedAttachments).flatMap(items => items || [])];
+    setRecoveryStatus("Sauvegarde privée sur le serveur en cours…");
+    try {
+      if (override.status === "completed") { await writer.save({ status: "completed" }); return; }
+      await writer.save({ state, domain: savedDomain, step: Number(state.step) || 0,
+        customer_id: String(state.selectedClientId || "") || null,
+        ...(draftId ? savedDomain === "titan" ? { reservation_draft_id: draftId } : { hahitantsoa_event_draft_id: draftId } : {}), ...override, ...(override.state ? { state: { ...state, ...override.state, selectedClientId: state.selectedClientId, clientMode: state.clientMode, isEditingClient: state.isEditingClient, customerCreationKey: state.customerCreationKey, depositRecordingKey: state.depositRecordingKey, prospectProformaEmission: override.state.prospectProformaEmission ?? state.prospectProformaEmission } } : {}) }, pages);
+      setRecoveryStatus("Sauvegardé sur le serveur privé. Reprise possible avec ce même compte sur un autre appareil.");
+    } catch (error) {
+      setRecoveryConflict(writer.conflict);
+      setRecoveryStatus(writer.conflict ? "Conflit : une autre version est enregistrée. Vos saisies locales sont conservées ; aucune version serveur n’a été écrasée." : "Sauvegarde serveur interrompue. Vos saisies restent en secours local ; réessayez avant de quitter.");
+      throw error;
+    }
   };
 
   useEffect(() => {
@@ -1274,6 +1350,12 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       saveDraft();
     }
   }, [hasDraftContent, step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, recordedPayments, discountValue, discountIsPercentage, discountReason, prospectProformaEmission, documentReference, issuedProspectProformaId, proformaGenerated, proformaValidity, deliveryModifiedManually, returnModifiedManually, lastCalculatedDelivery, lastCalculatedReturn, useCustomReference, customPublicReference, isEditingClient, draftKey]);
+
+  useEffect(() => {
+    if (!hasDraftContent || checkingRecovery || draftInitializingRef.current || draftClosedRef.current || restoringDraft || recoveryConflict) return;
+    const timer = setTimeout(() => { void persistRecovery().catch(() => undefined); }, 700);
+    return () => clearTimeout(timer);
+  }, [hasDraftContent, checkingRecovery, step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, recordedPayments, discountValue, discountIsPercentage, discountReason, prospectProformaEmission, documentReference, issuedProspectProformaId, proformaGenerated, restoringDraft, recoveryConflict]);
 
   useEffect(() => {
     const handleBeforeUnload = () => { if (hasDraftContent) saveDraft(); };
@@ -1287,27 +1369,59 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     if (pages.some(page => page.file)) void saveDraftFiles(draftKey, pages).catch(() => setDraftWarning("Les fichiers ne peuvent pas être sauvegardés sur cet appareil. Ils devront être sélectionnés à nouveau après rechargement."));
   }, [clientAttachments, paymentAttachments, dedicatedAttachments, draftKey, hasDraftContent, restoringDraft]);
 
-  useEffect(() => () => { ++routeRequestRef.current; }, []);
+  useEffect(() => () => { ++routeRequestRef.current; recoveryRef.current?.dispose(); }, []);
 
-  const restoreDraft = async () => {
+  const restoreDraft = async (serverSessionId?: string) => {
     if (restoringDraft) return;
     const requestId = routeRequestRef.current;
     setRestoringDraft(true);
     try {
+      const server = serverSessionId ? await getWizardSession(serverSessionId) : null;
       const saved = localStorage.getItem(draftKey);
-      if (!saved) return;
-      const data = JSON.parse(saved);
+      if (!server && !saved) return;
+      const data = server ? { ...server.state } : JSON.parse(saved!);
+      if (server) {
+        const linkedDraftId = server.reservation_draft_id || server.hahitantsoa_event_draft_id;
+        if (server.customer_id) { data.selectedClientId = server.customer_id; data.clientMode = "existing"; }
+        if (linkedDraftId && !data.prospectProformaEmission?.draftId) data.prospectProformaEmission = { domain: server.domain, draftId: linkedDraftId, htmlGenerated: false };
+      }
+      validateWizardSnapshot(data, server?.step);
+      const serverFiles: Record<string, File> = {};
+      if (server) {
+        const neededPages: Attachment[] = [...(data.clientAttachments || []), ...(data.paymentAttachments || []), ...Object.values(data.dedicatedAttachments || {}).flatMap(pages => Array.isArray(pages) ? pages : pages ? [pages] : [])] as Attachment[];
+        for (const page of neededPages.filter(page => !page.uploadedId)) {
+          const file = server.files.find(file => file.client_file_key === page.id);
+          if (!file) throw new Error(`Le fichier « ${page.name} » n’est pas disponible sur le serveur. Le secours local est conservé.`);
+          serverFiles[file.client_file_key] = await downloadWizardFile(server.id, file);
+        }
+      }
       if (!data || typeof data !== "object") throw new Error("Brouillon invalide");
       const savedDraftId = data.editingDraftContext?.draftId || data.prospectProformaEmission?.draftId;
       const savedDomain = data.editingDraftContext?.domain || data.domain;
       const persistedSnapshot = savedDraftId ? (savedDomain === "titan" ? await getReservationDraft(savedDraftId) : await getHahitantsoaEventDraft(savedDraftId)) : null;
       if (requestId !== routeRequestRef.current) return;
       if (persistedSnapshot && (persistedSnapshot.status !== "draft" || ("contract_signed_at" in persistedSnapshot && persistedSnapshot.contract_signed_at))) throw new Error("Ce dossier n’est plus modifiable directement. Ouvrez son dossier pour consulter les actions autorisées.");
-      if (data.editingDraftContext?.isEditing) setEditingDraftContext({ ...data.editingDraftContext, loading: false, error: null });
-      const files = await readDraftFiles(draftKey).catch(() => { setDraftWarning("Les champs sont conservés. Les fichiers devront être sélectionnés à nouveau."); return {} as Record<string, File>; });
+      const files = server ? serverFiles : await readDraftFiles(draftKey).catch(() => { setDraftWarning("Les champs sont conservés. Les fichiers devront être sélectionnés à nouveau."); return {} as Record<string, File>; });
       if (requestId !== routeRequestRef.current) return;
-      const restorePage = (page: Attachment): Attachment => ({ ...page, file: files[page.id] });
       const resumedStep = Number.isInteger(data.step) ? Math.max(0, Math.min(9, data.step)) : 0;
+      let restoredPayments: typeof recordedPayments = [];
+      let depositCovered = false;
+      if (data.prospectProformaEmission?.draftId && (resumedStep >= 8 || data.maxReachedStep >= 8 || data.recordedPayments?.length || data.depositRecordingKey)) {
+        const rows = data.domain === "hahitantsoa"
+          ? await getHahitantsoaEventDraftPayments(data.prospectProformaEmission.draftId)
+          : await getPayments(data.prospectProformaEmission.draftId);
+        if (requestId !== routeRequestRef.current) return;
+        if (!persistedSnapshot || persistedSnapshot.status !== "draft" || ("contract_signed_at" in persistedSnapshot && persistedSnapshot.contract_signed_at)) throw new Error("Ce dossier est déjà signé ou n’est plus un brouillon. Consultez le dossier enregistré.");
+        const confirmed = rows.filter(row => row.payment_status === "confirmed" || row.payment_status === "reconciled");
+        restoredPayments = confirmed.map(row => ({ id: row.id, amount: Number(row.amount), method: row.payment_method, receiptDocumentId: row.receipt_document?.id }));
+        depositCovered = restoredPayments.reduce((sum, row) => sum + row.amount, 0) >= Number(persistedSnapshot.required_deposit_amount ?? Number.POSITIVE_INFINITY);
+      }
+      const recoveryKey = server?.client_key || crypto.randomUUID();
+      localStorage.setItem(`${draftKey}:server-client-key`, recoveryKey);
+      // All fallible reads have completed. Commit the recovered form together.
+      setEditingDraftContext(data.editingDraftContext?.isEditing ? { ...data.editingDraftContext, loading: false, error: null } : { isEditing: false, draftId: "", domain: null, publicReference: "", loading: false, error: null });
+      createdClientIdRef.current = null;
+      const restorePage = (page: Attachment): Attachment => ({ ...page, file: files[page.id] });
       setPath(data.path === "domain_first" ? "domain_first" : "client_first"); setStep(resumedStep);
       setMaxReachedStep(Math.max(resumedStep, Math.min(9, Number(data.maxReachedStep) || resumedStep)));
       lastOfferRef.current = null;
@@ -1326,21 +1440,9 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       setClientAttachments((data.clientAttachments || []).map(restorePage));
       setDedicatedAttachments(Object.fromEntries(Object.entries(data.dedicatedAttachments || {}).map(([category, pages]) => [category, (Array.isArray(pages) ? pages : pages ? [pages] : []).map(restorePage)])));
       setPaymentAttachments((data.paymentAttachments || []).map(restorePage));
-      if (data.prospectProformaEmission?.draftId && (resumedStep >= 8 || data.maxReachedStep >= 8 || data.recordedPayments?.length || data.depositRecordingKey)) {
-        const draftId = data.prospectProformaEmission.draftId;
-        const [persisted, rows] = data.domain === "hahitantsoa"
-          ? await Promise.all([Promise.resolve(persistedSnapshot), getHahitantsoaEventDraftPayments(draftId)])
-          : await Promise.all([Promise.resolve(persistedSnapshot), getPayments(draftId)]);
-        if (requestId !== routeRequestRef.current) return;
-        if (!persisted || persisted.status !== "draft" || ("contract_signed_at" in persisted && persisted.contract_signed_at)) throw new Error("Ce dossier est déjà signé ou n’est plus un brouillon. Consultez le dossier enregistré.");
-        const confirmed = rows.filter(row => row.payment_status === "confirmed" || row.payment_status === "reconciled");
-        setRecordedPayments(confirmed.map(row => ({ id: row.id, amount: Number(row.amount), method: row.payment_method, receiptDocumentId: row.receipt_document?.id })));
-        const required = Number(persisted.required_deposit_amount ?? Number.POSITIVE_INFINITY);
-        const covered = confirmed.reduce((sum, row) => sum + Number(row.amount), 0) >= required;
-        setPaymentDone(covered);
-        if (covered) setPayment(current => ({ ...current, amount: "" }));
-        if (resumedStep === 9 && !covered) setStep(8);
-      } else { setRecordedPayments([]); setPaymentDone(false); }
+      setRecordedPayments(restoredPayments); setPaymentDone(depositCovered);
+      if (depositCovered) setPayment(current => ({ ...current, amount: "" }));
+      if (resumedStep === 9 && !depositCovered) setStep(8);
       depositRecordingKeyRef.current = data.depositRecordingKey || null;
       customerCreationKeyRef.current = typeof data.customerCreationKey === "string" ? data.customerCreationKey : null;
       setDiscountValue(data.discountValue || 0); setDiscountIsPercentage(data.discountIsPercentage ?? true); setDiscountReason(data.discountReason || "");
@@ -1349,6 +1451,16 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       setDeliveryModifiedManually(Boolean(data.deliveryModifiedManually)); setReturnModifiedManually(Boolean(data.returnModifiedManually));
       setLastCalculatedDelivery(data.lastCalculatedDelivery || { date: "", time: "" }); setLastCalculatedReturn(data.lastCalculatedReturn || { date: "", time: "" });
       setUseCustomReference(Boolean(data.useCustomReference)); setCustomPublicReference(data.customPublicReference || "");
+      if (!server) {
+        recoveryRef.current = new WizardServerRecovery(recoveryKey);
+        setRecoveryConflict(false);
+      }
+      if (server) {
+        const writer = new WizardServerRecovery(server.client_key); writer.session = server;
+        recoveryRef.current = writer;
+        setRecoveryConflict(false);
+        setRecoveryStatus("Version privée du serveur reprise. Le secours local reste disponible sur cet appareil.");
+      }
       draftClosedRef.current = false; draftInitializingRef.current = false; setShowDraftPrompt(false);
       if (Object.hasOwn(data, "routeParam") && data.routeParam !== (param ?? null)) { restoredRouteRef.current = true; onNavigate("reservation-new", data.routeParam || undefined); }
     } catch (error) { setDraftWarning(error instanceof Error ? error.message : "Le brouillon ne peut pas être repris. Vos données sont conservées."); }
@@ -1359,6 +1471,12 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     ++routeRequestRef.current;
     draftClosedRef.current = !resetState;
     draftInitializingRef.current = false;
+    recoveryRef.current?.dispose();
+    recoveryRef.current = null;
+    snapshotRef.current = {};
+    localStorage.removeItem(`${draftKey}:server-client-key`);
+    setRecoveryConflict(false);
+    setServerSessions([]);
     localStorage.removeItem(draftKey);
     void clearDraftFiles(draftKey).catch(() => undefined);
     setShowDraftPrompt(false);
@@ -1451,7 +1569,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
   const offerFingerprint = JSON.stringify({ domain, selectedClientId, clientMode, newClient, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, discountValue, discountIsPercentage, discountReason, proformaValidity });
   useEffect(() => {
     if (lastOfferRef.current !== null && lastOfferRef.current !== offerFingerprint && !restoringDraft) {
-      setProspectProformaEmission(current => current?.documentId ? { ...current, documentId: undefined, htmlGenerated: false, documentPdfGenerated: false } : current);
+      setProspectProformaEmission(current => current?.draftId ? { ...current, previousDocumentId: current.documentId || current.previousDocumentId, needsRevision: true, revisionKey: undefined, revisionSourceId: undefined, documentId: undefined, htmlGenerated: false, documentPdfGenerated: false } : current);
       setIssuedProspectProformaId(null); setProformaGenerated(false);
     }
     lastOfferRef.current = offerFingerprint;
@@ -1461,6 +1579,26 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
   const compositionError = domain === "hahitantsoa" && isBareOrLogistics && hDetails.bareRentalComposition && (
     hDetails.bareRentalComposition.length < 1 || hDetails.bareRentalComposition.length > 50 || hDetails.bareRentalComposition.some(item => !item.label.trim() || item.label.trim().length > 200 || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 9999)
   ) ? "Composition de la location nue : renseignez un libellé et une quantité entière entre 1 et 9999 pour chaque élément (50 éléments maximum)." : null;
+
+  const recoveryActionFailed = (error: unknown): never => {
+    if (recoveryRef.current?.conflict) {
+      setRecoveryConflict(true);
+      setRecoveryStatus("Conflit : une autre version est enregistrée. Vos saisies locales sont conservées ; aucune version serveur n’a été écrasée.");
+    } else setRecoveryStatus("Action serveur interrompue. Vos saisies sont conservées ; vous pouvez réessayer sans recréer le dossier.");
+    throw error;
+  };
+
+  const createRecoverableDraft = async (targetDomain: "titan" | "hahitantsoa", payload: WizardDraftPayload) => {
+    if (!currentUserId) return targetDomain === "titan"
+      ? createReservationDraft(payload as Parameters<typeof createReservationDraft>[0])
+      : createHahitantsoaEventDraft(payload as Parameters<typeof createHahitantsoaEventDraft>[0]);
+    await persistRecovery();
+    const result = await recoveryRef.current!.createDraft(targetDomain, payload, proformaValidity).catch(recoveryActionFailed);
+    const emission: ProspectProformaEmission = { domain: targetDomain, draftId: result.draft.id, documentId: result.proforma_id || undefined, htmlGenerated: false, ...(result.draft.required_deposit_amount !== undefined ? { requiredDepositAmount: Number(result.draft.required_deposit_amount) } : {}) };
+    snapshotRef.current = { ...snapshotRef.current, prospectProformaEmission: emission };
+    setProspectProformaEmission(emission);
+    return result.draft;
+  };
 
   const persistCommercialDraft = async (): Promise<ProspectProformaEmission> => {
     if (compositionError) throw new Error(compositionError);
@@ -1510,8 +1648,8 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
         };
         const draft = emission.draftId
           ? await updateHahitantsoaEventDraft(emission.draftId, payload)
-          : await createHahitantsoaEventDraft(payload);
-        emission = { ...emission, draftId: draft.id, ...(draft.required_deposit_amount !== undefined ? { requiredDepositAmount: Number(draft.required_deposit_amount) } : {}) };
+          : await createRecoverableDraft("hahitantsoa", payload);
+        emission = { ...emission, documentId: recoveryRef.current?.proformaId || emission.documentId, draftId: draft.id, ...(draft.required_deposit_amount !== undefined ? { requiredDepositAmount: Number(draft.required_deposit_amount) } : {}) };
       } else {
         const payload = {
           customer_id: customerId,
@@ -1526,10 +1664,10 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
         };
         const draft = emission.draftId
           ? await updateReservationDraft(emission.draftId, payload)
-          : await createReservationDraft(payload);
-        emission = { ...emission, draftId: draft.id, ...(draft.required_deposit_amount !== undefined ? { requiredDepositAmount: Number(draft.required_deposit_amount) } : {}) };
+          : await createRecoverableDraft("titan", payload);
+        emission = { ...emission, documentId: recoveryRef.current?.proformaId || emission.documentId, draftId: draft.id, ...(draft.required_deposit_amount !== undefined ? { requiredDepositAmount: Number(draft.required_deposit_amount) } : {}) };
       }
-      setProspectProformaEmission(emission);
+      snapshotRef.current = { ...snapshotRef.current, prospectProformaEmission: emission }; setProspectProformaEmission(emission);
       return emission;
     } finally {
       setServerDraftSaving(false);
@@ -1537,7 +1675,8 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
   };
 
   // Navigation
-  const goNext = async () => {
+  const goNext = async (requestedPath?: unknown) => {
+    const nextPath = requestedPath === "client_first" || requestedPath === "domain_first" ? requestedPath : path;
     if (serverDraftSaving || navigationSavingRef.current) return;
     setSubmitError(null);
     const clientStep = path === "client_first" ? 1 : 2;
@@ -1554,6 +1693,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     }
     navigationSavingRef.current = true;
     try {
+      if (currentUserId && step > 0) await persistRecovery();
       if (step === clientStep) {
         setServerDraftSaving(true);
         await ensureCustomerId();
@@ -1565,8 +1705,11 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
         && (domain !== "titan" || selectedMaterials.length > 0);
       if (reachesPersistableOfferCompletion) {
         await persistCommercialDraft();
-        showToastMsg("Dossier enregistré sur le serveur. Vous pouvez reprendre ce parcours sans dépendre du navigateur.", "success");
+        showToastMsg("Dossier enregistré sur le serveur.", "success");
       }
+      let savedNextStep = step + 1;
+      if (step === 3 && domain === "hahitantsoa" && hDetails.rentalType === "Location nue") savedNextStep = 5;
+      if (currentUserId) await persistRecovery({ step: savedNextStep, state: { step: savedNextStep, maxReachedStep: Math.max(maxReachedStep, savedNextStep), path: nextPath } });
     } catch (error: any) {
       setSubmitError(error?.message || "Impossible d’enregistrer le dossier.");
       return;
@@ -1692,6 +1835,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
         throw new Error("Impossible de sécuriser la reprise du client. Réessayez la sauvegarde avant de continuer.");
       }
     }
+    await persistRecovery();
     const customer = isEditingClient && selectedClientId
       ? await updateCustomer(selectedClientId, customerChanges)
       : await createCustomer({ ...payload, idempotency_key: customerCreationKeyRef.current! });
@@ -1723,7 +1867,10 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       if (!attachment.file) {
         throw new Error(`Sélectionnez à nouveau le fichier « ${attachment.name} » pour continuer.`);
       }
-      const uploaded = await uploadAttachment(attachment.file, attachment.category, {
+      if (currentUserId) await persistRecovery();
+      const uploaded = currentUserId
+        ? (await recoveryRef.current!.promoteFile(attachment.id, scope.reservationDraftId || scope.hahitantsoaEventDraftId ? "draft" : "customer").catch(recoveryActionFailed)).attachment
+        : await uploadAttachment(attachment.file, attachment.category, {
         customerId: scope.customerId,
         reservationDraftId: scope.reservationDraftId,
         hahitantsoaEventDraftId: scope.hahitantsoaEventDraftId,
@@ -1731,10 +1878,20 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       const update = (current: Attachment[]) => current.map(item => (
         item.id === attachment.id ? { ...item, uploadedId: uploaded.id, file: undefined } : item
       ));
+      const savedState = snapshotRef.current;
+      const nextState = {
+        ...savedState,
+        clientAttachments: update((savedState.clientAttachments || []) as Attachment[]),
+        paymentAttachments: update((savedState.paymentAttachments || []) as Attachment[]),
+        dedicatedAttachments: Object.fromEntries(Object.entries((savedState.dedicatedAttachments || {}) as Record<string, Attachment[]>).map(([category, pages]) => [category, update(pages)])),
+      };
+      snapshotRef.current = nextState;
+      localStorage.setItem(draftKey, JSON.stringify(nextState));
       if (target === "dedicated") {
         setDedicatedAttachments(current => Object.fromEntries(Object.entries(current).map(([category, pages]) => [category, update(pages || [])])) as Partial<Record<DedicatedAttachmentCategory, Attachment[]>>);
       } else if (target === "client") setClientAttachments(update);
       else setPaymentAttachments(update);
+      await persistRecovery({ state: nextState });
     }
   };
 
@@ -1747,6 +1904,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       throw new Error("Sélectionnez un client et un volet avant d’émettre le proforma.");
     }
     if (compositionError) throw new Error(compositionError);
+    await persistRecovery();
     const customerId = await ensureCustomerId();
     if (!Number.isInteger(proformaValidity) || proformaValidity < 1) {
       throw new Error("La durée de validité doit être d’au moins un jour.");
@@ -1780,7 +1938,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     if (!emission.draftId) {
       const customRef = useCustomReference && customPublicReference.trim() ? customPublicReference.trim() : undefined;
       if (isHahitantsoa) {
-        const eventDraft = await createHahitantsoaEventDraft({
+        const eventDraft = await createRecoverableDraft("hahitantsoa", {
           customer_id: customerId,
           public_reference: customRef,
           event_type: toHahitantsoaEventType(hDetails.eventType),
@@ -1797,9 +1955,9 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           notes: formatHahitantsoaNotes(hDetails),
           lines,
         });
-        emission = { ...emission, draftId: eventDraft.id };
+        emission = { ...emission, documentId: recoveryRef.current?.proformaId || emission.documentId, draftId: eventDraft.id };
       } else {
-        const reservationDraft = await createReservationDraft({
+        const reservationDraft = await createRecoverableDraft("titan", {
           customer_id: customerId,
           public_reference: customRef,
           start_at: startAt,
@@ -1812,11 +1970,12 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
         });
         emission = {
           ...emission,
+          documentId: recoveryRef.current?.proformaId || emission.documentId,
           draftId: reservationDraft.id,
           requiredDepositAmount: Number(reservationDraft.required_deposit_amount || "0"),
         };
       }
-      setProspectProformaEmission(emission);
+      snapshotRef.current = { ...snapshotRef.current, prospectProformaEmission: emission }; setProspectProformaEmission(emission);
     } else {
       const customRef = useCustomReference && customPublicReference.trim() ? customPublicReference.trim() : undefined;
       if (isHahitantsoa) {
@@ -1851,7 +2010,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
         });
         if (updated.required_deposit_amount !== undefined) {
           emission = { ...emission, requiredDepositAmount: Number(updated.required_deposit_amount) };
-          setProspectProformaEmission(emission);
+          snapshotRef.current = { ...snapshotRef.current, prospectProformaEmission: emission }; setProspectProformaEmission(emission);
         }
       }
     }
@@ -1860,6 +2019,31 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       throw new Error("Le brouillon du proforma n’a pas pu être identifié.");
     }
     const draftId = emission.draftId;
+    if (currentUserId) {
+      let sourceId = emission.revisionKey
+        ? emission.revisionSourceId || emission.documentId || emission.previousDocumentId
+        : recoveryRef.current?.proformaId || emission.documentId || emission.previousDocumentId || undefined;
+      if (!sourceId) {
+        // Both official list selectors order by created_at, id; use the latest active proforma of this exact dossier.
+        const documents = isHahitantsoa ? await getHahitantsoaEventDraftDocumentInstances(draftId) : await getReservationDraftDocumentInstances(draftId);
+        sourceId = documents.filter(document => document.template_key === documentPayload.template_key && document.status !== "voided").at(-1)?.id;
+      }
+      if (!sourceId) throw new Error("Le proforma officiel du dossier n’a pas été retrouvé. Vos saisies sont conservées.");
+      if (emission.needsRevision || (editingDraftContext.isEditing && !emission.htmlGenerated)) {
+        emission = { ...emission, revisionKey: emission.revisionKey || crypto.randomUUID(), revisionSourceId: emission.revisionSourceId || sourceId };
+      }
+      snapshotRef.current = { ...snapshotRef.current, prospectProformaEmission: emission };
+      setProspectProformaEmission(emission);
+      localStorage.setItem(draftKey, JSON.stringify(snapshotRef.current));
+      await persistRecovery({ state: { prospectProformaEmission: emission } });
+      localStorage.setItem(draftKey, JSON.stringify({ ...snapshotRef.current, prospectProformaEmission: emission }));
+      const options = { proforma_id: emission.revisionSourceId || sourceId, ...(emission.revisionKey ? { revision_key: emission.revisionKey } : {}) };
+      const prepared = (await recoveryRef.current!.prepareProforma(proformaValidity, options).catch(recoveryActionFailed)).document;
+      emission = { ...emission, needsRevision: false, documentId: prepared.id, htmlGenerated: prepared.status !== "prepared", documentPdfGenerated: Boolean(prepared.pdf_storage_path) };
+      setDocumentReference(prepared.document_reference || prepared.reservation_public_reference || draftId);
+      snapshotRef.current = { ...snapshotRef.current, prospectProformaEmission: emission };
+      setProspectProformaEmission(emission);
+    }
 
     await uploadPendingAttachments({
       customerId,
@@ -1870,15 +2054,17 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
 
     let documentId = emission.documentId;
     if (!documentId) {
-      const document = isHahitantsoa
+      const existing = currentUserId ? (isHahitantsoa ? await getHahitantsoaEventDraftDocumentInstances(draftId) : await getReservationDraftDocumentInstances(draftId)).find(document => document.template_key === documentPayload.template_key) : undefined;
+      if (currentUserId && !existing) throw new Error("Le proforma officiel n’a pas été retrouvé. Le dossier est conservé ; réessayez sa lecture avant de continuer.");
+      const document = existing || (isHahitantsoa
         ? await createHahitantsoaEventDraftDocumentInstance(draftId, documentPayload)
-        : await createReservationDraftDocumentInstance(draftId, documentPayload);
+        : await createReservationDraftDocumentInstance(draftId, documentPayload));
       documentId = document.id;
       emission = { ...emission, documentId: document.id };
       setDocumentReference(
         document.document_reference || document.reservation_public_reference || draftId,
       );
-      setProspectProformaEmission(emission);
+      snapshotRef.current = { ...snapshotRef.current, prospectProformaEmission: emission }; setProspectProformaEmission(emission);
     }
 
     if (!documentId) {
@@ -1892,26 +2078,27 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
         await generateReservationDraftDocumentInstance(draftId, documentId);
       }
       emission = { ...emission, htmlGenerated: true };
-      setProspectProformaEmission(emission);
+      snapshotRef.current = { ...snapshotRef.current, prospectProformaEmission: emission }; setProspectProformaEmission(emission);
     }
 
     if (isHahitantsoa) {
       if (!emission.documentPdfGenerated) {
         await generateHahitantsoaEventDraftDocumentInstancePdf(draftId, documentId);
         emission = { ...emission, documentPdfGenerated: true };
-        setProspectProformaEmission(emission);
+        snapshotRef.current = { ...snapshotRef.current, prospectProformaEmission: emission }; setProspectProformaEmission(emission);
       }
     } else {
       if (!emission.documentPdfGenerated) {
         await generateReservationDraftDocumentInstancePdf(draftId, documentId);
         emission = { ...emission, documentPdfGenerated: true };
-        setProspectProformaEmission(emission);
+        snapshotRef.current = { ...snapshotRef.current, prospectProformaEmission: emission }; setProspectProformaEmission(emission);
       }
     }
     return { documentId, draftId, requiredDepositAmount: emission.requiredDepositAmount };
   };
 
   const ensureContractGenerated = async (): Promise<{ contract: Awaited<ReturnType<typeof convertProformaToContract>>; draftId: string }> => {
+    await persistRecovery();
     let emission = prospectProformaEmission;
     let proformaDocumentId = emission?.documentId;
     if (!emission?.draftId || !proformaDocumentId) {
@@ -1941,10 +2128,11 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       const documents = await getHahitantsoaEventDraftDocumentInstances(emission.draftId);
       let discharge = documents.find((document) => document.template_key === "hahitantsoa.liability_release.v1");
       if (!discharge) {
-        discharge = await createHahitantsoaEventDraftDocumentInstance(emission.draftId, {
-          template_key: "hahitantsoa.liability_release.v1",
-          notes: "Décharge générée avec le contrat.",
-        });
+        const payload = { template_key: "hahitantsoa.liability_release.v1", notes: "Décharge générée avec le contrat." };
+        if (currentUserId) {
+          await persistRecovery();
+          discharge = (await recoveryRef.current!.createDischarge(payload).catch(recoveryActionFailed)).document;
+        } else discharge = await createHahitantsoaEventDraftDocumentInstance(emission.draftId, payload);
       }
       if (discharge.status === "prepared") {
         await generateHahitantsoaEventDraftDocumentInstance(emission.draftId, discharge.id);
@@ -2004,7 +2192,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       <div className="flex justify-between items-center mb-8">
         <h3 className="text-xl font-bold text-slate-800 text-center flex-1">Comment voulez-vous commencer ?</h3>
         {localStorage.getItem(draftKey) && (
-           <button onClick={restoreDraft} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg">
+           <button onClick={() => void restoreDraft()} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg">
              Reprendre le brouillon
            </button>
         )}
@@ -2012,7 +2200,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div 
           className="bg-white rounded-2xl border-2 border-transparent hover:border-indigo-300 p-8 shadow-sm cursor-pointer transition-all hover:shadow-md text-center"
-          onClick={() => { setPath("client_first"); goNext(); }}
+          onClick={() => { setPath("client_first"); goNext("client_first"); }}
         >
           <div className="w-16 h-16 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl mx-auto mb-4">
             <i className="fa-solid fa-user"></i>
@@ -2022,7 +2210,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
         </div>
         <div 
           className="bg-white rounded-2xl border-2 border-transparent hover:border-indigo-300 p-8 shadow-sm cursor-pointer transition-all hover:shadow-md text-center"
-          onClick={() => { setPath("domain_first"); goNext(); }}
+          onClick={() => { setPath("domain_first"); goNext("domain_first"); }}
         >
           <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl mx-auto mb-4">
             <i className="fa-solid fa-layer-group"></i>
@@ -2039,6 +2227,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     if (clientMode === "new" && !isEditingClient) return;
     const startsFreshIdentity = Boolean(createdClientIdRef.current || selectedClientId || isEditingClient);
     createdClientIdRef.current = null;
+    snapshotRef.current = {};
     setSelectedClientId("");
     setIsEditingClient(false);
     setClientMode("new");
@@ -2128,7 +2317,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
              ) : null}
              {!loadingClients && !errorClients && (<>
              {clients.filter(c => c.name.toLowerCase().includes(clientSearchStr.toLowerCase()) || c.phone.includes(clientSearchStr) || (c.email && c.email.toLowerCase().includes(clientSearchStr.toLowerCase())) || c.id.toLowerCase().includes(clientSearchStr.toLowerCase())).map(c => (
-                <div key={c.id} data-testid={`client-select-${c.id}`} className={`p-3 border-b border-slate-100 cursor-pointer hover:bg-indigo-50 flex items-center justify-between ${selectedClientId === c.id ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : ''}`} onClick={() => { if (serverDraftSaving || navigationSavingRef.current) return; setSelectedClientId(c.id); setIsEditingClient(false); }}>
+                <div key={c.id} data-testid={`client-select-${c.id}`} className={`p-3 border-b border-slate-100 cursor-pointer hover:bg-indigo-50 flex items-center justify-between ${selectedClientId === c.id ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : ''}`} onClick={() => { if (serverDraftSaving || navigationSavingRef.current) return; createdClientIdRef.current = null; setSelectedClientId(c.id); setIsEditingClient(false); }}>
                    <div>
                      <p className="font-bold text-slate-800 text-sm">{c.name} <span className="text-xs font-normal text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded ml-2">{c.type}</span></p>
                      <p className="text-xs text-slate-500 mt-0.5">{c.phone} {c.email ? `• ${c.email}` : ''}</p>
@@ -4745,6 +4934,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
               try {
                 setSubmitting(true);
                 setSubmitError(null);
+                await persistRecovery();
                 if (activeClient?.status === "Prospect" && selectedClientId) {
                   await convertProspectToClient(selectedClientId);
                   setApiCustomers(prev => prev.map(c =>
@@ -4790,6 +4980,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
                   const idempotencyKey = depositRecordingKeyRef.current ?? crypto.randomUUID();
                   depositRecordingKeyRef.current = idempotencyKey;
                   saveDraft();
+                  await persistRecovery();
                   const result = await recordConfirmedDeposit({
                     ...(domain === "hahitantsoa"
                       ? { hahitantsoa_event_draft: emitted.draftId }
@@ -4805,6 +4996,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
                     method: payment.method,
                     receiptDocumentId: result.payment.receipt_document?.id,
                   }];
+                  snapshotRef.current = { ...snapshotRef.current, recordedPayments: nextRecordedPayments };
                   setRecordedPayments(nextRecordedPayments);
                   setPayment(current => ({ ...current, amount: "" }));
                   depositRecordingKeyRef.current = null;
@@ -5015,6 +5207,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
               try {
                 setSubmitting(true);
                 setSubmitError(null);
+                await persistRecovery();
                 const generated = await ensureContractGenerated();
                 const customerId = await ensureCustomerId();
                 await uploadPendingAttachments({
@@ -5027,6 +5220,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
                   ? "Contrat Hahitantsoa préparé avec succès. Signature et confirmation restent à effectuer."
                   : "Contrat Titan préparé avec succès. Signature et confirmation restent à effectuer.";
                 showToastMsg(msg, 'success');
+                await persistRecovery({ status: "completed" });
                 clearDraft(false);
                 onNavigate("reservation-detail", `${domain}:${generated.draftId}`);
               } catch (err: any) {
@@ -5076,6 +5270,8 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
     return null;
   };
 
+  if (checkingRecovery) return <div className="page active p-6" role="status">Recherche des parcours privés enregistrés…</div>;
+
   if (showDraftPrompt) {
     const saved = localStorage.getItem(draftKey);
     let draftInfo: any = null;
@@ -5095,7 +5291,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
           <div className="w-20 h-20 bg-indigo-100 text-indigo-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
             <i className="fa-solid fa-file-signature"></i>
           </div>
-          <h2 id="draft-prompt-title" className="text-2xl font-bold text-slate-800 mb-4">Parcours de réservation en cours</h2>
+          <h2 id="draft-prompt-title" tabIndex={-1} className="text-2xl font-bold text-slate-800 mb-4">Parcours de réservation en cours</h2>
           <p className="text-slate-600 mb-8">
             Un parcours de réservation est déjà commencé
             {draftDomain === 'hahitantsoa' ? ' pour un événement Hahitantsoa' : draftDomain === 'titan' ? ' pour une location Titan' : ''}
@@ -5104,6 +5300,11 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
             <br />
             Voulez-vous reprendre là où vous vous étiez arrêté ou directement commencer une nouvelle réservation ?
           </p>
+          <p role="status" className="mb-4 text-sm text-slate-600">{recoveryStatus}</p>
+          {serverSessions.map(session => <div key={session.id} data-testid={`wizard-session-${session.id}`} className="mb-4 rounded-xl border border-slate-200 p-3">
+            <p>Parcours privé {session.domain === "titan" ? "Titan" : session.domain === "hahitantsoa" ? "Hahitantsoa" : "en cours"} — étape {session.step} — enregistré le {new Date(session.updated_at).toLocaleString("fr-FR")}</p>
+            <button type="button" disabled={restoringDraft} className="px-6 py-3 text-indigo-700 underline" onClick={() => void restoreDraft(session.id)}>Reprendre cette version serveur</button>
+          </div>)}
           {draftWarning && <p role="alert" className="mb-4 text-rose-700">{draftWarning}</p>}
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <button 
@@ -5117,11 +5318,11 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
             </button>
             <button 
               type="button"
-              disabled={restoringDraft} onClick={() => void restoreDraft()}
+              disabled={restoringDraft || !saved} onClick={() => void restoreDraft()}
               className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-sm flex items-center justify-center gap-2"
             >
               <i className="fa-solid fa-rotate-left"></i>
-              <span>Reprendre le brouillon</span>
+              <span>Reprendre le secours local de cet appareil</span>
             </button>
           </div>
           <div className="mt-8 pt-6 border-t border-slate-100">
@@ -5163,7 +5364,7 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
   }
 
   return (
-    <div className="page active space-y-6 max-w-4xl mx-auto">
+    <div ref={wizardRootRef} tabIndex={-1} className="page active space-y-6 max-w-4xl mx-auto">
       <div className="mb-6">
         {editingDraftContext.isEditing ? (
           <>
@@ -5221,6 +5422,15 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
             <p className="text-sm text-slate-500">Parcours modulable, strictement séparé Hahitantsoa / Titan.</p>
           </>
         )}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
+        <p role="status" aria-live="polite">{checkingRecovery ? "Recherche des parcours privés enregistrés…" : recoveryStatus}</p>
+        {!checkingRecovery && <button type="button" className="mt-2 min-h-11 underline text-indigo-700" disabled={restoringDraft} onClick={() => void persistRecovery().catch(() => undefined)}>Réessayer la sauvegarde serveur</button>}
+        {recoveryConflict && <>
+          <button type="button" className="block min-h-11 underline text-indigo-700" onClick={() => { void getWizardSessions().then(rows => { setServerSessions(rows); setShowDraftPrompt(true); }).catch(() => setDraftWarning("Impossible de charger les versions serveur. Le secours local est conservé.")); }}>Choisir une version serveur à reprendre</button>
+          <button type="button" className="block min-h-11 underline text-indigo-700" onClick={() => { recoveryRef.current = new WizardServerRecovery(crypto.randomUUID()); setRecoveryConflict(false); void persistRecovery().catch(() => undefined); }}>Conserver mes saisies dans un nouveau parcours privé</button>
+        </>}
       </div>
 
       {editingDraftContext.isEditing && (

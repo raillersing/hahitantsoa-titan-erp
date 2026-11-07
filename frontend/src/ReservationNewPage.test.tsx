@@ -9,6 +9,7 @@ import ReservationNewPage, {
   resolveHahitantsoaEventName,
 } from './prototype/ReservationNewPage';
 import {
+  ApiError, getWizardSessions, getWizardSession, downloadWizardFile, updateWizardSession, createWizardDraft, prepareWizardProforma, getReservationDraftDocumentInstances, convertProspectToClient,
   getCustomers,
   getHahitantsoaVenues,
   getHahitantsoaVenueOccupancy,
@@ -185,7 +186,21 @@ const mockInventoryData = mockCatalogData.map((item, index) => ({
 }));
 
 // ---- Mock API ----
-vi.mock('./api', () => ({
+vi.mock('./api', async importOriginal => ({
+  ...(await importOriginal<typeof import('./api')>()),
+  createWizardDraft: vi.fn().mockImplementation(async (_id, version) => ({ draft: { id: 'ATOMIC-DRAFT', status: 'draft', required_deposit_amount: '150000' }, version: version + 1, proforma_id: 'AUTO-PROFORMA' })),
+  promoteWizardFile: vi.fn().mockImplementation(async (_id, version) => ({ attachment: { id: 'PROMOTED' }, version: version + 1 })),
+  createWizardDischarge: vi.fn(),
+  prepareWizardProforma: vi.fn().mockImplementation(async (_id, version) => ({ document: { id: "REV-PROFORMA", template_key: "titan.proforma.v1", status: "prepared", pdf_storage_path: null }, version: version + 1 })),
+  convertProspectToClient: vi.fn(),
+  getReservationDraftDocumentInstances: vi.fn().mockResolvedValue([]),
+  getWizardSessions: vi.fn().mockResolvedValue([]),
+  getWizardSession: vi.fn(),
+  downloadWizardFile: vi.fn(),
+  createWizardSession: vi.fn().mockImplementation(async (key) => ({ id: 'SESSION-1', client_key: key, version: 1, files: [], state: {} })),
+  updateWizardSession: vi.fn().mockImplementation(async (id, version, value) => ({ id, version: version + 1, files: [], ...value })),
+  uploadWizardFile: vi.fn(),
+  deleteWizardFile: vi.fn().mockImplementation(async (_id, version) => ({ version: version + 1 })),
   getCustomers: vi.fn(),
   getTitanClosedDays: vi.fn(),
   getHahitantsoaVenues: vi.fn(),
@@ -234,6 +249,7 @@ describe('ReservationNewPage', () => {
     vi.spyOn(window, 'alert').mockImplementation(() => {});
     vi.spyOn(window, 'confirm').mockImplementation(() => true);
     localStorage.clear();
+    vi.mocked(getWizardSessions).mockResolvedValue([]);
 
     // Apply mock implementations before each test
     vi.mocked(getCustomers).mockResolvedValue(mockCustomersData as any);
@@ -303,6 +319,140 @@ describe('ReservationNewPage', () => {
     expect(window.confirm).not.toHaveBeenCalled();
   });
 
+  it('offers a server recovery on an empty second device and restores actual file bytes', async () => {
+    const file = new File(['%PDF-1.4'], 'cin.pdf', { type: 'application/pdf' });
+    const session = { id: 'server-session', client_key: 'client-key', version: 7, step: 1, domain: null, status: 'active', updated_at: '2026-11-07T10:00:00Z', state: { step: 1, path: 'client_first', clientMode: 'new', newClient: { name: 'Reprise privée' }, clientAttachments: [{ id: 'page', name: 'cin.pdf', category: 'CIN' }] }, files: [{ id: 'file', client_file_key: 'page', original_name: 'cin.pdf', content_type: 'application/pdf' }] };
+    vi.mocked(getWizardSessions).mockResolvedValue([session] as never);
+    vi.mocked(getWizardSession).mockResolvedValue(session as never);
+    vi.mocked(downloadWizardFile).mockResolvedValue(file);
+    render(<ReservationNewPage currentUserId="operator" onNavigate={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reprendre cette version serveur' }));
+    await waitFor(() => expect(screen.getByDisplayValue('Reprise privée')).toBeInTheDocument());
+    expect(downloadWizardFile).toHaveBeenCalledWith('server-session', session.files[0]);
+    await waitFor(() => expect(localStorage.getItem('prototypeReservationDraft:operator')).toContain('Reprise privée'));
+  });
+  it('keeps a newly selected existing customer after a previous customer creation', async () => {
+    localStorage.setItem('prototypeReservationDraft:operator', JSON.stringify({ step: 1, path: 'client_first', clientMode: 'new', newClient: { name: 'Client A' } }));
+    render(<ReservationNewPage currentUserId="operator" onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continuer' }));
+    await waitFor(() => expect(createCustomer).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByText('Titan Rental')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
+    fireEvent.click(await screen.findByTestId('client-select-CUST-002'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    await waitFor(() => expect(updateWizardSession).toHaveBeenLastCalledWith(expect.any(String), expect.any(Number), expect.objectContaining({ customer_id: 'CUST-002', state: expect.objectContaining({ selectedClientId: 'CUST-002' }) })));
+    expect(createCustomer).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the entire local fallback when server payment revalidation fails before restoration', async () => {
+    const local = JSON.stringify({ step: 1, path: 'client_first', clientMode: 'new', newClient: { name: 'Saisie locale préservée' } });
+    localStorage.setItem('prototypeReservationDraft:operator', local);
+    const session = { id: 'payment-failure', client_key: 'remote-key', version: 3, step: 8, domain: 'titan', status: 'active', updated_at: '2026-11-07T10:00:00Z', state: { step: 8, domain: 'titan', selectedClientId: 'CUST-002', prospectProformaEmission: { domain: 'titan', draftId: 'REMOTE-DRAFT', htmlGenerated: true } }, files: [] };
+    vi.mocked(getWizardSessions).mockResolvedValue([session] as never);
+    vi.mocked(getWizardSession).mockResolvedValue(session as never);
+    vi.mocked(getReservationDraft).mockResolvedValue({ id: 'REMOTE-DRAFT', status: 'draft', contract_signed_at: null } as never);
+    vi.mocked(getPayments).mockRejectedValueOnce(new Error('Paiements indisponibles'));
+    render(<ReservationNewPage currentUserId="operator" onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reprendre cette version serveur' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Paiements indisponibles');
+    expect(localStorage.getItem('prototypeReservationDraft:operator')).toBe(local);
+    expect(localStorage.getItem('prototypeReservationDraft:operator:server-client-key')).toBeNull();
+    expect(updateWizardSession).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
+    expect(await screen.findByDisplayValue('Saisie locale préservée')).toBeInTheDocument();
+  });
+
+  it('creates the real-identity dossier through the atomic wizard action and retains its auto-proforma', async () => {
+    localStorage.setItem('prototypeReservationDraft:operator', JSON.stringify({ step: 5, maxReachedStep: 5, path: 'client_first', domain: 'titan', selectedClientId: 'CUST-001', clientMode: 'existing', tDetails: { startDate: '2027-08-25', endDate: '2027-08-26' }, selectedMaterials: [{ id: 'ITEM-1', name: 'Chaise', price: 5000, quantity: 1 }] }));
+    render(<ReservationNewPage currentUserId="operator" onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Vérifier le résumé' }));
+    await waitFor(() => expect(createWizardDraft).toHaveBeenCalledWith(expect.any(String), expect.any(Number), 'titan', expect.objectContaining({ customer_id: 'CUST-001', lines: [{ inventory_item_id: 'ITEM-1', quantity: 1, notes: '' }] }), 15));
+    expect(createReservationDraft).not.toHaveBeenCalled();
+    expect(createReservationDraftDocumentInstance).not.toHaveBeenCalled();
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('prototypeReservationDraft:operator')!).prospectProformaEmission).toMatchObject({ draftId: 'ATOMIC-DRAFT', documentId: 'AUTO-PROFORMA' }));
+  });
+
+  it('recovers an atomically linked dossier after its creation response was lost before the snapshot update', async () => {
+    const session = { id: 'committed-session', client_key: 'committed-key', version: 6, step: 5, domain: 'titan', customer_id: 'CUST-001', reservation_draft_id: 'COMMITTED-DRAFT', status: 'active', updated_at: '2026-11-07T10:00:00Z', state: { step: 5, maxReachedStep: 5, path: 'client_first', domain: 'titan', clientMode: 'existing', selectedClientId: 'CUST-001', tDetails: { startDate: '2027-08-25', endDate: '2027-08-26' }, selectedMaterials: [{ id: 'ITEM-1', name: 'Chaise', price: 5000, quantity: 1 }] }, files: [] };
+    vi.mocked(getWizardSessions).mockResolvedValue([session] as never);
+    vi.mocked(getWizardSession).mockResolvedValue(session as never);
+    vi.mocked(getReservationDraft).mockResolvedValue({ id: 'COMMITTED-DRAFT', status: 'draft', contract_signed_at: null } as never);
+    vi.mocked(updateReservationDraft).mockResolvedValue({ id: 'COMMITTED-DRAFT', status: 'draft' } as never);
+    render(<ReservationNewPage currentUserId="operator" onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reprendre cette version serveur' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Vérifier le résumé' }));
+    await waitFor(() => expect(updateReservationDraft).toHaveBeenCalledWith('COMMITTED-DRAFT', expect.any(Object)));
+    expect(createWizardDraft).not.toHaveBeenCalled();
+    expect(createReservationDraft).not.toHaveBeenCalled();
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('prototypeReservationDraft:operator')!).prospectProformaEmission.draftId).toBe('COMMITTED-DRAFT'));
+  });
+
+  it.each([7, 8])('blocks every commercial write after a known conflict at step %s', async step => {
+    vi.mocked(getCustomers).mockResolvedValue([{ ...mockCustomersData[0], lifecycle_status: 'prospect' }] as never);
+    vi.mocked(getReservationDraft).mockResolvedValue({ id: 'EXISTING', status: 'draft', contract_signed_at: null, required_deposit_amount: '100' } as never);
+    vi.mocked(getPayments).mockResolvedValue([]);
+    localStorage.setItem('prototypeReservationDraft:operator', JSON.stringify({ step, maxReachedStep: step, path: 'client_first', domain: 'titan', clientMode: 'existing', selectedClientId: 'CUST-001', selectedMaterials: [{ id: 'ITEM-1', name: 'Chaise', price: 1000, quantity: 1 }], payment: { method: 'Espèces', amount: '100', percent: '10' }, prospectProformaEmission: { domain: 'titan', draftId: 'EXISTING', documentId: 'EXISTING-PROFORMA', htmlGenerated: true, documentPdfGenerated: true, requiredDepositAmount: 100 } }));
+    render(<ReservationNewPage currentUserId="operator" onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
+    await screen.findByRole('heading', { name: step === 7 ? 'Aperçu Proforma' : 'Acompte / Paiement' });
+    vi.mocked(updateWizardSession).mockRejectedValueOnce(new ApiError('Conflit serveur', 409));
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer la sauvegarde serveur' }));
+    await screen.findByText(/^Conflit : une autre version est enregistrée/);
+    const privateWrites = vi.mocked(updateWizardSession).mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: step === 7 ? 'Émettre le proforma' : 'Enregistrer le versement & continuer' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('autre version'));
+    expect(updateWizardSession).toHaveBeenCalledTimes(privateWrites);
+    expect(updateReservationDraft).not.toHaveBeenCalled();
+    expect(convertProspectToClient).not.toHaveBeenCalled();
+    expect(recordConfirmedDeposit).not.toHaveBeenCalled();
+    expect(createReservationDraftDocumentInstance).not.toHaveBeenCalled();
+    expect(generateReservationDraftDocumentInstance).not.toHaveBeenCalled();
+    expect(prepareWizardProforma).not.toHaveBeenCalled();
+  });
+
+  it('persists an intentional legacy proforma revision before emission and reuses its key on another terminal after a lost response', async () => {
+    vi.mocked(getReservationDraft).mockResolvedValue({ id: 'LEGACY', status: 'draft', contract_signed_at: null } as never);
+    vi.mocked(updateReservationDraft).mockResolvedValue({ id: 'LEGACY', status: 'draft' } as never);
+    vi.mocked(getReservationDraftDocumentInstances).mockResolvedValue([{ id: 'LEGACY-PROFORMA', template_key: 'titan.proforma.v1', status: 'generated' }] as never);
+    vi.mocked(prepareWizardProforma).mockRejectedValueOnce(new Error('Réponse de révision perdue'));
+    localStorage.setItem('prototypeReservationDraft:operator', JSON.stringify({ step: 7, maxReachedStep: 7, path: 'client_first', domain: 'titan', clientMode: 'existing', selectedClientId: 'CUST-001', tDetails: { startDate: '2027-08-25', endDate: '2027-08-26' }, editingDraftContext: { isEditing: true, draftId: 'LEGACY', domain: 'titan', publicReference: 'LOC-LEGACY', loading: false, error: null }, prospectProformaEmission: { domain: 'titan', draftId: 'LEGACY', htmlGenerated: false, needsRevision: true } }));
+    const first = render(<ReservationNewPage currentUserId="operator" onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Émettre la nouvelle révision' }));
+    await waitFor(() => expect(prepareWizardProforma).toHaveBeenCalledTimes(1));
+    const firstOptions = vi.mocked(prepareWizardProforma).mock.calls[0][3]!;
+    expect(firstOptions).toMatchObject({ proforma_id: 'LEGACY-PROFORMA', revision_key: expect.any(String) });
+    const savedState = JSON.parse(JSON.stringify([...vi.mocked(updateWizardSession).mock.calls].reverse().find(([, , value]) => (value.state?.prospectProformaEmission as { revisionKey?: string })?.revisionKey === firstOptions.revision_key)![2].state!));
+    expect((JSON.parse(localStorage.getItem('prototypeReservationDraft:operator')!).prospectProformaEmission).revisionKey).toBe(firstOptions.revision_key);
+    const saveOrder = vi.mocked(updateWizardSession).mock.invocationCallOrder[vi.mocked(updateWizardSession).mock.calls.findIndex(([, , value]) => (value.state?.prospectProformaEmission as { revisionKey?: string })?.revisionKey === firstOptions.revision_key)];
+    expect(saveOrder).toBeLessThan(vi.mocked(prepareWizardProforma).mock.invocationCallOrder[0]);
+    first.unmount(); localStorage.clear();
+    const remote = { id: 'remote-session', client_key: 'remote-key', version: 12, step: 7, domain: 'titan', customer_id: 'CUST-001', reservation_draft_id: 'LEGACY', status: 'active', updated_at: '2026-11-07T10:00:00Z', state: savedState, files: [] };
+    vi.mocked(getWizardSessions).mockResolvedValue([remote] as never);
+    vi.mocked(getWizardSession).mockResolvedValue(remote as never);
+    render(<ReservationNewPage currentUserId="operator" onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reprendre cette version serveur' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Émettre la nouvelle révision' }));
+    await waitFor(() => expect(prepareWizardProforma).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(prepareWizardProforma).mock.calls[1][3]).toEqual(firstOptions);
+    await waitFor(() => expect(generateReservationDraftDocumentInstance).toHaveBeenCalledWith('LEGACY', 'REV-PROFORMA'));
+    expect(createReservationDraftDocumentInstance).not.toHaveBeenCalled();
+    expect(createWizardDraft).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed server state without replacing the existing local fallback', async () => {
+    localStorage.setItem('prototypeReservationDraft:operator', JSON.stringify({ step: 1, newClient: { name: 'Saisie locale' } }));
+    const session = { id: 'broken', step: 3, status: 'active', updated_at: '2026-11-07T10:00:00Z', state: { step: 3, selectedMaterials: [null] }, files: [] };
+    vi.mocked(getWizardSessions).mockResolvedValue([session] as never);
+    vi.mocked(getWizardSession).mockResolvedValue(session as never);
+    render(<ReservationNewPage currentUserId="operator" onNavigate={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reprendre cette version serveur' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('champs incompatibles');
+    expect(localStorage.getItem('prototypeReservationDraft:operator')).toContain('Saisie locale');
+    expect(updateWizardSession).not.toHaveBeenCalled();
+  });
   it('présente quatre étapes métier sans supprimer les sous-écrans du parcours', async () => {
     render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
 
@@ -364,7 +514,7 @@ describe('ReservationNewPage', () => {
   it('restores an older incomplete snapshot with defaults and keeps manually chosen movement dates', async () => {
     localStorage.setItem('prototypeReservationDraft', JSON.stringify({ path: 'domain_first', step: 3, maxReachedStep: 3, domain: 'titan', selectedClientId: 'CUST-001', deliveryModifiedManually: true, returnModifiedManually: true, tDetails: { startDate: '2027-08-25', endDate: '2027-08-26', pickupDate: '2027-08-20', returnDate: '2027-08-30' } }));
     render(<ReservationNewPage onNavigate={mockNavigate} />);
-    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
     expect(await screen.findByLabelText('Date début de location')).toHaveValue('2027-08-25');
     expect(screen.getByLabelText('Heure de début de location')).toHaveValue('08:00');
     await waitFor(() => expect(JSON.parse(localStorage.getItem('prototypeReservationDraft')!).tDetails.pickupDate).toBe('2027-08-20'));
@@ -405,7 +555,7 @@ describe('ReservationNewPage', () => {
     vi.mocked(getPayments).mockResolvedValue([{ id: 'PAY-1', payment_status: 'confirmed', amount: '20.00', payment_method: 'cash' }] as never);
     localStorage.setItem('prototypeReservationDraft', JSON.stringify({ path: 'domain_first', step: 9, maxReachedStep: 9, domain: 'titan', selectedClientId: 'CUST-001', clientMode: 'existing', recordedPayments: [{ id: 'FAKE-LOCAL', amount: 10000, method: 'Espèces' }], prospectProformaEmission: { domain: 'titan', draftId: 'DRAFT-001', requiredDepositAmount: 100 }, selectedMaterials: [{ id: 'MAT-01', name: 'Chaise', quantity: 1, price: 100 }], tDetails: { startDate: '2027-08-25', endDate: '2027-08-26' } }));
     render(<ReservationNewPage onNavigate={mockNavigate} />);
-    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
     expect(await screen.findByRole('heading', { name: 'Acompte / Paiement' })).toBeInTheDocument();
     expect(getPayments).toHaveBeenCalledWith('DRAFT-001');
     expect(screen.queryByRole('heading', { name: 'Aperçu Contrat' })).not.toBeInTheDocument();
@@ -739,7 +889,7 @@ describe('ReservationNewPage', () => {
 
     firstRender.unmount();
     render(<ReservationNewPage onNavigate={mockNavigate} />);
-    fireEvent.click(await screen.findByRole('button', { name: /reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
     expect(await screen.findByText('Générer Devis/Proforma')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Générer Devis/Proforma'));
     expect(await screen.findByText('Aperçu Proforma')).toBeInTheDocument();
@@ -1389,7 +1539,7 @@ describe('ReservationNewPage', () => {
 
     // Verify both action buttons are present
     const newReservationBtn = screen.getByRole('button', { name: /Nouvelle réservation/i });
-    const resumeDraftBtn = screen.getByRole('button', { name: /Reprendre le brouillon/i });
+    const resumeDraftBtn = screen.getByRole('button', { name: /Reprendre le secours local de cet appareil/i });
     expect(newReservationBtn).toBeInTheDocument();
     expect(resumeDraftBtn).toBeInTheDocument();
 
@@ -1876,7 +2026,7 @@ describe('ReservationNewPage', () => {
   it("bloque une composition invalide dès les détails et conserve la composition du brouillon repris", async () => {
     localStorage.setItem('prototypeReservationDraft', JSON.stringify({ step: 3, maxReachedStep: 3, domain: 'hahitantsoa', path: 'client_first', selectedClientId: 'CUST-001', hDetails: { rentalType: 'Location nue', startDate: '2027-11-20', endDate: '2027-11-20', startTime: '08:00', endTime: '20:00', bareRentalComposition: [{ label: 'Salle personnalisée', quantity: 0 }] } }));
     render(<ReservationNewPage onNavigate={mockNavigate} />);
-    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
     expect(await screen.findByDisplayValue('Salle personnalisée')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Suivant \(Services\)/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Composition de la location nue');
@@ -1907,7 +2057,7 @@ describe('ReservationNewPage', () => {
       },
     }));
     const { unmount } = render(<ReservationNewPage onNavigate={mockNavigate} />);
-    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
     // Step 3 shows BareRentalCompositionEditor even in Location + logistique mode
     expect(await screen.findByDisplayValue('Salle prestige')).toBeInTheDocument();
     expect(screen.getByDisplayValue('50')).toBeInTheDocument();
@@ -1934,7 +2084,7 @@ describe('ReservationNewPage', () => {
       },
     }));
     render(<ReservationNewPage onNavigate={mockNavigate} />);
-    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
 
     // Step 6 shows composition under Location nue
     expect(await screen.findByText('Composition de la location nue :')).toBeInTheDocument();
@@ -2036,7 +2186,7 @@ describe('ReservationNewPage', () => {
   it('valide et sauvegarde la correction client avant un saut vers une étape déjà atteinte', async () => {
     localStorage.setItem('prototypeReservationDraft', JSON.stringify({ path: 'domain_first', domain: 'titan', step: 2, maxReachedStep: 6, clientMode: 'existing', selectedClientId: 'CUST-001', isEditingClient: true, newClient: { name: '', phone: '', email: '', notes: '', type: 'Particulier' } }));
     render(<ReservationNewPage onNavigate={mockNavigate} />);
-    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
     const jump = await screen.findByRole('button', { name: /Vérification & documents/i });
     fireEvent.click(jump);
     expect(await screen.findByText(/Sélectionnez un client ou renseignez son nom\./)).toBeInTheDocument();
@@ -2057,7 +2207,7 @@ describe('ReservationNewPage', () => {
     const field = domain === 'titan' ? 'tDetails' : 'hDetails';
     localStorage.setItem('prototypeReservationDraft', JSON.stringify({ path: 'domain_first', domain, step: 3, maxReachedStep: 3, clientMode: 'existing', selectedClientId: 'CUST-001', [field]: { eventType: 'Mariage', rentalType: 'Location nue', venue: 'Salle des fêtes + jardin', startDate: '2027-11-', endDate: '2027-02-30', startTime: '08:00', endTime: '20:00' } }));
     render(<ReservationNewPage onNavigate={mockNavigate} />);
-    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
     expect(await screen.findByText(/Corrigez les dates incomplètes du brouillon/)).toBeInTheDocument();
     expect(screen.getByLabelText(domain === 'titan' ? 'Date début de location' : 'Date début événement')).toHaveValue('');
     expect(getReservationAvailabilitySummary).not.toHaveBeenCalled();
@@ -2070,7 +2220,7 @@ describe('ReservationNewPage', () => {
     const hDetails = { eventType: 'Mariage', mariageGroomName: 'Ancien marié', mariageBrideName: 'Ancienne mariée', rentalType: 'Location nue', venue: 'Salle des fêtes + jardin', startDate: '2027-11-20', endDate: '2027-11-20', startTime: '08:00', endTime: '20:00' };
     localStorage.setItem('prototypeReservationDraft', JSON.stringify({ path: 'domain_first', domain: 'hahitantsoa', step: 3, maxReachedStep: 3, selectedClientId: 'COMPANY-1', clientMode: 'existing', hDetails }));
     render(<ReservationNewPage onNavigate={mockNavigate} />);
-    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
     expect(await screen.findByText('Détails Événement (Hahitantsoa)')).toBeInTheDocument();
     expect(screen.queryByText('Marié(e) 1')).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue('Ancien marié')).not.toBeInTheDocument();
@@ -2080,7 +2230,7 @@ describe('ReservationNewPage', () => {
   it('recherche les services sans accents et conserve les sélections masquées', async () => {
     localStorage.setItem('prototypeReservationDraft', JSON.stringify({ path: 'domain_first', domain: 'hahitantsoa', step: 5, maxReachedStep: 5, selectedClientId: 'CUST-001', clientMode: 'existing', selectedServices: [{ id: 'SRV-002', name: 'Décoration', quantity: 1, price: 300000 }], hDetails: { eventType: 'Mariage', rentalType: 'Location nue', venue: 'Salle des fêtes + jardin', startDate: '2027-11-20', endDate: '2027-11-20', startTime: '08:00', endTime: '20:00' } }));
     render(<ReservationNewPage onNavigate={mockNavigate} />);
-    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
     const search = await screen.findByRole('searchbox', { name: 'Rechercher un service' });
     fireEvent.change(search, { target: { value: 'DECORATION' } });
     expect(screen.getByRole('heading', { name: 'Décoration' })).toBeInTheDocument();
@@ -2162,7 +2312,7 @@ describe('ReservationNewPage', () => {
       },
     }));
     render(<ReservationNewPage onNavigate={mockNavigate} />);
-    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
 
     const breakdown = await screen.findByTestId('summary-financial-breakdown');
     expect(breakdown).toBeInTheDocument();
@@ -2188,7 +2338,7 @@ describe('ReservationNewPage', () => {
     expect(await screen.findByText(/Réponse réseau perdue/)).toBeInTheDocument();
     first.unmount();
     render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
-    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
     expect(await screen.findByDisplayValue('Client durable')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
     expect(await screen.findByText('Détails Location (Titan)')).toBeInTheDocument();
@@ -2213,7 +2363,7 @@ describe('ReservationNewPage', () => {
   it('affiche un service de trois unités à son montant enregistré de 300000 et conserve le total et la caution', async () => {
     localStorage.setItem('prototypeReservationDraft', JSON.stringify({ step: 6, maxReachedStep: 6, path: 'client_first', domain: 'hahitantsoa', selectedClientId: 'CUST-001', selectedServices: [{ id: 'SRV-003', name: 'Guinguette archivée', quantity: 3, price: 300000 }], hDetails: { rentalType: 'Location nue', venuePrice: 2000000, startDate: '2027-11-20', endDate: '2027-11-20', startTime: '08:00', endTime: '20:00', venue: 'Salle historique', bareRentalComposition: [{ label: 'Tables archivées', quantity: 9 }] } }));
     render(<ReservationNewPage onNavigate={mockNavigate} />);
-    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
     fireEvent.click(await screen.findByRole('button', { name: /Détail des compositions & lignes de l'offre/i }));
     const breakdown = screen.getByTestId('summary-financial-breakdown');
     expect(within(breakdown).getByText(/Guinguette archivée/)).toHaveTextContent('(x3)');
@@ -2227,7 +2377,7 @@ describe('ReservationNewPage', () => {
     vi.mocked(getMaterialPackages).mockResolvedValue([{ id: 'PKG-001', name: 'Pack modifié aujourd’hui', price: 9999999, is_active: true, lines: [{ inventory_item: 'NEW-ITEM', inventory_item_name: 'Ajout tardif', quantity: 99 }] }] as never);
     localStorage.setItem('prototypeReservationDraft', JSON.stringify({ step: 6, maxReachedStep: 6, path: 'client_first', domain: 'hahitantsoa', selectedClientId: 'CUST-001', selectedMaterials: [{ id: 'MAT-OLD', name: 'Chaise archivée', price: 5000, quantity: 5 }], hDetails: { packageMode: 'package', packageId: 'PKG-001', rentalType: 'Location + logistique', venuePrice: 2000000, startDate: '2027-11-20', endDate: '2027-11-20', startTime: '08:00', endTime: '20:00', bareRentalComposition: [{ label: 'Tables archivées', quantity: 9 }] } }));
     render(<ReservationNewPage onNavigate={mockNavigate} />);
-    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le brouillon/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Reprendre le secours local de cet appareil/i }));
     fireEvent.click(await screen.findByRole('button', { name: /Détail des compositions & lignes de l'offre/i }));
     const breakdown = screen.getByTestId('summary-financial-breakdown');
     expect(within(breakdown).getByText(/^Ventilation du pack non archivée/)).toBeInTheDocument();
