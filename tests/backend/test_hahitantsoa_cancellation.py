@@ -82,6 +82,16 @@ def _create_confirmable_draft(
 
     generate_document_instance_html(document_instance=doc, actor=actor)
 
+    now = timezone.now()
+    draft.contract_signed_at = now
+    draft.contract_signed_by = actor
+    draft.save(
+        update_fields=[
+            "contract_signed_at",
+            "contract_signed_by",
+        ]
+    )
+
     payment = create_payment(
         actor=actor,
         hahitantsoa_event_draft=draft,
@@ -93,15 +103,10 @@ def _create_confirmable_draft(
     )
     confirm_payment(payment=payment, actor=actor)
 
-    now = timezone.now()
-    draft.contract_signed_at = now
-    draft.contract_signed_by = actor
     draft.required_deposit_received_at = now
     draft.required_deposit_received_by = actor
     draft.save(
         update_fields=[
-            "contract_signed_at",
-            "contract_signed_by",
             "required_deposit_received_at",
             "required_deposit_received_by",
         ]

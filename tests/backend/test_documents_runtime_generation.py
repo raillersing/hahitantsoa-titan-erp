@@ -241,7 +241,7 @@ def test_hahitantsoa_contract_uses_duration_and_prior_night_occupancy(
     result = generate_document_instance_html(document_instance=instance)
 
     assert (
-        "Les intervenants du client accèderont aux locaux le jour-J à 07 heures."
+        "Les intervenants du client peuvent accéder aux locaux à le jour-J à 07 heures."
         in result.html_content
     )
     assert (
