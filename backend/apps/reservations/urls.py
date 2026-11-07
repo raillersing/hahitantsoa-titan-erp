@@ -21,9 +21,13 @@ from apps.reservations.views import (
 
 # Recovery sessions stay private and do not use commercial dossier identifiers.
 from apps.reservations.wizard_views import (
+    ReservationWizardDischargeCreateAPIView,
+    ReservationWizardDraftCreateAPIView,
     ReservationWizardFileCreateAPIView,
     ReservationWizardFileDetailAPIView,
     ReservationWizardFileDownloadAPIView,
+    ReservationWizardFilePromoteAPIView,
+    ReservationWizardProformaUpdateAPIView,
     ReservationWizardSessionDetailAPIView,
     ReservationWizardSessionListCreateAPIView,
 )
@@ -137,4 +141,33 @@ urlpatterns += [
         ReservationWizardFileDownloadAPIView.as_view(),
         name="reservation-wizard-file-download",
     ),
+]
+
+urlpatterns += [
+    path(
+        "api/v1/reservations/wizard-sessions/<uuid:session_id>/draft/",
+        ReservationWizardDraftCreateAPIView.as_view(),
+        name="reservation-wizard-draft-create",
+    ),
+    path(
+        "api/v1/reservations/wizard-sessions/<uuid:session_id>/files/<uuid:file_id>/promote/",
+        ReservationWizardFilePromoteAPIView.as_view(),
+        name="reservation-wizard-file-promote",
+    ),
+]
+
+urlpatterns += [
+    path(
+        "api/v1/reservations/wizard-sessions/<uuid:session_id>/discharge/",
+        ReservationWizardDischargeCreateAPIView.as_view(),
+        name="reservation-wizard-discharge-create",
+    )
+]
+
+urlpatterns += [
+    path(
+        "api/v1/reservations/wizard-sessions/<uuid:session_id>/proforma/",
+        ReservationWizardProformaUpdateAPIView.as_view(),
+        name="reservation-wizard-proforma-update",
+    )
 ]

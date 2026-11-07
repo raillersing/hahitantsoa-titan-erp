@@ -366,6 +366,27 @@ class ReservationWizardSession(UUIDModel, TimestampedModel):
         on_delete=models.PROTECT,
         related_name="+",
     )
+    discharge = models.ForeignKey(
+        "documents.DocumentInstance",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    proforma = models.ForeignKey(
+        "documents.DocumentInstance",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    proforma_write_fingerprint = models.CharField(
+        max_length=64, blank=True, default="", editable=False
+    )
+    discharge_fingerprint = models.CharField(max_length=64, blank=True, default="", editable=False)
+    draft_creation_fingerprint = models.CharField(
+        max_length=64, blank=True, default="", editable=False
+    )
     creation_fingerprint = models.CharField(max_length=64, editable=False)
     last_write_fingerprint = models.CharField(max_length=64, blank=True, default="", editable=False)
 
@@ -426,6 +447,14 @@ class ReservationWizardFile(UUIDModel, TimestampedModel):
     sha256 = models.CharField(max_length=64)
     file = models.FileField(upload_to=reservation_wizard_file_path, max_length=512)
     is_deleted = models.BooleanField(default=False)
+    promoted_attachment = models.ForeignKey(
+        "documents.UploadedAttachment",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    promotion_target = models.CharField(max_length=16, blank=True, default="")
 
     class Meta:
         ordering = ["created_at", "id"]
@@ -433,4 +462,24 @@ class ReservationWizardFile(UUIDModel, TimestampedModel):
             models.UniqueConstraint(
                 fields=["session", "client_file_key"], name="wizard_file_operation_unique"
             ),
+        ]
+
+
+class ReservationWizardProformaOperation(UUIDModel, TimestampedModel):
+    """One explicitly requested proforma revision per private operation key."""
+
+    session = models.ForeignKey(
+        ReservationWizardSession, on_delete=models.PROTECT, related_name="proforma_operations"
+    )
+    client_key = models.UUIDField()
+    fingerprint = models.CharField(max_length=64, editable=False)
+    document = models.ForeignKey(
+        "documents.DocumentInstance", on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["session", "client_key"], name="wizard_proforma_operation_unique"
+            )
         ]

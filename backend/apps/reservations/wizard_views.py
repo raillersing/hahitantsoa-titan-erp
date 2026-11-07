@@ -19,9 +19,13 @@ from apps.reservations.wizard import (
 )
 from apps.reservations.wizard_serializers import (
     WizardCreateSerializer,
+    WizardDischargeCreateSerializer,
+    WizardDraftCreateSerializer,
     WizardFileCreateSerializer,
     WizardFileDeleteSerializer,
     WizardFileMutationSerializer,
+    WizardFilePromoteSerializer,
+    WizardProformaUpdateSerializer,
     WizardRevisionSerializer,
     WizardSessionMetadataSerializer,
     WizardSessionReadSerializer,
@@ -191,3 +195,79 @@ class ReservationWizardFileDownloadAPIView(WizardPrivateAPIView):
         )
         response["X-Content-Type-Options"] = "nosniff"
         return response
+
+
+class ReservationWizardDraftCreateAPIView(WizardPrivateAPIView):
+    http_method_names = ["post", "options"]
+
+    @extend_schema(request=WizardDraftCreateSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request, session_id):
+        from apps.reservations.wizard_business import create_session_draft, draft_response
+
+        self.get_session(session_id)
+        serializer = WizardDraftCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        session, draft, created = create_session_draft(
+            actor=request.user, session_id=session_id, **serializer.validated_data
+        )
+        return Response(draft_response(session, draft), status=201 if created else 200)
+
+
+class ReservationWizardFilePromoteAPIView(WizardPrivateAPIView):
+    http_method_names = ["post", "options"]
+
+    @extend_schema(request=WizardFilePromoteSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request, session_id, file_id):
+        from apps.documents.serializers import UploadedAttachmentSerializer
+        from apps.reservations.wizard_business import promote_session_file
+
+        self.get_session(session_id)
+        serializer = WizardFilePromoteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        attachment, version, created = promote_session_file(
+            actor=request.user, session_id=session_id, file_id=file_id, **serializer.validated_data
+        )
+        return Response(
+            {"attachment": UploadedAttachmentSerializer(attachment).data, "version": version},
+            status=201 if created else 200,
+        )
+
+
+class ReservationWizardDischargeCreateAPIView(WizardPrivateAPIView):
+    http_method_names = ["post", "options"]
+
+    @extend_schema(request=WizardDischargeCreateSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request, session_id):
+        from apps.hahitantsoa.serializers import HahitantsoaEventDraftDocumentInstanceSerializer
+        from apps.reservations.wizard_business import create_session_discharge
+
+        self.get_session(session_id)
+        serializer = WizardDischargeCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        document, version, created = create_session_discharge(
+            actor=request.user, session_id=session_id, **serializer.validated_data
+        )
+        return Response(
+            {
+                "document": HahitantsoaEventDraftDocumentInstanceSerializer(document).data,
+                "version": version,
+            },
+            status=201 if created else 200,
+        )
+
+
+class ReservationWizardProformaUpdateAPIView(WizardPrivateAPIView):
+    http_method_names = ["post", "options"]
+
+    @extend_schema(request=WizardProformaUpdateSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request, session_id):
+        from apps.documents.serializers import DocumentInstanceSerializer
+        from apps.reservations.wizard_business import update_session_proforma
+
+        self.get_session(session_id)
+        serializer = WizardProformaUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        document, version = update_session_proforma(
+            actor=request.user, session_id=session_id, **serializer.validated_data
+        )
+        return Response({"document": DocumentInstanceSerializer(document).data, "version": version})

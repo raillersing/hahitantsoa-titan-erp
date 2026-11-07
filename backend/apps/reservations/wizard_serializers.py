@@ -183,3 +183,27 @@ class WizardFileMutationSerializer(serializers.Serializer):
 
 class WizardRevisionSerializer(serializers.Serializer):
     version = serializers.IntegerField()
+
+
+class WizardDraftCreateSerializer(serializers.Serializer):
+    expected_version = serializers.IntegerField(min_value=1)
+    domain = serializers.ChoiceField(choices=["titan", "hahitantsoa"])
+    payload = serializers.DictField()
+    proforma_validity_days = serializers.IntegerField(min_value=1, max_value=365, default=15)
+
+
+class WizardFilePromoteSerializer(serializers.Serializer):
+    expected_version = serializers.IntegerField(min_value=1)
+    target = serializers.ChoiceField(choices=["customer", "draft"])
+
+
+class WizardDischargeCreateSerializer(serializers.Serializer):
+    expected_version = serializers.IntegerField(min_value=1)
+    payload = serializers.DictField()
+
+
+class WizardProformaUpdateSerializer(serializers.Serializer):
+    expected_version = serializers.IntegerField(min_value=1)
+    proforma_validity_days = serializers.IntegerField(min_value=1, max_value=365)
+    proforma_id = serializers.UUIDField(required=False)
+    revision_key = serializers.UUIDField(required=False)
