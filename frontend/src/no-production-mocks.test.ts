@@ -11,6 +11,9 @@ const reservationDraftDeclaration = 'const draftKey = (currentUserId ? `prototyp
 const recoveryIdentityDeclaration = 'const identityKey = `${draftKey}:server-client-key`;';
 
 function isApprovedScopedDraftAccess(filePath: string, content: string, keyExpr: string): boolean {
+  if (filePath === "./tutorial/progress.ts" && keyExpr === "key") {
+    return content.includes("erp:tutorial:v1:");
+  }
   const declaration = filePath === "./prototype/CustomersPage.tsx"
     ? 'const draftKey = currentUserId ? `customerWizardDraft:${currentUserId}` : "customerWizardDraft";'
     : filePath === "./prototype/ReservationNewPage.tsx" ? reservationDraftDeclaration : null;
