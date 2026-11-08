@@ -48,6 +48,7 @@ export interface TutorialDefinition {
   durationMinutes: number;
   mode: TutorialMode;
   scope: TutorialDomainScope;
+  associatedScopes?: readonly AppScope[];
   requiredCapability?: keyof FrontendCapabilities;
   steps: readonly TutorialStep[];
 }

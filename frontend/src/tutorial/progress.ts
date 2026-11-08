@@ -183,3 +183,12 @@ export function clearUserTutorialProgress(userId: string): void {
     // Ignored
   }
 }
+
+export function clearAllTutorialStorage(): void {
+  inMemoryStore.clear();
+  try {
+    window.localStorage.clear();
+  } catch {
+    // Ignored
+  }
+}

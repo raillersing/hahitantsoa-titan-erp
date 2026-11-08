@@ -3,6 +3,7 @@
  * Definitions for modules and steps.
  */
 
+import type { AppScope } from "../App";
 import type { TutorialDefinition } from "./types";
 
 export const START_TUTORIAL: TutorialDefinition = {
@@ -14,6 +15,7 @@ export const START_TUTORIAL: TutorialDefinition = {
   durationMinutes: 5,
   mode: "live-readonly",
   scope: "shared",
+  associatedScopes: ["dashboard", "help", "user-manual"],
   steps: [
     {
       id: "start-welcome",
@@ -87,6 +89,7 @@ export const CONTRACT_TUTORIAL: TutorialDefinition = {
   durationMinutes: 4,
   mode: "exercise",
   scope: "hahitantsoa",
+  associatedScopes: ["reservations", "reservation-detail", "documents"],
   steps: [
     {
       id: "contract-proforma",
@@ -237,6 +240,7 @@ export const RECOVERY_TUTORIAL: TutorialDefinition = {
   durationMinutes: 3,
   mode: "exercise",
   scope: "shared",
+  associatedScopes: ["reservations", "reservation-new", "reservation-detail"],
   steps: [
     {
       id: "recovery-sessions",
@@ -316,12 +320,149 @@ export const RECOVERY_TUTORIAL: TutorialDefinition = {
   ],
 };
 
+export const RIGHTS_TUTORIAL: TutorialDefinition = {
+  id: "RIGHTS",
+  version: 1,
+  title: "Droits, Profil et Dossiers Partagés",
+  shortDescription: "Comprendre ses habilitations, le partage de dossiers entre collègues et la demande d'accès sans assimiler un refus de droit à un bug.",
+  category: "discovery",
+  durationMinutes: 3,
+  mode: "live-readonly",
+  scope: "shared",
+  associatedScopes: ["profile", "help"],
+  steps: [
+    {
+      id: "rights-profile",
+      title: "Mon compte & profil",
+      body: "Consultez les rôles et permissions associés à votre compte dans l'en-tête et sur la page Profil.",
+      whyExplanation: "Chaque utilisateur dispose d'un profil sécurisé issu de la session serveur.",
+      target: "profile-card",
+      route: "profile",
+      completion: "continue",
+      missingTarget: "explain",
+    },
+    {
+      id: "rights-actions",
+      title: "Mes actions autorisées",
+      body: "Vos boutons d'action (création, confirmation, paiement) s'activent uniquement si votre rôle serveur dispose de l'habilitation correspondante.",
+      whyExplanation: "Le frontend reflète strictement les autorisations serveur (principe du moindre privilège).",
+      target: "profile-roles-section",
+      route: "profile",
+      completion: "continue",
+      missingTarget: "explain",
+    },
+    {
+      id: "rights-shared",
+      title: "Dossiers partagés et collaboration",
+      body: "Le créateur initial d'un dossier n'en est pas le propriétaire exclusif : chaque dossier validé est consultable et traçable par l'équipe autorisée.",
+      whyExplanation: "L'activité de l'entreprise repose sur la continuité du service entre collègues.",
+      target: "dashboard-kpi-summary",
+      route: "dashboard",
+      completion: "continue",
+      missingTarget: "explain",
+    },
+    {
+      id: "rights-distinction",
+      title: "Accès restreint vs anomalie",
+      body: "Si un bouton est absent ou grisé, ou si un message « Accès restreint » apparaît, il s'agit d'une politique de sécurité serveur et non d'une anomalie. Ne signalez pas un manque de droit comme un bug.",
+      whyExplanation: "Un accès refusé par la sécurité est un comportement normal de protection des données.",
+      target: "help-bug-report-card",
+      route: "help",
+      completion: "continue",
+      missingTarget: "explain",
+    },
+    {
+      id: "rights-request",
+      title: "Demander un accès étendu",
+      body: "Pour accéder à un module sensible (caisse, clôture, administration), adressez-vous directement à votre administrateur d'établissement.",
+      whyExplanation: "Seul l'administrateur peut faire évoluer vos rôles applicatifs.",
+      target: "help-tutorial-center",
+      route: "help",
+      completion: "continue",
+      missingTarget: "explain",
+    },
+  ],
+};
+
+export const SUPPORT_TUTORIAL: TutorialDefinition = {
+  id: "SUPPORT",
+  version: 1,
+  title: "Aide, Support et Notifications",
+  shortDescription: "Maîtriser les notifications, le signalement d'anomalies réelles, le manuel d'utilisation et les rappels opérationnels.",
+  category: "discovery",
+  durationMinutes: 4,
+  mode: "live-readonly",
+  scope: "shared",
+  associatedScopes: ["help", "dashboard", "notifications", "user-manual"],
+  steps: [
+    {
+      id: "support-notifications",
+      title: "Notifications d'activité",
+      body: "La cloche en haut de l'écran vous alerte des validations, des rappels de contrat et des alertes opérationnelles sur vos dossiers.",
+      whyExplanation: "Permet de suivre en temps réel les actions effectuées par vos collaborateurs.",
+      target: "topbar-notifications-btn",
+      route: "dashboard",
+      completion: "continue",
+      missingTarget: "explain",
+    },
+    {
+      id: "support-bug-reporting",
+      title: "Signaler une anomalie sans données privées",
+      body: "En cas de dysfonctionnement avéré, décrivez le problème rencontré sans jamais inclure de mot de passe, de coordonnées bancaires ou de pièces d'identité réelles.",
+      whyExplanation: "La protection des données clients et des identifiants est une obligation absolue.",
+      target: "help-bug-report-card",
+      route: "help",
+      completion: "continue",
+      missingTarget: "explain",
+    },
+    {
+      id: "support-manual",
+      title: "Manuel d'utilisation officiel",
+      body: "Le manuel utilisateur présente la référence exhaustive des procédures opérationnelles et des règles de gestion.",
+      whyExplanation: "Une documentation complète reste toujours consultable sans interrompre votre session.",
+      target: "help-user-manual-card",
+      route: "help",
+      completion: "continue",
+      missingTarget: "explain",
+    },
+    {
+      id: "support-whatsapp",
+      title: "Rappels et communication client",
+      body: "Les messages et rappels clients sont préparés par l'ERP mais toujours relus et transmis humainement par l'opérateur pour garantir un accompagnement de qualité.",
+      whyExplanation: "Aucun envoi automatique incontrôlé n'est effectué à votre insu.",
+      target: "dashboard-kpi-summary",
+      route: "dashboard",
+      completion: "continue",
+      missingTarget: "explain",
+    },
+    {
+      id: "support-preferences",
+      title: "Confort visuel et accessibilité",
+      body: "Basculez librement entre les thèmes clair et sombre pour adapter l'application à vos conditions de travail.",
+      whyExplanation: "Le choix du thème est mémorisé sur votre appareil.",
+      target: "topbar-theme-btn",
+      route: "dashboard",
+      completion: "continue",
+      missingTarget: "explain",
+    },
+  ],
+};
+
 export const TUTORIAL_CATALOG: readonly TutorialDefinition[] = [
   START_TUTORIAL,
+  RIGHTS_TUTORIAL,
+  SUPPORT_TUTORIAL,
   CONTRACT_TUTORIAL,
   RECOVERY_TUTORIAL,
 ];
 
 export function getTutorialById(id: string): TutorialDefinition | undefined {
   return TUTORIAL_CATALOG.find((t) => t.id === id);
+}
+
+export function getTutorialsForScope(scope: AppScope): TutorialDefinition[] {
+  return TUTORIAL_CATALOG.filter((t) => {
+    if (t.associatedScopes?.includes(scope)) return true;
+    return t.steps.some((s) => s.route === scope);
+  });
 }

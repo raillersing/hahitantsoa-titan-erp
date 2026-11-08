@@ -49,6 +49,8 @@ export function TutorialProvider({
     null,
   );
 
+  const [sessionDismissedInvitation, setSessionDismissedInvitation] = useState<boolean>(false);
+
   // Reload progress when user identity changes
   useEffect(() => {
     setProgress(loadUserTutorialProgress(userId));
@@ -56,6 +58,7 @@ export function TutorialProvider({
     setCurrentStepIndex(0);
     setLifecycleState("idle");
     setTargetElement(null);
+    setSessionDismissedInvitation(false);
   }, [userId]);
 
   const activeTutorial: TutorialDefinition | null = activeTutorialId
@@ -298,8 +301,11 @@ export function TutorialProvider({
 
   const dismissInvitationAction = useCallback(
     (neverAgain = false) => {
-      const updated = saveDismissInvitation(userId, neverAgain);
-      setProgress(updated);
+      setSessionDismissedInvitation(true);
+      if (neverAgain) {
+        const updated = saveDismissInvitation(userId, true);
+        setProgress(updated);
+      }
     },
     [userId],
   );
@@ -313,12 +319,16 @@ export function TutorialProvider({
 
   const resetAllProgress = useCallback(() => {
     clearUserTutorialProgress(userId);
+    setSessionDismissedInvitation(false);
     setProgress(loadUserTutorialProgress(userId));
     closeTutorial();
   }, [userId, closeTutorial]);
 
   const isInvitationVisible = Boolean(
-    user && !progress.dismissedInvitation && !progress.neverShowInvitation && !isOpen,
+    user &&
+      !sessionDismissedInvitation &&
+      !progress.neverShowInvitation &&
+      !isOpen,
   );
 
   const contextValue: TutorialContextValue = {

@@ -4,6 +4,7 @@ import React from "react";
 import type { AppScope } from "../App";
 import { getNotifications, type SessionUser } from "../api";
 import BrandIdentity, { type BrandScope } from "./BrandIdentity";
+import { useTutorial, getTutorialsForScope } from "../tutorial";
 
 import type { FrontendCapabilities } from "../capabilities";
 
@@ -105,6 +106,7 @@ export default function AppShell({
   children,
 }: AppShellProps) {
   const activeBrand = resolveBrandScope(activeScope, activeParam);
+  const { isInvitationVisible, dismissInvitation, startTutorial } = useTutorial();
   const hasAuthenticatedUser = Boolean(user);
   const canManageIdentity = capabilities?.canManageIdentity ?? !hasAuthenticatedUser;
   const canViewAudit = capabilities?.canViewAudit ?? !hasAuthenticatedUser;
@@ -334,7 +336,7 @@ export default function AppShell({
 
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 text-slate-300 flex flex-col flex-shrink-0 overflow-y-auto transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-5 flex items-center gap-3 border-b border-slate-800">
+        <div data-tutorial="sidebar-brand-switch" className="p-5 flex items-center gap-3 border-b border-slate-800">
           <BrandIdentity brand="ergon" compact className="sidebar-brand" />
           <div>
             <h1 className="text-white font-extrabold text-sm leading-tight tracking-wide">ERGON ERP</h1>
@@ -360,7 +362,7 @@ export default function AppShell({
 
           {/* RÉSERVATIONS */}
           <div className="px-6 pt-3 pb-1 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Réservations</div>
-          <a href="#reservations" onClick={(e) => { e.preventDefault(); onNavigate("reservations"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "reservations" ? "active" : ""}`}>
+          <a data-tutorial="sidebar-nav-reservations" href="#reservations" onClick={(e) => { e.preventDefault(); onNavigate("reservations"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "reservations" ? "active" : ""}`}>
             <i className="fas fa-list w-5 text-center"></i><span>Toutes les réservations</span>
           </a>
           <a href="#hahitantsoa" onClick={(e) => { e.preventDefault(); onNavigate("hahitantsoa"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "hahitantsoa" ? "active" : ""}`}>
@@ -470,6 +472,7 @@ export default function AppShell({
         <div className="p-4 border-t border-slate-800 mt-auto relative" ref={userMenuRef}>
           <button 
             ref={userMenuButtonRef}
+            data-tutorial="header-user-menu"
             type="button"
             aria-label="Menu utilisateur"
             aria-haspopup="menu"
@@ -552,10 +555,33 @@ export default function AppShell({
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <button onClick={() => setDarkMode(!darkMode)} className="relative p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition focus-ring" title="Changer le thème">
+            <button
+              data-tutorial="topbar-guide-btn"
+              type="button"
+              onClick={() => {
+                const matching = getTutorialsForScope(activeScope);
+                if (matching.length === 1) {
+                  startTutorial(matching[0].id);
+                } else {
+                  onNavigate("help");
+                }
+              }}
+              className="relative p-2 text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200 transition focus-ring"
+              title="Guide interactif et aide contextuelle"
+              aria-label="Guide interactif de cette page"
+            >
+              <i className="fas fa-compass text-lg"></i>
+            </button>
+            <button
+              data-tutorial="topbar-theme-btn"
+              onClick={() => setDarkMode(!darkMode)}
+              className="relative p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition focus-ring"
+              title="Changer le thème"
+            >
               {darkMode ? <i className="fas fa-sun text-lg"></i> : <i className="fas fa-moon text-lg"></i>}
             </button>
             <button
+              data-tutorial="topbar-notifications-btn"
               onClick={() => onNavigate("notifications")}
               className="relative p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition focus-ring"
               title="Notifications"
@@ -591,6 +617,47 @@ export default function AppShell({
           </div>
         )}
         <main className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 bg-slate-50 dark:bg-slate-900 relative">
+          {/* First-time invitation banner */}
+          {isInvitationVisible && (
+            <aside className="erp-tutorial-invitation" role="region" aria-label="Invitation au tutoriel interactif">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white text-lg">
+                  <i className="fa-solid fa-graduation-cap" aria-hidden="true"></i>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Découvrez l'ERP Hahitantsoa / Titan
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    Explorez les parcours clés en quelques étapes guidées sans impact sur vos données réelles.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => startTutorial("START")}
+                  className="rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 transition"
+                >
+                  Découvrir l&apos;ERP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dismissInvitation(false)}
+                  className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
+                >
+                  Plus tard
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dismissInvitation(true)}
+                  className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 underline ml-2"
+                >
+                  Ne plus proposer sur cet appareil
+                </button>
+              </div>
+            </aside>
+          )}
           {children}
         </main>
       </div>

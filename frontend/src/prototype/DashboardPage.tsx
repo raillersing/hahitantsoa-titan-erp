@@ -323,7 +323,7 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div data-tutorial="dashboard-kpi-summary" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* Card 1: Reservations count */}
         <div className="bg-white rounded-2xl p-6 card-hover border border-slate-100">
           <div className="flex items-center justify-between mb-4">
@@ -497,7 +497,9 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
       </div>
 
       {/* Upcoming events (next 7 days) */}
-      <UpcomingEventsPanel onNavigate={onNavigate} />
+      <div data-tutorial="dashboard-upcoming-events">
+        <UpcomingEventsPanel onNavigate={onNavigate} />
+      </div>
 
       {/* Dossiers en cours table */}
       <div className="bg-white rounded-2xl border border-slate-100 p-6">
