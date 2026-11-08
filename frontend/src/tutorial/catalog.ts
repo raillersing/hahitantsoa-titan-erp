@@ -27,6 +27,15 @@ import {
   CASH_TUTORIAL,
   REPORT_TUTORIAL,
 } from "./content/finance";
+import {
+  CATALOG_TUTORIAL,
+  WELCOME_TUTORIAL,
+  IMPORT_TUTORIAL,
+  BUY_TUTORIAL,
+  HR_TUTORIAL,
+  ADMIN_TUTORIAL,
+  SETTINGS_TUTORIAL,
+} from "./content/advanced";
 
 export {
   CUSTOMER_TUTORIAL,
@@ -45,6 +54,13 @@ export {
   PRINT_TUTORIAL,
   CASH_TUTORIAL,
   REPORT_TUTORIAL,
+  CATALOG_TUTORIAL,
+  WELCOME_TUTORIAL,
+  IMPORT_TUTORIAL,
+  BUY_TUTORIAL,
+  HR_TUTORIAL,
+  ADMIN_TUTORIAL,
+  SETTINGS_TUTORIAL,
 };
 
 export const START_TUTORIAL: TutorialDefinition = {
@@ -511,6 +527,13 @@ export const TUTORIAL_CATALOG: readonly TutorialDefinition[] = [
   PRINT_TUTORIAL,
   CASH_TUTORIAL,
   REPORT_TUTORIAL,
+  CATALOG_TUTORIAL,
+  WELCOME_TUTORIAL,
+  IMPORT_TUTORIAL,
+  BUY_TUTORIAL,
+  HR_TUTORIAL,
+  ADMIN_TUTORIAL,
+  SETTINGS_TUTORIAL,
 ];
 
 export function getTutorialById(id: string): TutorialDefinition | undefined {

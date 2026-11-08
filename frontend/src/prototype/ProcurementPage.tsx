@@ -168,7 +168,7 @@ export default function ProcurementPage({ onNavigate }: ProcurementPageProps) {
       </div>
 
       {/* Purchase Orders Section */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-6">
+      <div className="bg-white rounded-2xl border border-slate-100 p-6" data-tutorial="purchasing-orders-list">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-slate-700">Bons de commande</h3>
           <div className="flex items-center gap-3">
@@ -200,6 +200,7 @@ export default function ProcurementPage({ onNavigate }: ProcurementPageProps) {
                 <input
                   type="text"
                   required
+                  data-tutorial="supplier-select"
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   value={orderForm.supplier_name}
                   onChange={(e) => setOrderForm({ ...orderForm, supplier_name: e.target.value })}

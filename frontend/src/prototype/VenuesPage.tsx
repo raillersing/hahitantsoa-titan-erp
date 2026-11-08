@@ -146,7 +146,7 @@ export default function VenuesPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden" data-tutorial="venues-list">
         <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
           <div>
             <h2 className="text-lg font-bold text-slate-800">Locaux en location</h2>

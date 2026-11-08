@@ -176,7 +176,7 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
       {notice && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{notice}</p>}
 
       <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <form onSubmit={submit} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+        <form onSubmit={submit} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6" data-tutorial="commercial-terms-editor">
           <BareRentalCompositionEditor value={composition} onChange={setComposition} disabled={!canEdit || loading || saving} />
           <p className="text-sm text-slate-500">Cette composition est copiée dans les nouvelles réservations. Les dossiers existants et les documents déjà émis conservent leur composition.</p>
           <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">

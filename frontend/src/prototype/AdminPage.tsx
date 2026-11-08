@@ -555,7 +555,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
               )}
 
               {!usersLoading && !usersError && (
-                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <div className="overflow-x-auto border border-slate-200 rounded-xl" data-tutorial="admin-users-table">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -804,7 +804,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
               )}
 
               {!rolesLoading && !rolesError && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-tutorial="admin-roles-matrix">
                   {roles.length === 0 ? (
                     <div className="col-span-2 p-12 text-center text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
                       <i className="fas fa-shield-halved text-3xl mb-3 block text-slate-300"></i>
