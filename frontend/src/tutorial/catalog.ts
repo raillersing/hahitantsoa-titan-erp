@@ -5,6 +5,21 @@
 
 import type { AppScope } from "../App";
 import type { TutorialDefinition } from "./types";
+import {
+  CUSTOMER_TUTORIAL,
+  CALENDAR_TUTORIAL,
+  HAH_NEW_TUTORIAL,
+  TIT_NEW_TUTORIAL,
+  AMEND_TUTORIAL,
+} from "./content/commercial";
+
+export {
+  CUSTOMER_TUTORIAL,
+  CALENDAR_TUTORIAL,
+  HAH_NEW_TUTORIAL,
+  TIT_NEW_TUTORIAL,
+  AMEND_TUTORIAL,
+};
 
 export const START_TUTORIAL: TutorialDefinition = {
   id: "START",
@@ -452,8 +467,13 @@ export const TUTORIAL_CATALOG: readonly TutorialDefinition[] = [
   START_TUTORIAL,
   RIGHTS_TUTORIAL,
   SUPPORT_TUTORIAL,
+  CUSTOMER_TUTORIAL,
+  CALENDAR_TUTORIAL,
+  HAH_NEW_TUTORIAL,
+  TIT_NEW_TUTORIAL,
   CONTRACT_TUTORIAL,
   RECOVERY_TUTORIAL,
+  AMEND_TUTORIAL,
 ];
 
 export function getTutorialById(id: string): TutorialDefinition | undefined {

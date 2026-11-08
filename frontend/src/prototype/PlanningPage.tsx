@@ -818,6 +818,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
 
         <div className="flex flex-wrap items-center gap-3">
           <button
+            data-tutorial="planning-desired-dates-btn"
             type="button"
             onClick={() => setIsAvailabilityInspectorOpen(true)}
             className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
@@ -1025,7 +1026,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div data-tutorial="planning-brand-filter" className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={() => setCategoryFilter("all")}
@@ -1321,7 +1322,7 @@ function MonthViewGrid({
   const today = new Date();
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+    <div data-tutorial="planning-calendar-grid" className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
       <div className="grid grid-cols-7 border-b border-slate-100 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/50 text-center text-xs font-bold text-slate-600 dark:text-slate-300 py-3">
         {DAY_LABELS.map((day) => (
           <div key={day}>{day}</div>
