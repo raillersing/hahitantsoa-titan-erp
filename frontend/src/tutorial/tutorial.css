@@ -45,6 +45,12 @@
   pointer-events: auto;
 }
 
+.erp-tutorial-panel--centered {
+  right: 50% !important;
+  bottom: 50% !important;
+  transform: translate(50%, 50%) !important;
+}
+
 .erp-tutorial-panel {
   display: flex;
   flex-direction: column;

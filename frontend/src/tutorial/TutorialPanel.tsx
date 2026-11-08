@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTutorial } from "./TutorialContext";
 import { TutorialExercise } from "./TutorialExercise";
 
@@ -17,6 +17,18 @@ export function TutorialPanel() {
 
   const [isWhyOpen, setIsWhyOpen] = useState(false);
   const [isExercisePassed, setIsExercisePassed] = useState(false);
+
+  // Close tutorial on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        closeTutorial();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, closeTutorial]);
 
   if (!isOpen || !activeTutorial || !currentStep) {
     return null;
@@ -59,9 +71,13 @@ export function TutorialPanel() {
     }
   };
 
+  const isCentered = !targetElement;
+
   return (
     <aside
-      className="erp-tutorial-panel-container"
+      className={`erp-tutorial-panel-container ${
+        isCentered ? "erp-tutorial-panel--centered" : ""
+      }`}
       aria-label={`Guide interactif : ${activeTutorial.title}`}
     >
       <div className="erp-tutorial-panel">
@@ -85,7 +101,7 @@ export function TutorialPanel() {
         </div>
 
         {/* Body */}
-        <div className="erp-tutorial-panel__body">
+        <div className="erp-tutorial-panel__body" aria-live="polite">
           <h4 className="erp-tutorial-panel__title">{currentStep.title}</h4>
           <p className="erp-tutorial-panel__text">{currentStep.body}</p>
 

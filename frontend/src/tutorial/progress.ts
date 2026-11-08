@@ -15,8 +15,9 @@ export const TUTORIAL_CATALOG_VERSION = 1;
 
 const inMemoryStore = new Map<string, UserTutorialStorage>();
 
-export function getTutorialStorageKey(userId: string): string {
-  const safeId = userId.trim() ? encodeURIComponent(userId.trim()) : "anonymous";
+export function getTutorialStorageKey(userId: string | number): string {
+  const strId = String(userId ?? "").trim();
+  const safeId = strId ? encodeURIComponent(strId) : "anonymous";
   return `erp:tutorial:v1:${safeId}`;
 }
 

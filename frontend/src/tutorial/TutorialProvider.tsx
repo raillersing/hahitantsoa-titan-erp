@@ -33,7 +33,7 @@ export function TutorialProvider({
   onNavigate,
   children,
 }: TutorialProviderProps) {
-  const userId = user?.id || "";
+  const userId = user?.id !== undefined && user?.id !== null ? String(user.id) : "";
 
   const [progress, setProgress] = useState<UserTutorialStorage>(() =>
     loadUserTutorialProgress(userId),
