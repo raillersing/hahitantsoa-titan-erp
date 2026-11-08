@@ -1,0 +1,414 @@
+/**
+ * Interactive Tutorial Styles - Ergon ERP (Hahitantsoa & Titan)
+ * Prefixed with .erp-tutorial-*
+ * Compatible with Tailwind and dark mode classes.
+ */
+
+/* ==========================================================================
+   1. Highlight Ring on Target Element
+   ========================================================================== */
+.erp-tutorial-highlight {
+  position: relative !important;
+  outline: 2px solid #4f46e5 !important; /* Indigo 600 */
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.25) !important;
+  border-radius: 8px !important;
+  transition: outline 0.15s ease, box-shadow 0.15s ease !important;
+  z-index: 25 !important;
+}
+
+.dark .erp-tutorial-highlight {
+  outline-color: #818cf8 !important; /* Indigo 400 */
+  box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.35) !important;
+}
+
+/* Specific activity highlights */
+.erp-tutorial-highlight--hahitantsoa {
+  outline-color: #0d9488 !important; /* Teal 600 */
+  box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.25) !important;
+}
+.dark .erp-tutorial-highlight--hahitantsoa {
+  outline-color: #2dd4bf !important; /* Teal 400 */
+  box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.35) !important;
+}
+
+/* ==========================================================================
+   2. Desktop & Responsive Panel
+   ========================================================================== */
+.erp-tutorial-panel-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  z-index: 40;
+  pointer-events: auto;
+}
+
+.erp-tutorial-panel {
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  font-family: inherit;
+}
+
+.dark .erp-tutorial-panel {
+  background-color: #0f172a; /* Slate 900 */
+  color: #f8fafc;
+  border-color: #334155;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+}
+
+/* Header */
+.erp-tutorial-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  background-color: #f8fafc;
+}
+
+.dark .erp-tutorial-panel__header {
+  border-bottom-color: #1e293b;
+  background-color: #1e293b;
+}
+
+.erp-tutorial-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 9999px;
+}
+
+.erp-tutorial-badge--titan {
+  background-color: #eef2ff;
+  color: #4338ca;
+  border: 1px solid #c7d2fe;
+}
+.dark .erp-tutorial-badge--titan {
+  background-color: rgba(67, 56, 202, 0.25);
+  color: #a5b4fc;
+  border-color: #4338ca;
+}
+
+.erp-tutorial-badge--hahitantsoa {
+  background-color: #f0fdfa;
+  color: #0f766e;
+  border: 1px solid #99f6e4;
+}
+.dark .erp-tutorial-badge--hahitantsoa {
+  background-color: rgba(15, 118, 110, 0.25);
+  color: #5eead4;
+  border-color: #0f766e;
+}
+
+.erp-tutorial-badge--shared {
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+.dark .erp-tutorial-badge--shared {
+  background-color: rgba(51, 65, 85, 0.4);
+  color: #cbd5e1;
+  border-color: #475569;
+}
+
+.erp-tutorial-step-counter {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+.dark .erp-tutorial-step-counter {
+  color: #94a3b8;
+}
+
+.erp-tutorial-close-btn {
+  background: none;
+  border: none;
+  padding: 6px;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1;
+}
+.erp-tutorial-close-btn:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+.dark .erp-tutorial-close-btn:hover {
+  background-color: #334155;
+  color: #f8fafc;
+}
+
+/* Body */
+.erp-tutorial-panel__body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.erp-tutorial-panel__title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #0f172a;
+  margin: 0;
+}
+.dark .erp-tutorial-panel__title {
+  color: #f8fafc;
+}
+
+.erp-tutorial-panel__text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #334155;
+  margin: 0;
+}
+.dark .erp-tutorial-panel__text {
+  color: #cbd5e1;
+}
+
+/* Why Accordion */
+.erp-tutorial-why-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4f46e5;
+  cursor: pointer;
+  text-align: left;
+}
+.dark .erp-tutorial-why-toggle {
+  color: #818cf8;
+}
+
+.erp-tutorial-why-box {
+  padding: 10px 12px;
+  background-color: #f8fafc;
+  border-left: 3px solid #6366f1;
+  border-radius: 0 8px 8px 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #475569;
+}
+.dark .erp-tutorial-why-box {
+  background-color: #1e293b;
+  color: #94a3b8;
+  border-left-color: #818cf8;
+}
+
+/* Footer / Navigation Buttons */
+.erp-tutorial-panel__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+}
+.dark .erp-tutorial-panel__footer {
+  background-color: #1e293b;
+  border-top-color: #334155;
+}
+
+.erp-tutorial-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.erp-tutorial-btn--primary {
+  background-color: #4f46e5;
+  color: #ffffff;
+}
+.erp-tutorial-btn--primary:hover {
+  background-color: #4338ca;
+}
+.dark .erp-tutorial-btn--primary {
+  background-color: #6366f1;
+}
+.dark .erp-tutorial-btn--primary:hover {
+  background-color: #4f46e5;
+}
+
+.erp-tutorial-btn--secondary {
+  background-color: #ffffff;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+.erp-tutorial-btn--secondary:hover {
+  background-color: #f1f5f9;
+}
+.dark .erp-tutorial-btn--secondary {
+  background-color: #334155;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+.dark .erp-tutorial-btn--secondary:hover {
+  background-color: #475569;
+}
+
+.erp-tutorial-btn--target-jump {
+  font-size: 12px;
+  background-color: transparent;
+  color: #4f46e5;
+  border-color: #c7d2fe;
+}
+.dark .erp-tutorial-btn--target-jump {
+  color: #a5b4fc;
+  border-color: #4338ca;
+}
+
+/* ==========================================================================
+   3. Mobile In-Flow Adaptations (< 640px)
+   ========================================================================== */
+@media (max-width: 639px) {
+  .erp-tutorial-panel-container {
+    position: static;
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 16px;
+    padding: 0;
+  }
+  .erp-tutorial-panel {
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* ==========================================================================
+   4. Exercise Isolated Banner and Container
+   ========================================================================== */
+.erp-tutorial-exercise-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #fffbeb; /* Amber 50 */
+  border-bottom: 1px solid #fef3c7;
+  color: #92400e; /* Amber 800 */
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.dark .erp-tutorial-exercise-banner {
+  background-color: rgba(146, 64, 14, 0.2);
+  border-bottom-color: rgba(245, 158, 11, 0.3);
+  color: #fde68a;
+}
+
+.erp-tutorial-exercise-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background-color: #ffffff;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #1e293b;
+  width: 100%;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.erp-tutorial-exercise-choice:hover:not(:disabled) {
+  border-color: #818cf8;
+  background-color: #f8fafc;
+}
+.dark .erp-tutorial-exercise-choice {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+.dark .erp-tutorial-exercise-choice:hover:not(:disabled) {
+  border-color: #6366f1;
+  background-color: #0f172a;
+}
+
+.erp-tutorial-exercise-choice--correct {
+  border-color: #10b981 !important;
+  background-color: #ecfdf5 !important;
+}
+.dark .erp-tutorial-exercise-choice--correct {
+  border-color: #059669 !important;
+  background-color: rgba(16, 185, 129, 0.15) !important;
+}
+
+.erp-tutorial-exercise-choice--incorrect {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+}
+.dark .erp-tutorial-exercise-choice--incorrect {
+  border-color: #dc2626 !important;
+  background-color: rgba(239, 68, 68, 0.15) !important;
+}
+
+/* ==========================================================================
+   5. First-time Invitation Banner
+   ========================================================================== */
+.erp-tutorial-invitation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  background: linear-gradient(90deg, #eef2ff 0%, #f0fdfa 100%);
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+.dark .erp-tutorial-invitation {
+  background: linear-gradient(90deg, #1e1b4b 0%, #134e4a 100%);
+  border-color: #4338ca;
+}
+
+/* ==========================================================================
+   6. Motion and Print Media Safeguards
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .erp-tutorial-highlight,
+  .erp-tutorial-panel,
+  .erp-tutorial-btn,
+  .erp-tutorial-exercise-choice {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media print {
+  .erp-tutorial-panel-container,
+  .erp-tutorial-panel,
+  .erp-tutorial-invitation,
+  .erp-tutorial-highlight {
+    display: none !important;
+  }
+}
