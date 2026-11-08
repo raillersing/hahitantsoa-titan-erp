@@ -258,7 +258,7 @@ export default function LogisticsReturnsPage({ onNavigate, param }: { onNavigate
           </div>
         )}
         
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100" data-tutorial="returns-list">
           {filteredData.map(retour => (
             <div key={retour.id} className="p-6">
               <div className="flex justify-between items-start mb-4">
@@ -404,7 +404,7 @@ export default function LogisticsReturnsPage({ onNavigate, param }: { onNavigate
                 </div>
               )}
               
-              <div className="mt-4 flex justify-end gap-3 items-center">
+              <div className="mt-4 flex justify-end gap-3 items-center" data-tutorial="returns-validation-btn">
                 <div className="flex gap-2">
                   <button className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-red-600 dark:text-red-400 font-bold rounded-lg hover:bg-slate-200 dark:bg-slate-700" onClick={() => onNavigate("breakage-loss", retour.reservation_draft ? `titan:${retour.reservation_draft}` : retour.hahitantsoa_event_draft ? `hahitantsoa:${retour.hahitantsoa_event_draft}` : undefined)}>
                     <i className="fas fa-exclamation-triangle mr-2"></i>Déclarer Casse/Perte

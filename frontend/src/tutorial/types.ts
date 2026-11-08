@@ -50,6 +50,7 @@ export interface TutorialDefinition {
   scope: TutorialDomainScope;
   associatedScopes?: readonly AppScope[];
   requiredCapability?: keyof FrontendCapabilities;
+  prerequisites?: readonly string[];
   steps: readonly TutorialStep[];
 }
 

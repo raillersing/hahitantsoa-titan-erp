@@ -12,6 +12,14 @@ import {
   TIT_NEW_TUTORIAL,
   AMEND_TUTORIAL,
 } from "./content/commercial";
+import {
+  STOCK_TUTORIAL,
+  SETS_TUTORIAL,
+  PREP_TUTORIAL,
+  DELIVERY_TUTORIAL,
+  RETURN_TUTORIAL,
+  CLOSE_TUTORIAL,
+} from "./content/logistics";
 
 export {
   CUSTOMER_TUTORIAL,
@@ -19,6 +27,12 @@ export {
   HAH_NEW_TUTORIAL,
   TIT_NEW_TUTORIAL,
   AMEND_TUTORIAL,
+  STOCK_TUTORIAL,
+  SETS_TUTORIAL,
+  PREP_TUTORIAL,
+  DELIVERY_TUTORIAL,
+  RETURN_TUTORIAL,
+  CLOSE_TUTORIAL,
 };
 
 export const START_TUTORIAL: TutorialDefinition = {
@@ -474,6 +488,12 @@ export const TUTORIAL_CATALOG: readonly TutorialDefinition[] = [
   CONTRACT_TUTORIAL,
   RECOVERY_TUTORIAL,
   AMEND_TUTORIAL,
+  STOCK_TUTORIAL,
+  SETS_TUTORIAL,
+  PREP_TUTORIAL,
+  DELIVERY_TUTORIAL,
+  RETURN_TUTORIAL,
+  CLOSE_TUTORIAL,
 ];
 
 export function getTutorialById(id: string): TutorialDefinition | undefined {

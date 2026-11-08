@@ -734,7 +734,7 @@ export default function PackageBuilderPage() {
       {viewMode === "details" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left: Pack List Sidebar */}
-          <div className="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden flex flex-col h-[800px]">
+          <div className="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden flex flex-col h-[800px]" data-tutorial="packages-list">
             <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
               <span className="font-bold text-xs uppercase tracking-wider text-slate-700">
                 Sets disponibles ({filteredPackages.length})
@@ -1100,7 +1100,7 @@ export default function PackageBuilderPage() {
                 })()}
 
                 {/* Composition Table / Section */}
-                <div className="space-y-3">
+                <div className="space-y-3" data-tutorial="packages-items-table">
                   <div className="flex justify-between items-center">
                     <div>
                       <h3 className="font-bold text-sm text-slate-900">

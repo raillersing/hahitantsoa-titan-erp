@@ -606,6 +606,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
               </div>
               <input
                 id="search-inventory"
+                data-tutorial="inventory-search-input"
                 type="text"
                 role="searchbox"
                 className="block w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-tit-500 focus:border-tit-500"
@@ -670,7 +671,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
             {filteredData.length} résultat(s) · Filtre actif : {filter}
             {(filter !== "Tous" || searchQuery) && <button type="button" className="ml-3 underline" onClick={() => { setFilter("Tous"); setSearchQuery(""); }}>Effacer les filtres</button>}
           </p>
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse" data-tutorial="inventory-stock-levels">
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
                 {isColumnVisible("photo") && <th className="p-4 font-bold border-b border-slate-200">Photo</th>}

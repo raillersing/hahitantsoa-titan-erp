@@ -372,7 +372,7 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
           </div>
         )}
 
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100" data-tutorial="dispatch-list">
           {filteredData.map(evt => {
             const statusInfo = statusConfig[evt.status] || { label: evt.status, className: "" };
             return (
@@ -486,7 +486,7 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
                   </div>
                 )}
                 
-                <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4" data-tutorial="dispatch-handover-btn">
                   <div className="flex gap-2">
                     {evt.event_type === "handover" && evt.status === "completed" && evt.signature_required && !evt.signature_received && evt.signature_status !== "received" && (
                       <button
