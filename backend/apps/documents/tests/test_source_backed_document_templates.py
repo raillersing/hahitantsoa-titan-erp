@@ -547,6 +547,27 @@ def test_delivery_notes_use_qte_and_designation_columns() -> None:
         assert "<th>DESIGNATION</th>" in html
 
 
+def test_delivery_notes_keep_handover_checklist_separate() -> None:
+    hahitantsoa = get_document_template_definition("hahitantsoa.delivery_note.v1")
+    titan = get_document_template_definition("titan.delivery_note.v1")
+    checklist = get_document_template_definition("hahitantsoa.preparation_sheet.v1")
+    assert hahitantsoa is not None and titan is not None and checklist is not None
+
+    def render(definition):
+        return render_to_string(
+            _resolve_preview_template_path(definition.key),
+            {
+                "context": _build_mock_preview_context(definition),
+                "bank": _build_preview_bank(definition),
+                "show_variables": False,
+            },
+        )
+
+    assert "PASSATION (Mettre les remarques à droite)" not in render(hahitantsoa)
+    assert "PASSATION" not in render(titan)
+    assert "Checking de passation" in render(checklist)
+
+
 def test_refund_receipt_and_supplier_po_use_uppercase_columns() -> None:
     receipt_def = get_document_template_definition("shared.payment_refund_receipt.v1")
     assert receipt_def is not None
