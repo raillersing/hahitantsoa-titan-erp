@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { SessionUser } from "../api";
 import type { AppScope } from "../app-routes";
 import { getTutorialById } from "./catalog";
@@ -6,6 +7,7 @@ import {
   clearUserTutorialProgress,
   dismissInvitation as saveDismissInvitation,
   loadUserTutorialProgress,
+  isTutorialStorageUnavailable,
   updateModuleProgress,
 } from "./progress";
 import { TutorialContext } from "./TutorialContext";
@@ -34,6 +36,27 @@ export function TutorialProvider({
   children,
 }: TutorialProviderProps) {
   const userId = user?.id !== undefined && user?.id !== null ? String(user.id) : "";
+
+  // Capabilities are provided by the session; absent capabilities fail closed.
+  const canAccessTutorial = useCallback((id: string) => {
+    if (!user) return false;
+    const required: Record<string, string | string[]> = {
+      ADMIN: "canManageIdentity",
+      SETTINGS: ["canSensitiveWrite", "canManageIdentity"],
+      HR: "canViewPayroll",
+      PAYMENT: "canManageFinance", CASH: "canOperateCashbox",
+      PREP: "canOperateLogistics", DELIVERY: "canOperateLogistics", RETURN: "canOperateLogistics",
+      SETS: "canManageInventory", IMPORT: "canManageInventory", BUY: "canManageFinance",
+      "HAH-NEW": "canSensitiveWrite", "TIT-NEW": "canSensitiveWrite",
+      AMEND: "canSensitiveWrite", CLOSE: "canSensitiveWrite",
+    };
+    const capability = required[id];
+    if (!capability) return true;
+    if (Array.isArray(capability)) {
+      return capability.some((cap) => user.capabilities?.[cap] === true);
+    }
+    return user.capabilities?.[capability] === true;
+  }, [user]);
 
   const [progress, setProgress] = useState<UserTutorialStorage>(() =>
     loadUserTutorialProgress(userId),
@@ -70,7 +93,14 @@ export function TutorialProvider({
       ? activeTutorial.steps[currentStepIndex]
       : null;
 
-  const isOpen = Boolean(activeTutorial && lifecycleState !== "idle");
+  const isOpen = Boolean(activeTutorial && lifecycleState !== "idle" && lifecycleState !== "paused");
+
+  useEffect(() => {
+    if (activeTutorialId && !canAccessTutorial(activeTutorialId)) {
+      setActiveTutorialId(null);
+      setLifecycleState("idle");
+    }
+  }, [activeTutorialId, canAccessTutorial]);
 
   // Highlight management
   const previousTargetRef = useRef<HTMLElement | null>(null);
@@ -118,6 +148,28 @@ export function TutorialProvider({
       return;
     }
 
+    if (currentStep.route && activeScope !== currentStep.route) {
+      clearHighlight();
+      setIsTargetSearching(false);
+      const labels: Partial<Record<AppScope, string>> = {
+        dashboard: "Tableau de bord", help: "Aide", customers: "Clients", customer: "Fiche client",
+        planning: "Planning", reservations: "Réservations", "reservation-new": "Nouvelle réservation",
+        "reservation-detail": "Détail de réservation", hahitantsoa: "Hahitantsoa", titan: "Titan",
+        "commercial-ops": "Opérations commerciales", documents: "Documents", cashbox: "Caisse",
+        inventory: "Inventaire", "inventory-management": "Gestion de l’inventaire", packages: "Ensembles",
+        "stock-preparation": "Préparation", "logistics-dispatch": "Expéditions",
+        "logistics-returns": "Retours", "breakage-loss": "Casse et perte",
+        "bank-settings": "Paramètres bancaires", "hahitantsoa-settings": "Conditions Hahitantsoa",
+        "agenda-visitors": "Agenda visiteurs", "desired-dates": "Dates souhaitées",
+        "blacklist-intervenants": "Intervenants bloqués", "import-excel": "Import Excel",
+        "hr-payroll": "RH et paie", hr: "RH", purchasing: "Achats", procurement: "Achats",
+        services: "Services", venues: "Espaces", admin: "Administration", reports: "Rapports",
+        notifications: "Notifications", profile: "Profil", "user-manual": "Manuel utilisateur",
+      };
+      setMissingTargetMessage(`Pour voir cet élément, ouvrez « ${labels[currentStep.route] ?? currentStep.route} » depuis le menu. Votre page actuelle reste ouverte.`);
+      setLifecycleState("showing");
+      return;
+    }
     const targetKey = currentStep.target;
     setIsTargetSearching(true);
     setLifecycleState("waiting-target");
@@ -133,7 +185,7 @@ export function TutorialProvider({
         `[data-tutorial="${targetKey}"]`,
       );
 
-      if (el) {
+      if (el && document.querySelectorAll(`[data-tutorial="${targetKey}"]`).length === 1 && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0)) {
         setIsTargetSearching(false);
         applyHighlight(el, activeTutorial.scope);
         setLifecycleState("showing");
@@ -145,7 +197,9 @@ export function TutorialProvider({
         setIsTargetSearching(false);
         clearHighlight();
         setLifecycleState("showing");
-        if (currentStep.missingTarget === "explain") {
+        if (currentStep.missingTarget === "pause") {
+          setMissingTargetMessage("Cet élément est indisponible. Fermez le guide et réessayez lorsque la page est prête.");
+        } else {
           setMissingTargetMessage(
             "Cet élément n'est pas affiché sur l'écran actuel (droits ou vue différente). Lisez l'explication et poursuivez.",
           );
@@ -173,7 +227,7 @@ export function TutorialProvider({
   const startTutorial = useCallback(
     (tutorialId: string, fromStepIndex = 0) => {
       const tut = getTutorialById(tutorialId);
-      if (!tut) return;
+      if (!tut || !canAccessTutorial(tutorialId)) return;
 
       setActiveTutorialId(tutorialId);
       const safeIndex =
@@ -185,9 +239,7 @@ export function TutorialProvider({
 
       // Check if first step requires route navigation
       const firstStep = tut.steps[safeIndex];
-      if (firstStep?.route && onNavigate && activeScope !== firstStep.route) {
-        onNavigate(firstStep.route, firstStep.routeParam);
-      }
+      // Navigation remains under the user's control so in-progress forms are not abandoned.
 
       const updated = updateModuleProgress(
         userId,
@@ -199,7 +251,7 @@ export function TutorialProvider({
       );
       setProgress(updated);
     },
-    [userId, onNavigate, activeScope],
+    [userId, onNavigate, activeScope, canAccessTutorial],
   );
 
   const nextStep = useCallback(() => {
@@ -211,13 +263,7 @@ export function TutorialProvider({
       setCurrentStepIndex(nextIndex);
       setLifecycleState("navigating");
 
-      if (
-        nextStepDef.route &&
-        onNavigate &&
-        activeScope !== nextStepDef.route
-      ) {
-        onNavigate(nextStepDef.route, nextStepDef.routeParam);
-      }
+
 
       const updated = updateModuleProgress(
         userId,
@@ -262,13 +308,7 @@ export function TutorialProvider({
     setCurrentStepIndex(prevIndex);
     setLifecycleState("navigating");
 
-    if (
-      prevStepDef.route &&
-      onNavigate &&
-      activeScope !== prevStepDef.route
-    ) {
-      onNavigate(prevStepDef.route, prevStepDef.routeParam);
-    }
+
 
     const updated = updateModuleProgress(
       userId,
@@ -333,6 +373,8 @@ export function TutorialProvider({
 
   const contextValue: TutorialContextValue = {
     lifecycleState,
+    canAccessTutorial,
+    storageUnavailable: Boolean(userId && isTutorialStorageUnavailable(userId)),
     isOpen,
     activeTutorial,
     currentStepIndex,
@@ -355,7 +397,11 @@ export function TutorialProvider({
   return (
     <TutorialContext.Provider value={contextValue}>
       {children}
-      <TutorialPanel />
+      {(() => {
+        const panel = <TutorialPanel key={`${activeTutorialId ?? "closed"}:${currentStepIndex}`} />;
+        const slot = document.getElementById("tutorial-panel-slot");
+        return slot ? createPortal(panel, slot) : panel;
+      })()}
     </TutorialContext.Provider>
   );
 }

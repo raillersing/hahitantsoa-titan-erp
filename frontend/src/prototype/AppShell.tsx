@@ -106,7 +106,9 @@ export default function AppShell({
   children,
 }: AppShellProps) {
   const activeBrand = resolveBrandScope(activeScope, activeParam);
-  const { isInvitationVisible, dismissInvitation, startTutorial } = useTutorial();
+  const { isInvitationVisible, dismissInvitation, startTutorial, canAccessTutorial } = useTutorial();
+  const [showGuides, setShowGuides] = React.useState(false);
+  const matchingGuides = getTutorialsForScope(activeScope).filter((item) => canAccessTutorial(item.id));
   const hasAuthenticatedUser = Boolean(user);
   const canManageIdentity = capabilities?.canManageIdentity ?? !hasAuthenticatedUser;
   const canViewAudit = capabilities?.canViewAudit ?? !hasAuthenticatedUser;
@@ -558,14 +560,9 @@ export default function AppShell({
             <button
               data-tutorial="topbar-guide-btn"
               type="button"
-              onClick={() => {
-                const matching = getTutorialsForScope(activeScope);
-                if (matching.length === 1) {
-                  startTutorial(matching[0].id);
-                } else {
-                  onNavigate("help");
-                }
-              }}
+              onClick={() => setShowGuides((open) => !open)}
+              aria-expanded={showGuides}
+              aria-controls="tutorial-contextual-guides"
               className="relative p-2 text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200 transition focus-ring"
               title="Guide interactif et aide contextuelle"
               aria-label="Guide interactif de cette page"
@@ -658,6 +655,16 @@ export default function AppShell({
               </div>
             </aside>
           )}
+          {showGuides && (
+            <section id="tutorial-contextual-guides" aria-label="Guides de cette page" className="mb-4 rounded-xl border border-slate-300 bg-white p-4 dark:bg-slate-800 dark:text-white">
+              <h3 className="font-bold">Guides de cette page</h3>
+              {matchingGuides.length ? matchingGuides.map((guide) => (
+                <button key={guide.id} type="button" className="mr-3 mt-2 rounded-lg border px-3 py-2 text-sm" onClick={() => { startTutorial(guide.id); setShowGuides(false); }}>{guide.title}</button>
+              )) : <p className="mt-2 text-sm">Aucun guide disponible pour cette page avec vos accès.</p>}
+              <button type="button" className="ml-3 mt-2 underline text-sm" onClick={() => setShowGuides(false)}>Fermer</button>
+            </section>
+          )}
+          <div id="tutorial-panel-slot" />
           {children}
         </main>
       </div>

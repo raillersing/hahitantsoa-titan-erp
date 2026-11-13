@@ -189,7 +189,7 @@ export const CONTRACT_TUTORIAL: TutorialDefinition = {
             id: "choice-validity-caduc",
             label: "Le contrat est caduc ; il faut réémettre un contrat valide avant signature.",
             isCorrect: true,
-            explanation: "Parfait ! Le système bloque la signature et l'encaissement d'un contrat expiré.",
+            explanation: "Parfait ! Un contrat expiré doit être remplacé par un contrat valide avant la signature et le versement.",
           },
           {
             id: "choice-validity-pay",
@@ -302,7 +302,7 @@ export const RECOVERY_TUTORIAL: TutorialDefinition = {
     {
       id: "recovery-sessions",
       title: "Sauvegarde automatique serveur",
-      body: "Lorsque vous saisissez une réservation, chaque étape est sauvegardée sur le serveur. Si votre navigateur se ferme accidentellement, vous retrouverez votre session intacte.",
+      body: "Le brouillon peut être enregistré sur le serveur et sur cet appareil. Vérifiez l'état de sauvegarde avant de fermer et reprenez la version serveur en cas de conflit.",
       whyExplanation: "Les étapes intermédiaires sont persistées pour éviter de recommencer la saisie.",
       completion: "continue",
       missingTarget: "explain",
@@ -322,7 +322,7 @@ export const RECOVERY_TUTORIAL: TutorialDefinition = {
             id: "choice-recovery-login",
             label: "Je me connecte avec le même compte sur la tablette et clique sur « Reprendre la session ».",
             isCorrect: true,
-            explanation: "Parfait ! La session serveur est chargée avec les pièces jointes et matériels déjà choisis.",
+            explanation: "Parfait ! Vérifiez que la session serveur contient les informations et pièces attendues avant de continuer.",
           },
           {
             id: "choice-recovery-remake",
@@ -337,7 +337,7 @@ export const RECOVERY_TUTORIAL: TutorialDefinition = {
       id: "recovery-conflict",
       title: "Alerte de conflit (Erreur 409)",
       body: "Un message indique : « Ce brouillon a été modifié sur un autre appareil ». Quelle est la bonne réaction ?",
-      whyExplanation: "L'optimistic locking empêche d'écraser involontairement les modifications d'une autre session.",
+      whyExplanation: "Le contrôle de révision signale les modifications simultanées pour éviter un écrasement involontaire.",
       completion: "exercise-answer",
       missingTarget: "explain",
       exercise: {
@@ -348,7 +348,7 @@ export const RECOVERY_TUTORIAL: TutorialDefinition = {
             id: "choice-conflict-reload",
             label: "Recharger la version serveur pour examiner les changements récents avant de continuer.",
             isCorrect: true,
-            explanation: "Exactement ! Recharger permet de synchroniser votre écran sans perdre le travail fait ailleurs.",
+            explanation: "Exactement ! Comparez la version serveur avec vos modifications avant de reprendre ; les changements locaux non enregistrés peuvent nécessiter une nouvelle saisie.",
           },
           {
             id: "choice-conflict-force",
@@ -362,7 +362,7 @@ export const RECOVERY_TUTORIAL: TutorialDefinition = {
     {
       id: "recovery-offline",
       title: "Coupure de réseau temporaire",
-      body: "Pendant une coupure Wi-Fi, l'ERP conserve votre saisie dans la mémoire locale du navigateur jusqu'au rétablissement du réseau.",
+      body: "En cas de coupure, vérifiez l'état de sauvegarde et la connexion avant de reprendre. Les données locales ne garantissent pas la conservation de toutes les modifications.",
       whyExplanation: "La résilience aux micro-coupures protège la continuité du travail.",
       completion: "continue",
       missingTarget: "explain",
@@ -370,7 +370,7 @@ export const RECOVERY_TUTORIAL: TutorialDefinition = {
     {
       id: "recovery-summary",
       title: "Session sécurisée",
-      body: "Vous savez désormais travailler en toute confiance, même en alternant entre plusieurs postes ou terminaux mobiles.",
+      body: "Avant de changer d'appareil, vérifiez que la sauvegarde serveur est terminée.",
       completion: "continue",
       missingTarget: "explain",
     },
@@ -421,7 +421,7 @@ export const RIGHTS_TUTORIAL: TutorialDefinition = {
     {
       id: "rights-distinction",
       title: "Accès restreint vs anomalie",
-      body: "Si un bouton est absent ou grisé, ou si un message « Accès restreint » apparaît, il s'agit d'une politique de sécurité serveur et non d'une anomalie. Ne signalez pas un manque de droit comme un bug.",
+      body: "Si un bouton est absent ou grisé, vérifiez vos droits et le contexte de votre dossier. Si le problème persiste, contactez votre responsable ou le support.",
       whyExplanation: "Un accès refusé par la sécurité est un comportement normal de protection des données.",
       target: "help-bug-report-card",
       route: "help",

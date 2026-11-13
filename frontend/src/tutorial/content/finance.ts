@@ -30,8 +30,8 @@ export const PAYMENT_TUTORIAL: TutorialDefinition = {
     {
       id: "payment-schedule",
       title: "Échéancier des règlements et relances",
-      body: "L'échéancier surveille les dates clés : acompte à la confirmation, solde avant départ ou remise des clés. Les dossiers urgents ou en retard sont automatiquement mis en évidence pour relance.",
-      whyExplanation: "Garantit que 100% des fonds requis sont sécurisés avant la sortie physique du matériel.",
+      body: "Consultez les échéances et les montants restant dus dans le dossier. Pour Hahitantsoa, le contrat signé précède le versement contractuel.",
+      whyExplanation: "Vérifiez les conditions et les échéances applicables avant chaque opération.",
       target: "commercial-ops-tabs",
       route: "commercial-ops",
       completion: "continue",
@@ -105,7 +105,7 @@ export const DOCUMENTS_TUTORIAL: TutorialDefinition = {
     {
       id: "docs-hub-overview",
       title: "Le Hub documentaire centralisé",
-      body: "Cet espace rassemble l'ensemble des pièces émises par l'ERP : devis proforma, contrats de location, factures d'acompte, bons de livraison, avenants et décharges.",
+      body: "Cet espace rassemble l'ensemble des pièces émises par l'ERP : devis proforma, contrats de location, factures, bons de livraison, avenants et décharges.",
       whyExplanation: "Offre une vue consolidée et filtrable par client, type de document ou volet métier (Titan / Hahitantsoa).",
       target: "documents-list",
       route: "documents",
@@ -190,7 +190,7 @@ export const PRINT_TUTORIAL: TutorialDefinition = {
     {
       id: "print-formats",
       title: "Deux formats d'impression complémentaires",
-      body: "L'ERP prend en charge deux formats d'impression physiques :\n1. Format A4 standard : pour les devis, contrats détaillés et factures complètes.\n2. Format Thermique 80x104mm : pour les reçus de paiement comptoir, tickets de caisse et étiquettes logistiques.",
+      body: "Utilisez l'aperçu du document et choisissez le format adapté : A4 pour les documents concernés et 80 × 104 mm pour le reçu thermique.",
       whyExplanation: "L'impression thermique 80mm est instantanée, économique et adaptée au travail de comptoir et d'entrepôt.",
       target: "documents-list",
       route: "documents",
@@ -200,7 +200,7 @@ export const PRINT_TUTORIAL: TutorialDefinition = {
     {
       id: "print-thermal-receipt",
       title: "Reçus de caisse thermiques (80mm)",
-      body: "Le modèle de reçu thermique est optimisé pour les imprimantes bobine ESC/POS (ex: Epson ou imprimantes USB connectées au Raspberry Pi). Les marges et polices sont calibrées pour éviter toute coupure de texte.",
+      body: "Pour le reçu thermique, vérifiez le format, les marges et l'échelle dans les réglages d'impression, puis contrôlez le résultat sur votre imprimante.",
       whyExplanation: "Un reçu thermique remis au client atteste immédiatement de la réception des espèces ou du versement.",
       target: "documents-list",
       route: "documents",

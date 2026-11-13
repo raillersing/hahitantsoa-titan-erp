@@ -36,19 +36,16 @@
    2. Desktop & Responsive Panel
    ========================================================================== */
 .erp-tutorial-panel-container {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  width: 360px;
-  max-width: calc(100vw - 32px);
+  position: static;
+  width: 100%;
+  max-width: 100%;
+  margin-bottom: 16px;
   z-index: 40;
   pointer-events: auto;
 }
 
 .erp-tutorial-panel--centered {
-  right: 50% !important;
-  bottom: 50% !important;
-  transform: translate(50%, 50%) !important;
+  transform: none;
 }
 
 .erp-tutorial-panel {
@@ -413,8 +410,11 @@
 @media print {
   .erp-tutorial-panel-container,
   .erp-tutorial-panel,
-  .erp-tutorial-invitation,
-  .erp-tutorial-highlight {
+  .erp-tutorial-invitation {
     display: none !important;
   }
+}
+
+@media print {
+  .erp-tutorial-highlight { outline: none !important; box-shadow: none !important; }
 }

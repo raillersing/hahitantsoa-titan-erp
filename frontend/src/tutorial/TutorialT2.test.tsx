@@ -191,8 +191,15 @@ describe("Lot T2: Entrées et Tronc Commun", () => {
       });
       expect(guideBtn).toBeInTheDocument();
 
-      // On 'profile', exactly 1 matching tutorial (RIGHTS)
+      // Selecting a guide keeps the current page and its form intact.
       fireEvent.click(guideBtn);
+      const chooser = screen.getByRole("region", { name: "Guides de cette page" });
+      const choice = Array.from(chooser.querySelectorAll("button")).find((button) =>
+        button.textContent?.includes("Droits, Profil et Dossiers Partagés"),
+      );
+      expect(choice).toBeDefined();
+      fireEvent.click(choice!);
+      expect(mockNavigate).not.toHaveBeenCalled();
       expect(
         screen.getByRole("complementary", {
           name: /Guide interactif : Droits, Profil et Dossiers Partagés/i,

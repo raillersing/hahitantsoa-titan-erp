@@ -330,6 +330,43 @@ describe('Stock & Logistics Pages', () => {
       expect(screen.getByText(/En retard/)).toBeDefined();
     });
 
+    it('renders mixed condition status as conforming and breakage return', async () => {
+      vi.spyOn(api, 'getReturnOperations').mockResolvedValue([
+        {
+          id: 'ret-mixed-test',
+          reservation_draft: 'LOC-2026-0099',
+          hahitantsoa_event_draft: null,
+          logistics_event: null,
+          document_instance: null,
+          status: 'draft',
+          notes: '',
+          validated_at: null,
+          validated_by: null,
+          lines: [{
+            id: 'rline-mixed-1',
+            inventory_item: 'MAT-999',
+            expected_quantity: 10,
+            returned_quantity: 8,
+            damaged_quantity: 2,
+            missing_quantity: 0,
+            condition_status: 'mixed',
+            notes: '',
+            intact_quantity: 8,
+            created_at: '2026-07-20T10:00:00Z',
+            updated_at: '',
+            created_by: null,
+            updated_by: null,
+          }],
+          created_at: '2026-07-20T10:00:00Z',
+          updated_at: '',
+          created_by: null,
+          updated_by: null,
+        },
+      ]);
+      render(<LogisticsReturnsPage onNavigate={mockNavigate} />);
+      expect(await screen.findByText('Mixte (conforme + casse)')).toBeDefined();
+    });
+
     it('validates the return through the backend stock operation', async () => {
       const validate = vi.spyOn(api, 'validateReturnOperation').mockResolvedValue({
         id: 'ret-001', reservation_draft: 'LOC-2026-0087', status: 'validated', lines: [],

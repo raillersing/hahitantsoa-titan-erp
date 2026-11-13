@@ -1,6 +1,8 @@
 import react from "@vitejs/plugin-react";
-import { loadEnv, type ProxyOptions } from "vite";
+import { loadEnv, searchForWorkspaceRoot, type ProxyOptions } from "vite";
 import { defineConfig, configDefaults } from "vitest/config";
+
+declare const process: { cwd: () => string; env?: Record<string, string | undefined> };
 
 export default defineConfig(({ mode }) => {
   const runtimeBackendOrigin = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.VITE_BACKEND_ORIGIN;
@@ -40,6 +42,13 @@ export default defineConfig(({ mode }) => {
   server: {
     host: "0.0.0.0",
     port: 5173,
+    fs: {
+      allow: [
+        searchForWorkspaceRoot(typeof process !== "undefined" ? process.cwd() : "."),
+        "/home/raillersing/projects/hahitantsoa-titan-erp",
+        "..",
+      ],
+    },
     proxy: {
       "/api": backendProxy,
       "/api-auth": backendProxy,

@@ -133,7 +133,7 @@ export function parseHahitantsoaServiceNotes(
 
     // Pattern 1: Service Name (x2) - 50 000 Ar or Service Name (x2) : 50 000
     const m1 = entry.match(
-      /^(?<name>.+?)\s*\((?:x\s*|qté\s*:\s*)?(?<qty>\d+)\)\s*[-:=]\s*(?<price>[\d\s,.]+)\s*(?:Ar|ariary)?$/i,
+      /^(?<name>.+?)\s*\((?:x\s*|qté\s*:\s*)?(?<qty>\d+)\)\s*[:=-]\s*(?<price>[\d\s,.]+)\s*(?:Ar|ariary)?$/i,
     );
     if (m1 && m1.groups) {
       const name = m1.groups.name.trim();
@@ -153,7 +153,7 @@ export function parseHahitantsoaServiceNotes(
     }
 
     // Pattern 2: Service Name - 50 000 Ar or Service Name : 50 000
-    const m2 = entry.match(/^(?<name>.+?)\s*[-:=]\s*(?<price>[\d\s,.]+)\s*(?:Ar|ariary)?$/i);
+    const m2 = entry.match(/^(?<name>.+?)\s*[:=-]\s*(?<price>[\d\s,.]+)\s*(?:Ar|ariary)?$/i);
     if (m2 && m2.groups) {
       const name = m2.groups.name.trim();
       const totPrice = parseInt(m2.groups.price.replace(/\s+/g, ""), 10) || 0;

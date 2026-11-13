@@ -11,7 +11,7 @@ function normalizeString(str: string): string {
 }
 
 export function TutorialCenter() {
-  const { startTutorial, getModuleProgress, resetAllProgress } = useTutorial();
+  const { startTutorial, getModuleProgress, resetAllProgress, canAccessTutorial, storageUnavailable } = useTutorial();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -19,6 +19,7 @@ export function TutorialCenter() {
   const filteredTutorials = useMemo(() => {
     const query = normalizeString(searchTerm.trim());
     return TUTORIAL_CATALOG.filter((t) => {
+      if (!canAccessTutorial(t.id)) return false;
       // Category filter
       if (selectedCategory !== "all" && t.category !== selectedCategory) {
         return false;
@@ -30,15 +31,18 @@ export function TutorialCenter() {
       const scopeMatch = normalizeString(t.scope).includes(query);
       return titleMatch || descMatch || scopeMatch;
     });
-  }, [searchTerm, selectedCategory]);
+  }, [searchTerm, selectedCategory, canAccessTutorial]);
 
   const handleStart = (t: TutorialDefinition) => {
     const prog = getModuleProgress(t.id);
-    startTutorial(t.id, prog?.stepIndex || 0);
+    startTutorial(t.id, prog?.contentVersion === t.version ? prog.stepIndex : 0);
   };
 
   const getStatusBadge = (t: TutorialDefinition) => {
     const prog = getModuleProgress(t.id);
+    if (prog && prog.contentVersion !== t.version) {
+      return <span>À revoir</span>;
+    }
     if (!prog || prog.status === "not_started") {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
@@ -70,6 +74,7 @@ export function TutorialCenter() {
       role="region"
       aria-label="Centre d'apprentissage interactif"
     >
+      {storageUnavailable && <p role="status" className="rounded-lg border border-amber-300 p-3 text-sm">La progression ne peut pas être enregistrée sur cet appareil. Elle reste disponible pendant cette session.</p>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -77,8 +82,8 @@ export function TutorialCenter() {
             Apprendre à utiliser l’ERP
           </h3>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Choisissez une tâche ou un parcours guidé. Avancez à votre propre
-            rythme.
+            Choisissez une tâche ou un parcours guidé. Avancez à votre propre rythme.
+            La progression est conservée sur cet appareil lorsque le stockage est disponible.
           </p>
         </div>
         <div>
@@ -95,8 +100,7 @@ export function TutorialCenter() {
       {/* Confirmation modal for reset */}
       {showResetConfirm && (
         <div
-          role="dialog"
-          aria-modal="true"
+          role="region"
           aria-labelledby="reset-progress-title"
           className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 space-y-3"
         >

@@ -115,7 +115,7 @@ export const WELCOME_TUTORIAL: TutorialDefinition = {
     {
       id: "welcome-blacklist-management",
       title: "Liste noire des intervenants extérieurs",
-      body: "Ce registre recense les prestataires extérieurs (DJ, traiteurs, décorateurs) ayant commis des dégradations ou manquements graves, afin de bloquer leur accès aux sites.",
+      body: "Ce registre permet de consulter et gérer les intervenants signalés selon les accès de votre compte. Il ne contrôle pas automatiquement les entrées physiques sur le site.",
       whyExplanation: "Protège les installations, le matériel et la sérénité des réceptions de l'établissement.",
       target: "blacklist-table",
       route: "blacklist-intervenants",
@@ -145,7 +145,7 @@ export const WELCOME_TUTORIAL: TutorialDefinition = {
             id: "choice-wel-2",
             label: "Informer immédiatement le client du refus d'accès de ce prestataire pour motif de sécurité et exiger le choix d'un intervenant agréé",
             isCorrect: true,
-            explanation: "Parfait ! La liste noire a valeur de mesure de sécurité contractuelle. Le client doit être informé pour désigner un intervenant autorisé.",
+            explanation: "Consultez la personne responsable pour appliquer la procédure de votre entreprise et informer le client.",
           },
           {
             id: "choice-wel-3",
@@ -190,7 +190,7 @@ export const IMPORT_TUTORIAL: TutorialDefinition = {
     {
       id: "import-file-upload",
       title: "Sélection du fichier de données (XLSX ou CSV)",
-      body: "L'outil accepte les fichiers Excel (.xlsx) ou CSV avec séparateur point-virgule et encodage UTF-8. Les en-têtes français standards sont reconnus automatiquement.",
+      body: "Importez un fichier Excel ou CSV, puis vérifiez la correspondance des colonnes proposée avant de valider l'import.",
       whyExplanation: "Facilite l'intégration de catalogues fournisseurs ou la migration de données historiques.",
       target: "excel-import-dropzone",
       route: "import-excel",
@@ -313,7 +313,7 @@ export const BUY_TUTORIAL: TutorialDefinition = {
           },
           {
             id: "choice-buy-2",
-            label: "Uniquement après livraison effective, déballage, contrôle de conformité et validation du bon de réception magasin",
+            label: "Après réception physique et contrôle, selon la procédure de stock applicable dans l'entreprise",
             isCorrect: true,
             explanation: "Parfait ! Le stock physique ne peut intégrer que ce qui est réellement présent et vérifié dans le dépôt. Une commande en cours ne constitue pas un stock disponible.",
           },
@@ -370,8 +370,8 @@ export const HR_TUTORIAL: TutorialDefinition = {
     {
       id: "hr-assignment-rules",
       title: "Affectations événementielles et rémunérations",
-      body: "Chaque événement requiert des équipes terrain (chauffeurs, monteurs, régisseurs son/lumière). Les affectations permettent d'anticiper la charge et de calculer les indemnités.",
-      whyExplanation: "Assure le respect des conventions et la valorisation exacte du coût main-d'œuvre sur chaque prestation.",
+      body: "Consultez les fiches du personnel et les informations de paie accessibles à votre compte.",
+      whyExplanation: "Les paramètres de paie doivent être vérifiés par les personnes habilitées.",
       target: "hr-payroll-rules",
       route: "hr",
       completion: "continue",

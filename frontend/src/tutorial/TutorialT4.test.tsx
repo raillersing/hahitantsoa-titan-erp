@@ -187,11 +187,11 @@ describe("Lot T4: Logistics Domain Tutorials", () => {
       render(<TutorialExercise data={exercise} onSuccess={onComplete} />);
 
       const correctBtn = screen.getByRole("radio", {
-        name: /Elle constate contradictoirement la remise et l'état du matériel/i,
+        name: /Elle permet de consigner la remise du matériel/i,
       });
       fireEvent.click(correctBtn);
       expect(
-        screen.getByText(/Exactement ! La signature du BL prouve contradictoirement/i),
+        screen.getByText(/La signature accompagne le constat de remise/i),
       ).toBeInTheDocument();
       expect(onComplete).toHaveBeenCalled();
     });
@@ -202,11 +202,11 @@ describe("Lot T4: Logistics Domain Tutorials", () => {
       render(<TutorialExercise data={exercise} onSuccess={onComplete} />);
 
       const correctBtn = screen.getByRole("radio", {
-        name: /Qualifier les lignes concernées en « Manquant »/i,
+        name: /Signaler les articles manquants/i,
       });
       fireEvent.click(correctBtn);
       expect(
-        screen.getByText(/C'est la règle d'or ! Seuls les articles intacts reviennent en stock disponible/i),
+        screen.getByText(/Consignez les écarts constatés/i),
       ).toBeInTheDocument();
       expect(onComplete).toHaveBeenCalled();
     });

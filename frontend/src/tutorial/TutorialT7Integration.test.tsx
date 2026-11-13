@@ -16,7 +16,7 @@ const mockUser: SessionUser = {
   username: "testuser",
   email: "test@example.com",
   role: "admin",
-  capabilities: ["all"],
+  capabilities: { canOperateCashbox: true, canSensitiveWrite: true },
 } as any;
 
 // Test component exposing tutorial actions

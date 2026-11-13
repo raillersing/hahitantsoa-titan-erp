@@ -4,6 +4,8 @@
  * Fallbacks gracefully to in-memory storage if localStorage is unavailable.
  */
 
+import { getTutorialById } from "./catalog";
+
 import type {
   ModuleProgressRecord,
   ModuleProgressStatus,
@@ -14,6 +16,11 @@ export const TUTORIAL_STORAGE_SCHEMA_VERSION = 1;
 export const TUTORIAL_CATALOG_VERSION = 1;
 
 const inMemoryStore = new Map<string, UserTutorialStorage>();
+const storageUnavailable = new Set<string>();
+
+export function isTutorialStorageUnavailable(userId: string): boolean {
+  return storageUnavailable.has(getTutorialStorageKey(userId));
+}
 
 export function getTutorialStorageKey(userId: string | number): string {
   const strId = String(userId ?? "").trim();
@@ -58,7 +65,10 @@ function parseAndValidateStorage(raw: string): UserTutorialStorage | null {
     const modules: Record<string, ModuleProgressRecord> = {};
     if (parsed.modules && typeof parsed.modules === "object") {
       for (const [key, val] of Object.entries(parsed.modules)) {
-        if (isValidProgressRecord(val)) {
+        const tutorial = getTutorialById(key);
+        if (tutorial && isValidProgressRecord(val) && Number.isInteger(val.stepIndex) &&
+            val.stepIndex >= 0 && val.stepIndex < tutorial.steps.length &&
+            tutorial.steps[val.stepIndex].id === val.stepId) {
           modules[key] = val;
         }
       }
@@ -69,8 +79,8 @@ function parseAndValidateStorage(raw: string): UserTutorialStorage | null {
       catalogVersion: typeof parsed.catalogVersion === "number" ? parsed.catalogVersion : TUTORIAL_CATALOG_VERSION,
       dismissedInvitation: Boolean(parsed.dismissedInvitation),
       neverShowInvitation: Boolean(parsed.neverShowInvitation),
-      activeTutorialId: typeof parsed.activeTutorialId === "string" ? parsed.activeTutorialId : null,
-      activeStepIndex: typeof parsed.activeStepIndex === "number" ? parsed.activeStepIndex : 0,
+      activeTutorialId: typeof parsed.activeTutorialId === "string" && modules[parsed.activeTutorialId] ? parsed.activeTutorialId : null,
+      activeStepIndex: typeof parsed.activeTutorialId === "string" && modules[parsed.activeTutorialId] ? modules[parsed.activeTutorialId].stepIndex : 0,
       modules,
     };
   } catch {
@@ -94,7 +104,7 @@ export function loadUserTutorialProgress(userId: string): UserTutorialStorage {
       }
     }
   } catch {
-    // LocalStorage read error or security restriction, fallback to in-memory
+    storageUnavailable.add(key);
   }
 
   const memory = inMemoryStore.get(key);
@@ -118,8 +128,9 @@ export function saveUserTutorialProgress(
 
   try {
     window.localStorage.setItem(key, JSON.stringify(progress));
+    storageUnavailable.delete(key);
   } catch {
-    // QuotaExceeded or disabled localStorage: inMemoryStore already holds it
+    storageUnavailable.add(key);
   }
 }
 
@@ -136,7 +147,7 @@ export function updateModuleProgress(
 
   const existing = current.modules[tutorialId];
   // Retain 'viewed' status if already viewed unless explicitly reset
-  const effectiveStatus = existing?.status === "viewed" && status === "in_progress"
+  const effectiveStatus = existing?.contentVersion === contentVersion && existing.status === "viewed" && status === "in_progress"
     ? "viewed"
     : status;
 
@@ -188,7 +199,10 @@ export function clearUserTutorialProgress(userId: string): void {
 export function clearAllTutorialStorage(): void {
   inMemoryStore.clear();
   try {
-    window.localStorage.clear();
+    for (let i = window.localStorage.length - 1; i >= 0; i--) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith("erp:tutorial:v1:")) window.localStorage.removeItem(key);
+    }
   } catch {
     // Ignored
   }

@@ -286,7 +286,7 @@ export const DELIVERY_TUTORIAL: TutorialDefinition = {
       id: "delivery-bl-handover",
       title: "Passation et Bon de Livraison officiel (BL)",
       body: "Lors de la remise, le bordereau récapitule chaque article remis avec son état initial constaté. La signature du client ou de son mandataire est recueillie pour sceller la passation.",
-      whyExplanation: "Le Bon de Livraison est le document juridique matérialisant le transfert de garde et de responsabilité du matériel.",
+      whyExplanation: "Le bon de livraison permet de documenter la remise et les remarques associées à la passation.",
       target: "dispatch-handover-btn",
       route: "logistics-dispatch",
       completion: "continue",
@@ -294,7 +294,7 @@ export const DELIVERY_TUTORIAL: TutorialDefinition = {
     },
     {
       id: "delivery-exercise-legal",
-      title: "Exercice : Portée juridique du Bon de Livraison (BL)",
+      title: "Exercice : rôle du Bon de Livraison (BL)",
       body: "Répondez à la question suivante sur le rôle du Bon de Livraison signé :",
       whyExplanation: "Comprendre l'importance probante du BL signé en cas de contestation ultérieure.",
       target: "dispatch-handover-btn",
@@ -313,9 +313,9 @@ export const DELIVERY_TUTORIAL: TutorialDefinition = {
           },
           {
             id: "choice-deliv-2",
-            label: "Elle constate contradictoirement la remise et l'état du matériel, transférant juridiquement la garde et la responsabilité au client",
+            label: "Elle permet de consigner la remise du matériel et les remarques faites lors de la passation",
             isCorrect: true,
-            explanation: "Exactement ! La signature du BL prouve contradictoirement que le matériel a été livré conforme et en bon état. Dès cet instant, le client devient juridiquement gardien de la chose louée jusqu'au retour.",
+            explanation: "La signature accompagne le constat de remise. Vérifiez les quantités, l'état du matériel et les remarques avant de signer.",
           },
           {
             id: "choice-deliv-3",
@@ -349,7 +349,7 @@ export const RETURN_TUTORIAL: TutorialDefinition = {
   id: "RETURN",
   version: 1,
   title: "Réception des retours et réintégration en stock",
-  shortDescription: "Contrôler les retours matériels, qualifier l'état (intact, cassé, manquant, sale) et valider la réintégration.",
+  shortDescription: "Contrôler les quantités restituées et signaler les écarts avant de valider le retour.",
   category: "daily",
   durationMinutes: 6,
   mode: "live-readonly",
@@ -360,7 +360,7 @@ export const RETURN_TUTORIAL: TutorialDefinition = {
     {
       id: "return-list-schedule",
       title: "Suivi des retours attendus et retards",
-      body: "Le tableau de bord des retours classe les dossiers par échéance : Aujourd'hui, À venir ou En retard. Pour Titan, un retard déclenche automatiquement l'alerte de pénalité journalière prévue aux conditions générales.",
+      body: "Consultez les dates des retours pour identifier les dossiers à traiter. Vérifiez les conditions applicables en cas de retard.",
       whyExplanation: "Permet d'identifier immédiatement les dossiers en retard de restitution et d'appliquer si besoin les pénalités contractuelles.",
       target: "returns-list",
       route: "logistics-returns",
@@ -370,7 +370,7 @@ export const RETURN_TUTORIAL: TutorialDefinition = {
     {
       id: "return-qualification",
       title: "Qualification contradictoire de l'état au retour",
-      body: "Chaque article retourné fait l'objet d'un contrôle qualitatif précis via 4 statuts :\n• Bon état (intact) : matériel immédiatement prêt à être reloué.\n• Cassé / Dégradé (damaged) : article endommagé nécessitant réparation ou remplacement.\n• Manquant (missing) : article non restitué par le client.\n• Sale / Non lavé (mixed) : nécessite une prestation de nettoyage avant réintégration.",
+      body: "Contrôlez les quantités restituées et leur état. Un retour mixte comprend des quantités conformes et des quantités en casse ; signalez toute quantité manquante à la personne responsable.",
       whyExplanation: "Réintégrer par erreur un article cassé ou manquant fausserait le stock disponible et pénaliserait les prochaines réservations.",
       target: "returns-list",
       route: "logistics-returns",
@@ -398,9 +398,9 @@ export const RETURN_TUTORIAL: TutorialDefinition = {
           },
           {
             id: "choice-ret-2",
-            label: "Qualifier les lignes concernées en « Manquant », valider le retour partiel pour réintégrer les articles intacts, et orienter les manquants vers le module Casse/Perte",
+            label: "Signaler les articles manquants et faire vérifier le dossier par la personne responsable avant validation",
             isCorrect: true,
-            explanation: "C'est la règle d'or ! Seuls les articles intacts reviennent en stock disponible. Les 3 projecteurs et la nappe manquants sont qualifiés « Manquant » pour générer une retenue sur caution ou une facture de remplacement.",
+            explanation: "Consignez les écarts constatés et suivez la procédure de règlement avec une personne habilitée.",
           },
           {
             id: "choice-ret-3",
@@ -420,7 +420,7 @@ export const RETURN_TUTORIAL: TutorialDefinition = {
     {
       id: "return-validation-stock",
       title: "Validation du Bon de Retour et remise en rayon",
-      body: "En cliquant sur « Valider le retour », le Bon de Retour (BR) officiel est généré. Les articles intacts réintègrent automatiquement le stock disponible pour satisfaire les réservations suivantes.",
+      body: "Après contrôle des quantités et de leur état, une personne habilitée peut valider le retour et consulter les documents associés.",
       whyExplanation: "La validation du retour met à jour en temps réel le stock disponible dans tout le réseau ERP.",
       target: "returns-validation-btn",
       route: "logistics-returns",
@@ -456,7 +456,7 @@ export const CLOSE_TUTORIAL: TutorialDefinition = {
       id: "close-caution-settlement",
       title: "Imputation sur caution et calcul des soldes",
       body: "L'écran affiche la ventilation financière :\n• Caution disponible : montant déposé par le client.\n• Montant Retenue : coût total des réparations ou remplacements.\n• Caution à restituer : solde positif reversé au client.\n• Différence à payer : excédent facturé si les dégâts excèdent la caution.",
-      whyExplanation: "La retenue est automatiquement prélevée sur la caution encaissée. Si le coût dépasse la caution, un titre de créance est émis.",
+      whyExplanation: "Le règlement des dommages et la caution doivent être examinés et traités par les personnes habilitées.",
       target: "breakage-list",
       route: "breakage-loss",
       completion: "continue",
@@ -489,7 +489,7 @@ export const CLOSE_TUTORIAL: TutorialDefinition = {
           },
           {
             id: "choice-close-3",
-            label: "Dès le paiement initial de l'acompte ou du premier versement",
+            label: "Dès le premier versement",
             isCorrect: false,
             explanation: "Non, la caution doit rester bloquée pendant toute la durée d'exécution du contrat.",
           },
@@ -505,8 +505,8 @@ export const CLOSE_TUTORIAL: TutorialDefinition = {
     {
       id: "close-final-execution",
       title: "Facturation de casse et clôture définitive",
-      body: "La validation du règlement génère la facture officielle « Détails de casse ». En cas de restitution du solde de caution, un reçu de remboursement est imprimable pour le client. Le dossier est alors clos avec succès.",
-      whyExplanation: "La clôture émet les documents comptables officiels et archive définitivement le dossier de réservation.",
+      body: "Le règlement des dommages et la restitution de caution ne clôturent pas automatiquement le dossier. Consultez les obligations restantes puis utilisez la clôture dédiée lorsque tous les prérequis sont satisfaits.",
+      whyExplanation: "La clôture est une opération distincte, attribuée et enregistrée après vérification des obligations du dossier.",
       target: "breakage-list",
       route: "breakage-loss",
       completion: "continue",

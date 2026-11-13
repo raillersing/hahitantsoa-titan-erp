@@ -186,7 +186,7 @@ describe("Lot T6: Advanced Domain Tutorials", () => {
       });
       fireEvent.click(correctBtn);
       expect(
-        screen.getByText(/Parfait ! La liste noire a valeur de mesure de sécurité/i),
+        screen.getByText(/Consultez la personne responsable pour appliquer la procédure/i),
       ).toBeInTheDocument();
       expect(onComplete).toHaveBeenCalled();
     });
@@ -212,7 +212,7 @@ describe("Lot T6: Advanced Domain Tutorials", () => {
       render(<TutorialExercise data={exercise} onSuccess={onComplete} />);
 
       const correctBtn = screen.getByRole("radio", {
-        name: /Uniquement après livraison effective, déballage, contrôle de conformité/i,
+        name: /Après réception physique et contrôle/i,
       });
       fireEvent.click(correctBtn);
       expect(

@@ -28,19 +28,19 @@ describe("tutorial progress storage", () => {
   });
 
   it("persists progress across reads for the same user", () => {
-    updateModuleProgress("user-alpha", "START", 1, "step-1", 0, "in_progress");
+    updateModuleProgress("user-alpha", "START", 1, "start-welcome", 0, "in_progress");
     const progress = loadUserTutorialProgress("user-alpha");
 
     expect(progress.activeTutorialId).toBe("START");
     expect(progress.activeStepIndex).toBe(0);
     expect(progress.modules["START"]).toBeDefined();
     expect(progress.modules["START"]?.status).toBe("in_progress");
-    expect(progress.modules["START"]?.stepId).toBe("step-1");
+    expect(progress.modules["START"]?.stepId).toBe("start-welcome");
   });
 
   it("isolates data between different users", () => {
-    updateModuleProgress("user-1", "START", 1, "step-2", 1, "in_progress");
-    updateModuleProgress("user-2", "CONTRACT", 1, "step-1", 0, "viewed");
+    updateModuleProgress("user-1", "START", 1, "start-brand-choice", 1, "in_progress");
+    updateModuleProgress("user-2", "CONTRACT", 1, "contract-proforma", 0, "viewed");
 
     const p1 = loadUserTutorialProgress("user-1");
     const p2 = loadUserTutorialProgress("user-2");
@@ -50,6 +50,19 @@ describe("tutorial progress storage", () => {
 
     expect(p2.modules["CONTRACT"]?.status).toBe("viewed");
     expect(p2.modules["START"]).toBeUndefined();
+  });
+
+  it("ignores unregistered modules and mismatched step identities", () => {
+    const key = getTutorialStorageKey("user-invalid");
+    const record = { contentVersion: 1, stepId: "not-a-step", stepIndex: 0, status: "viewed", updatedAt: "now" };
+    localStorage.setItem(key, JSON.stringify({ schemaVersion: 1, modules: { START: record, FAKE: record } }));
+    expect(loadUserTutorialProgress("user-invalid").modules).toEqual({});
+  });
+
+  it("does not preserve viewed status across newer content versions", () => {
+    updateModuleProgress("user-version", "START", 1, "start-welcome", 0, "viewed");
+    updateModuleProgress("user-version", "START", 2, "start-welcome", 0, "in_progress");
+    expect(loadUserTutorialProgress("user-version").modules.START.status).toBe("in_progress");
   });
 
   it("handles corrupted localStorage gracefully without throwing", () => {
@@ -86,7 +99,7 @@ describe("tutorial progress storage", () => {
   });
 
   it("clears user progress cleanly", () => {
-    updateModuleProgress("user-del", "START", 1, "step-1", 0, "viewed");
+    updateModuleProgress("user-del", "START", 1, "start-welcome", 0, "viewed");
     clearUserTutorialProgress("user-del");
 
     const p = loadUserTutorialProgress("user-del");

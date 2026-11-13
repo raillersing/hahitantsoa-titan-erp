@@ -190,7 +190,7 @@ export const HAH_NEW_TUTORIAL: TutorialDefinition = {
       id: "hah-new-items",
       title: "Espaces, matériel et prestations",
       body: "Ajoutez la salle, le mobilier inclus et les services optionnels (sonorisation, groupes, service en salle).",
-      whyExplanation: "La tarification consolidée calcule l'acompte contractuel et la caution légale.",
+      whyExplanation: "Le récapitulatif présente le versement contractuel et la caution selon les conditions applicables.",
       target: "reservation-new-items-step",
       route: "reservation-new",
       completion: "continue",

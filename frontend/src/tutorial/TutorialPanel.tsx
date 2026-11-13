@@ -18,11 +18,16 @@ export function TutorialPanel() {
   const [isWhyOpen, setIsWhyOpen] = useState(false);
   const [isExercisePassed, setIsExercisePassed] = useState(false);
 
+  useEffect(() => {
+    setIsWhyOpen(false);
+    setIsExercisePassed(false);
+  }, [activeTutorial?.id, currentStep?.id]);
+
   // Close tutorial on Escape key
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && !e.defaultPrevented && !document.querySelector('dialog[open], [role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]')) {
         closeTutorial();
       }
     };
@@ -40,11 +45,11 @@ export function TutorialPanel() {
 
   const requiresExercise =
     currentStep.completion === "exercise-answer" && Boolean(currentStep.exercise);
-  const canProceed = !requiresExercise || isExercisePassed;
+  const canProceed = (!requiresExercise || isExercisePassed) && !(currentStep.target && currentStep.missingTarget === "pause" && !targetElement);
 
   const handleJumpToTarget = () => {
     if (targetElement) {
-      targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      targetElement.scrollIntoView({ behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
       targetElement.focus?.();
     }
   };
@@ -147,7 +152,7 @@ export function TutorialPanel() {
               <TutorialExercise
                 key={currentStep.id}
                 data={currentStep.exercise}
-                onSuccess={() => setIsExercisePassed(true)}
+                onValidityChange={setIsExercisePassed}
               />
             </div>
           )}

@@ -86,6 +86,8 @@ export type TutorialLifecycleState =
 
 export interface TutorialContextValue {
   lifecycleState: TutorialLifecycleState;
+  canAccessTutorial: (id: string) => boolean;
+  storageUnavailable: boolean;
   isOpen: boolean;
   activeTutorial: TutorialDefinition | null;
   currentStepIndex: number;

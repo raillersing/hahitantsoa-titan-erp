@@ -3,10 +3,11 @@ import type { TutorialExerciseData } from "./types";
 
 interface TutorialExerciseProps {
   data: TutorialExerciseData;
-  onSuccess: () => void;
+  onValidityChange?: (valid: boolean) => void;
+  onSuccess?: () => void;
 }
 
-export function TutorialExercise({ data, onSuccess }: TutorialExerciseProps) {
+export function TutorialExercise({ data, onValidityChange, onSuccess }: TutorialExerciseProps) {
   // State for multiple-choice
   const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
 
@@ -23,9 +24,8 @@ export function TutorialExercise({ data, onSuccess }: TutorialExerciseProps) {
 
   const handleSelectChoice = (choiceId: string, isCorrect: boolean) => {
     setSelectedChoiceId(choiceId);
-    if (isCorrect) {
-      onSuccess();
-    }
+    onValidityChange?.(isCorrect);
+    if (isCorrect) onSuccess?.();
   };
 
   const moveItem = (index: number, direction: "up" | "down") => {
@@ -38,15 +38,15 @@ export function TutorialExercise({ data, onSuccess }: TutorialExerciseProps) {
     next[targetIndex] = temp;
     setSequenceIds(next);
     setSequenceSubmitted(false);
+    onValidityChange?.(false);
   };
 
   const handleVerifySequence = () => {
     setSequenceSubmitted(true);
     const expected = data.correctSequenceIds || data.choices.map((c) => c.id);
     const isMatch = sequenceIds.every((id, idx) => id === expected[idx]);
-    if (isMatch) {
-      onSuccess();
-    }
+    onValidityChange?.(isMatch);
+    if (isMatch) onSuccess?.();
   };
 
   return (

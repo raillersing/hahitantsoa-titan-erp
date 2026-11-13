@@ -166,9 +166,9 @@ describe("TutorialEngine", () => {
     );
 
     fireEvent.click(screen.getByText("Réinitialiser ma progression"));
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirmer la réinitialisation" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Confirmer la réinitialisation" }));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Confirmer la réinitialisation" })).not.toBeInTheDocument();
   });
 });

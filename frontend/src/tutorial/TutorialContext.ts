@@ -5,6 +5,8 @@ export const TutorialContext = createContext<TutorialContextValue | null>(null);
 
 const defaultFallback: TutorialContextValue = {
   lifecycleState: "idle",
+  canAccessTutorial: () => false,
+  storageUnavailable: false,
   isOpen: false,
   activeTutorial: null,
   currentStepIndex: 0,
