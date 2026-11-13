@@ -2091,7 +2091,7 @@ export default function ReservationDetailPage({
       </div>
 
       {/* ── Bloc Dépliable : Détail des compositions sous la synthèse financière (R10) ── */}
-      <details data-testid="titan-financial-summary-breakdown" className="group rounded-2xl border border-indigo-100 bg-white mt-6 p-4 shadow-sm">
+      <details data-testid="titan-financial-summary-breakdown" data-tutorial="reservation-detail-items-section" className="group rounded-2xl border border-indigo-100 bg-white mt-6 p-4 shadow-sm">
         <summary className="cursor-pointer font-bold text-xs uppercase text-indigo-950 flex items-center justify-between select-none">
           <span className="flex items-center gap-2">
             <i className="fa-solid fa-list-check text-indigo-600"></i>
@@ -2243,7 +2243,7 @@ export default function ReservationDetailPage({
       <PaymentWhatsAppReminderButton draftId={draftId} businessScope="titan" />
 
       {/* ── action buttons row ────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-6 mt-6">
+      <div data-tutorial="reservation-detail-payments-section" className="bg-white rounded-2xl border border-slate-100 p-6 mt-6">
         <h3 className="text-lg font-bold text-slate-800 mb-4">
           Actions sur la réservation
         </h3>
@@ -2398,6 +2398,7 @@ export default function ReservationDetailPage({
             ].map((tab) => (
               <button
                 key={tab.id}
+                data-tutorial={tab.id === "avenants" ? "reservation-detail-amend-btn" : undefined}
                 className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 flex items-center gap-2 transition-colors cursor-pointer ${
                   activeTab === tab.id
                     ? "border-indigo-600 text-indigo-700 bg-white"
@@ -2412,7 +2413,7 @@ export default function ReservationDetailPage({
 
           <div className="p-6">
             {activeTab === "contrat" && (
-              <div>
+              <div data-tutorial="reservation-detail-contract-section">
                 <h4 className="font-bold text-slate-800 mb-4 flex items-center justify-between">
                   <span>Documents & Pièces contractuelles</span>
                   <span className="text-xs text-slate-500 font-normal">Aperçus et documents générés</span>
@@ -3757,7 +3758,7 @@ export default function ReservationDetailPage({
             )}
 
             {activeTab === "avenants" && (
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-6 space-y-4">
+              <div data-tutorial="reservation-detail-amend-section" className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-6 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h4 className="font-bold text-indigo-950 text-base">Avenants au contrat de location</h4>

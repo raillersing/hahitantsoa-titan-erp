@@ -654,7 +654,7 @@ const ServicesPage: React.FC = () => {
         </div>
       ) : viewMode === 'cards' ? (
         /* CARDS GALLERY VIEW */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-tutorial="services-list">
           {filteredServices.map((service) => {
             const catColor = CATEGORY_COLORS[service.category] || CATEGORY_COLORS.other;
             const bannerGradient = CATEGORY_BANNERS[service.category] || CATEGORY_BANNERS.other;

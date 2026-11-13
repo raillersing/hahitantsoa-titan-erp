@@ -190,7 +190,7 @@ const BlacklistPage: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden" data-tutorial="blacklist-table">
         <div className="divide-y divide-slate-100 dark:divide-slate-700">
           {intervenants.map((int) => (
             <div key={int.id} className="p-4 flex items-center justify-between">

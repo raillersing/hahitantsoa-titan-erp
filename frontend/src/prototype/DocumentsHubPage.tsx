@@ -383,7 +383,7 @@ export default function DocumentsHubPage({ onNavigate, selectedDocumentId }: Doc
 
       {/* Desktop table */}
       {!loading && !error && (
-        <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm" data-tutorial="documents-list">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <h3 className="font-bold text-slate-900 text-sm">Documents récents</h3>
             <span className="text-xs text-slate-500">{filteredDocs.length} résultat(s)</span>

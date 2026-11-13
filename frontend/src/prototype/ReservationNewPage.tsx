@@ -5249,20 +5249,20 @@ export default function ReservationNewPage({ onNavigate, param, currentUserId }:
   };
 
   const renderCurrentStep = () => {
-    if (step === 0) return renderStep0();
+    if (step === 0) return <div data-tutorial="reservation-new-type-select">{renderStep0()}</div>;
     
     if (path === "client_first") {
-      if (step === 1) return renderClientStep();
-      if (step === 2) return renderDomainStep();
+      if (step === 1) return <div data-tutorial="reservation-new-client-step">{renderClientStep()}</div>;
+      if (step === 2) return <div data-tutorial="reservation-new-domain-step">{renderDomainStep()}</div>;
     } else {
-      if (step === 1) return renderDomainStep();
-      if (step === 2) return renderClientStep();
+      if (step === 1) return <div data-tutorial="reservation-new-domain-step">{renderDomainStep()}</div>;
+      if (step === 2) return <div data-tutorial="reservation-new-client-step">{renderClientStep()}</div>;
     }
 
-    if (step === 3) return renderDetailsStep();
-    if (step === 4) return renderCatalogStep();
+    if (step === 3) return <div data-tutorial="reservation-new-dates-step">{renderDetailsStep()}</div>;
+    if (step === 4) return <div data-tutorial="reservation-new-items-step">{renderCatalogStep()}</div>;
     if (step === 5) return renderServicesStep();
-    if (step === 6) return renderSummaryStep();
+    if (step === 6) return <div data-tutorial="reservation-new-summary-step">{renderSummaryStep()}</div>;
     if (step === 7) return renderProformaStep();
     if (step === 8) return renderPaymentStep();
     if (step === 9) return renderContractPreviewStep();

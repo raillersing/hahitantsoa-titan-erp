@@ -28,7 +28,7 @@ export default function DocumentsPage({ onNavigate, param }: { onNavigate: (scop
   return (
     <div className="space-y-6">
       {/* Tab bar */}
-      <div className="bg-white rounded-xl border border-slate-200 p-1 flex items-center gap-1" role="tablist" aria-label="Espace Documents">
+      <div className="bg-white rounded-xl border border-slate-200 p-1 flex items-center gap-1" role="tablist" aria-label="Espace Documents" data-tutorial="documents-tabs">
         {tabs.map((tab) => (
           <button
             key={tab.key}

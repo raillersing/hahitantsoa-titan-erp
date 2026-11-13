@@ -139,7 +139,7 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
           <h2 className="text-xl font-bold text-slate-900">Rapports &amp; BI</h2>
           <p className="text-sm text-slate-500">Analytique et rapports d'exploitation</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" data-tutorial="reports-filter-date">
           {PERIODS.map((p) => (
             <button
               key={p.key}
@@ -155,6 +155,7 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
           ))}
           <button
             type="button"
+            data-tutorial="reports-export-btn"
             className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={() => data && downloadReportCsv(data)}
             disabled={!data || loading}
@@ -207,7 +208,7 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
 
       {/* KPI Grid */}
       {!loading && !error && data && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" data-tutorial="reports-kpi-grid">
           {data.kpis.map((kpi) => (
             <div
               key={kpi.key}

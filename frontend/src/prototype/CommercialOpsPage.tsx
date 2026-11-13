@@ -608,7 +608,7 @@ export default function CommercialOpsPage({ onNavigate }: CommercialOpsPageProps
       )}
 
       {/* Financial KPIs Banner */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-tutorial="commercial-ops-kpis">
         {/* KPI 1: Total Facturé */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-100 dark:border-slate-800 shadow-xs relative overflow-hidden">
           <div className="flex items-center justify-between">
@@ -699,7 +699,7 @@ export default function CommercialOpsPage({ onNavigate }: CommercialOpsPageProps
         {/* Tab Navigation Header */}
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           {/* Tabs buttons */}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl text-xs font-bold overflow-x-auto w-full md:w-auto">
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl text-xs font-bold overflow-x-auto w-full md:w-auto" data-tutorial="commercial-ops-tabs">
             <button
               type="button"
               onClick={() => setActiveTab("invoices")}
@@ -1158,7 +1158,7 @@ export default function CommercialOpsPage({ onNavigate }: CommercialOpsPageProps
         {/* TAB 3: Journal des Règlements                                            */}
         {/* ========================================================================= */}
         {activeTab === "payments" && (
-          <div>
+          <div data-tutorial="commercial-ops-payments">
             {/* Payment method subfilter */}
             <div className="p-4 bg-slate-50/50 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold text-slate-500">Mode de paiement :</span>

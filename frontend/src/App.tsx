@@ -24,6 +24,7 @@ import AuditPage from "./prototype/AuditPage";
 import ReportsPage from "./prototype/ReportsPage";
 import HelpPage from "./prototype/HelpPage";
 import UserManualPage from "./prototype/UserManualPage";
+import { TutorialProvider } from "./tutorial";
 import ServicesPage from "./prototype/ServicesPage";
 import BlacklistPage from "./prototype/BlacklistPage";
 import InventoryPage from "./prototype/InventoryPage";
@@ -297,37 +298,39 @@ function App() {
   };
 
   return (
-    <AppShell
-      key={state.user.id}
-      activeScope={activeScope}
-      activeParam={activeParam}
-      onNavigate={navigate}
-      returnContext={returnContext}
-      user={state.user}
-      capabilities={capabilities}
-      isOnline={isOnline}
-      isLoggingOut={isSubmitting}
-      sessionError={state.error}
-      onLogout={logout}
-    >
-      <section ref={routeContentRef} tabIndex={-1} className="min-w-0 outline-none" data-testid="route-content">
-        <ErrorBoundary onError={reportFrontendError}>
-          {deniedRoute ? (
-            <section className="mx-auto max-w-2xl rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950 shadow-sm" role="alert">
-              <h1 className="text-xl font-bold">Accès non autorisé</h1>
-              <p className="mt-2">Votre session ne dispose pas de la capacité nécessaire pour ouvrir cette page.</p>
-              <button
-                type="button"
-                className="mt-4 rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white"
-                onClick={() => navigate("dashboard")}
-              >
-                Retour au tableau de bord
-              </button>
-            </section>
-          ) : renderKnownRoute(effectiveRoute.scope)}
-        </ErrorBoundary>
-      </section>
-    </AppShell>
+    <TutorialProvider user={state.user} activeScope={activeScope} onNavigate={navigate}>
+      <AppShell
+        key={state.user.id}
+        activeScope={activeScope}
+        activeParam={activeParam}
+        onNavigate={navigate}
+        returnContext={returnContext}
+        user={state.user}
+        capabilities={capabilities}
+        isOnline={isOnline}
+        isLoggingOut={isSubmitting}
+        sessionError={state.error}
+        onLogout={logout}
+      >
+        <section ref={routeContentRef} tabIndex={-1} className="min-w-0 outline-none" data-testid="route-content">
+          <ErrorBoundary onError={reportFrontendError}>
+            {deniedRoute ? (
+              <section className="mx-auto max-w-2xl rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950 shadow-sm" role="alert">
+                <h1 className="text-xl font-bold">Accès non autorisé</h1>
+                <p className="mt-2">Votre session ne dispose pas de la capacité nécessaire pour ouvrir cette page.</p>
+                <button
+                  type="button"
+                  className="mt-4 rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white"
+                  onClick={() => navigate("dashboard")}
+                >
+                  Retour au tableau de bord
+                </button>
+              </section>
+            ) : renderKnownRoute(effectiveRoute.scope)}
+          </ErrorBoundary>
+        </section>
+      </AppShell>
+    </TutorialProvider>
   );
 }
 

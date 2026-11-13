@@ -1572,6 +1572,7 @@ export default function CustomersPage({
           <div className="relative">
             <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
             <input
+              data-tutorial="customers-search-input"
               type="text"
               placeholder="Rechercher nom, tel, ID..."
               value={searchQuery}
@@ -1646,7 +1647,7 @@ export default function CustomersPage({
 
       {/* Onglets segmentés avec compteurs en direct */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div data-tutorial="customers-type-filter" className="flex flex-wrap items-center gap-2">
           {[
             { id: "Tous", label: "Tous", count: counts.total, icon: "fa-users" },
             { id: "Prospects", label: "Prospects", count: counts.prospects, icon: "fa-user-clock" },
@@ -1706,7 +1707,7 @@ export default function CustomersPage({
       </div>
 
       {/* Tableau des contacts */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div data-tutorial="customers-table" className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>

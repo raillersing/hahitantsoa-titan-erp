@@ -130,6 +130,7 @@ export default function HRPage({ onNavigate, user }: HRPageProps) {
         <form
           onSubmit={handleSubmit}
           className="mb-6 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm"
+          data-tutorial="hr-payroll-rules"
         >
           <h3 className="font-bold text-slate-800 mb-4">
             <i className="fas fa-user-plus mr-2 text-slate-400"></i>
@@ -229,7 +230,7 @@ export default function HRPage({ onNavigate, user }: HRPageProps) {
         </form>
       )}
 
-      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm" data-tutorial="hr-staff-table">
         <div className="p-4 border-b border-slate-100">
           <h3 className="font-bold text-slate-800">
             <i className="fas fa-users mr-2 text-slate-400"></i>

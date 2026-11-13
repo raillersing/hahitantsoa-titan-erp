@@ -138,7 +138,7 @@ export default function ImportExcelPage({ onNavigate }: ImportExcelPageProps) {
 
       {/* Step 1: Upload */}
       {currentStepKey === "upload" && (
-        <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
+        <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center" data-tutorial="excel-import-dropzone">
           <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
             <i className="fa-solid fa-cloud-arrow-up text-indigo-500 text-3xl"></i>
           </div>
@@ -159,7 +159,7 @@ export default function ImportExcelPage({ onNavigate }: ImportExcelPageProps) {
       {(currentStepKey === "mapping" || currentStepKey === "preview") && job && (
         <div className="grid grid-cols-12 gap-6">
           {/* Colonne gauche — span 8 */}
-          <div className="col-span-8 bg-white rounded-2xl border border-slate-100 p-6">
+          <div className="col-span-8 bg-white rounded-2xl border border-slate-100 p-6" data-tutorial="excel-import-mapping">
             <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">Mapping colonnes</h3>
             <p className="text-xs text-slate-500 mb-4">Fichier : {job.filename} ({job.total_rows} lignes)</p>
             <table className="w-full text-sm mb-6">

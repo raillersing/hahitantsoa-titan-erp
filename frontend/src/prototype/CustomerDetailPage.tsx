@@ -436,7 +436,7 @@ export default function CustomerDetailPage({
   }
 
   return (
-    <div className="page active space-y-6 max-w-7xl mx-auto">
+    <div data-tutorial="customer-detail-header" className="page active space-y-6 max-w-7xl mx-auto">
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button onClick={() => onBack ? onBack() : onNavigate("customers")} className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200" aria-label="Retour">

@@ -513,7 +513,7 @@ export default function CashboxPage({ onNavigate }: CashboxPageProps) {
       {/* ========================================================================= */}
       {/* HEADER & TOP BAR */}
       {/* ========================================================================= */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4" data-tutorial="cashbox-status-card">
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
@@ -564,7 +564,7 @@ export default function CashboxPage({ onNavigate }: CashboxPageProps) {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto justify-end">
+        <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto justify-end" data-tutorial="cashbox-session-actions">
           {/* If no open session, show Open button */}
           {!activeOpenSession && (
             <button
@@ -852,7 +852,7 @@ export default function CashboxPage({ onNavigate }: CashboxPageProps) {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-xs" data-tutorial="cashbox-count-table">
                 <thead>
                   <tr className="text-slate-400 uppercase tracking-wider font-bold border-b border-slate-100 dark:border-slate-800">
                     <th className="py-3 px-4">Date & Heure</th>

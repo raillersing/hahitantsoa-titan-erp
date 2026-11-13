@@ -19,7 +19,7 @@ const CONDITION_LABELS: Record<InventoryReturnOperationLine["condition_status"],
   intact: "Bon état",
   damaged: "Cassé",
   missing: "Manquant",
-  mixed: "Sale / non lavé",
+  mixed: "Mixte (conforme et casse)",
 };
 
 function categorizeByDate(createdAt: string): FilterCategory {
@@ -258,7 +258,7 @@ export default function LogisticsReturnsPage({ onNavigate, param }: { onNavigate
           </div>
         )}
         
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100" data-tutorial="returns-list">
           {filteredData.map(retour => (
             <div key={retour.id} className="p-6">
               <div className="flex justify-between items-start mb-4">
@@ -352,7 +352,7 @@ export default function LogisticsReturnsPage({ onNavigate, param }: { onNavigate
                           {line.inventory_item}
                           {line.condition_status === "mixed" && (
                             <span className="ml-2 text-[10px] bg-purple-200 text-purple-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                              Nettoyage à planifier
+                              Mixte
                             </span>
                           )}
                         </td>
@@ -377,7 +377,7 @@ export default function LogisticsReturnsPage({ onNavigate, param }: { onNavigate
                             <option value="intact" className="text-slate-800 dark:text-slate-100">Bon état</option>
                             <option value="damaged" className="text-slate-800 dark:text-slate-100">Cassé</option>
                             <option value="missing" className="text-slate-800 dark:text-slate-100">Manquant</option>
-                            <option value="mixed" className="text-slate-800 dark:text-slate-100">Sale / non lavé</option>
+                            <option value="mixed" className="text-slate-800 dark:text-slate-100">Mixte (conforme et casse)</option>
                           </select>
                         </td>
                         <td className="p-3">
@@ -387,8 +387,8 @@ export default function LogisticsReturnsPage({ onNavigate, param }: { onNavigate
                             </span>
                            )}
                            {line.condition_status === "mixed" && (
-                            <span className="text-xs font-medium text-purple-600 dark:text-purple-400" title="La création de tâches de nettoyage n'est pas encore raccordée au backend.">
-                              <i className="fas fa-broom mr-1"></i>Nettoyage à planifier
+                            <span className="text-xs font-medium text-purple-600 dark:text-purple-400" title="Retour mixte : quantités intactes réintégrées, articles endommagés ou manquants à régler en Casse/Perte.">
+                              <i className="fas fa-boxes-stacked mr-1"></i>Mixte (conforme + casse)
                             </span>
                            )}
                         </td>
@@ -404,7 +404,7 @@ export default function LogisticsReturnsPage({ onNavigate, param }: { onNavigate
                 </div>
               )}
               
-              <div className="mt-4 flex justify-end gap-3 items-center">
+              <div className="mt-4 flex justify-end gap-3 items-center" data-tutorial="returns-validation-btn">
                 <div className="flex gap-2">
                   <button className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-red-600 dark:text-red-400 font-bold rounded-lg hover:bg-slate-200 dark:bg-slate-700" onClick={() => onNavigate("breakage-loss", retour.reservation_draft ? `titan:${retour.reservation_draft}` : retour.hahitantsoa_event_draft ? `hahitantsoa:${retour.hahitantsoa_event_draft}` : undefined)}>
                     <i className="fas fa-exclamation-triangle mr-2"></i>Déclarer Casse/Perte

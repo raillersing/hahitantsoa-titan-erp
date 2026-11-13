@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import type { AppScope } from "../App";
 import { createBugReport, getBugReports, updateBugReportStatus } from "../api";
 import type { BugReport } from "../types";
+import { TutorialCenter } from "../tutorial";
 
 interface HelpPageProps {
   onNavigate: (scope: AppScope, param?: string) => void;
@@ -87,8 +88,12 @@ export default function HelpPage({ onNavigate, canManageSupport = false }: HelpP
         <p className="text-sm text-slate-500">Documentation et suivi des problèmes réellement enregistrés dans l&apos;ERP.</p>
       </div>
 
+      <div data-tutorial="help-tutorial-center">
+        <TutorialCenter />
+      </div>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-100 bg-white p-6">
+        <div data-tutorial="help-user-manual-card" className="rounded-2xl border border-slate-100 bg-white p-6">
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-xl text-indigo-600">
             <i className="fa-solid fa-book" aria-hidden="true"></i>
           </div>
@@ -97,7 +102,7 @@ export default function HelpPage({ onNavigate, canManageSupport = false }: HelpP
           <button type="button" onClick={() => onNavigate("user-manual")} className="mt-4 font-medium text-indigo-600 hover:underline">Ouvrir le manuel →</button>
         </div>
 
-        <form onSubmit={submitReport} className="rounded-2xl border border-rose-100 bg-white p-6 shadow-sm">
+        <form data-tutorial="help-bug-report-card" onSubmit={submitReport} className="rounded-2xl border border-rose-100 bg-white p-6 shadow-sm">
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-rose-50 text-xl text-rose-600">
             <i className="fa-solid fa-bug" aria-hidden="true"></i>
           </div>

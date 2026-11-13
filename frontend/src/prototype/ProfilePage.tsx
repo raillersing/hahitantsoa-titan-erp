@@ -3,7 +3,7 @@ import type { SessionUser } from "../api";
 export default function ProfilePage({ user }: { user: SessionUser }) {
   return (
     <section className="mx-auto w-full max-w-4xl space-y-6" aria-labelledby="profile-heading">
-      <header className="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-800 sm:p-7">
+      <header data-tutorial="profile-card" className="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-800 sm:p-7">
         <p className="text-xs font-bold uppercase tracking-widest text-teal-600">Compte connecté</p>
         <h1 id="profile-heading" className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
           Profil utilisateur
@@ -22,7 +22,7 @@ export default function ProfilePage({ user }: { user: SessionUser }) {
           <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Nom d’utilisateur</dt>
           <dd className="mt-2 break-all font-semibold text-slate-900 dark:text-white">{user.username}</dd>
         </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm dark:bg-slate-800 sm:col-span-2">
+        <div data-tutorial="profile-roles-section" className="rounded-xl bg-white p-5 shadow-sm dark:bg-slate-800 sm:col-span-2">
           <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Rôles actifs</dt>
           <dd className="mt-3 flex flex-wrap gap-2">
             {user.roles.length ? user.roles.map((role) => (

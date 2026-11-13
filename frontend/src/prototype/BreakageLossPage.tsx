@@ -332,7 +332,7 @@ const getLineCasseQuantity = (line: InventoryReturnOperationLine): number =>
         </div>
 
         {pendingReturns.length > 0 && (
-          <section className="m-6 p-5 rounded-xl border border-amber-200 bg-amber-50" aria-labelledby="pending-damage-loss-title">
+          <section className="m-6 p-5 rounded-xl border border-amber-200 bg-amber-50" aria-labelledby="pending-damage-loss-title" data-tutorial="breakage-deduction-form">
             <h2 id="pending-damage-loss-title" className="font-extrabold text-amber-900">Retours à régulariser</h2>
             <p className="mt-1 text-sm text-amber-800">Saisissez la valeur de remplacement ou de réparation avant de créer le dossier financier.</p>
             <div className="mt-4 space-y-4">
@@ -425,7 +425,7 @@ const getLineCasseQuantity = (line: InventoryReturnOperationLine): number =>
           </section>
         )}
 
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100" data-tutorial="breakage-list">
           {filteredData.map((s) => {
             const label = statusLabel(s.settlement_status);
             const execution = executions.find((item) => item.settlement === s.id);
