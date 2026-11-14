@@ -166,7 +166,9 @@ def get_hahitantsoa_payment_schedule(
     terms = get_hahitantsoa_commercial_terms()
     logistics_amount = Decimal(str(event_draft.logistics_amount)).quantize(MONEY_QUANTUM)
     total_amount = Decimal(str(event_draft.total_amount)).quantize(MONEY_QUANTUM)
-    deposit_amount = min(event_draft.required_deposit_amount, total_amount).quantize(MONEY_QUANTUM)
+    deposit_amount = min(Decimal(str(event_draft.required_deposit_amount)), total_amount).quantize(
+        MONEY_QUANTUM
+    )
     remaining_after_deposit = (total_amount - deposit_amount).quantize(MONEY_QUANTUM)
     first_installment_amount = (remaining_after_deposit / 2).quantize(
         MONEY_QUANTUM, rounding=ROUND_HALF_UP
@@ -178,8 +180,9 @@ def get_hahitantsoa_payment_schedule(
     night_sec = get_required_night_security_amount(
         terms=terms, duration_option=event_draft.duration_option
     )
+    space_rental_amount = Decimal(str(event_draft.space_rental_amount)).quantize(MONEY_QUANTUM)
     return HahitantsoaPaymentSchedule(
-        space_rental_amount=event_draft.space_rental_amount.quantize(MONEY_QUANTUM),
+        space_rental_amount=space_rental_amount,
         logistics_amount=logistics_amount,
         total_amount=total_amount,
         deposit_amount=deposit_amount,

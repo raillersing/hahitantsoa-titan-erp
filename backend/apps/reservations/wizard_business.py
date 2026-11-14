@@ -105,7 +105,7 @@ def create_session_draft(
             {"customer_id": "Le client sélectionné ne correspond pas à la session."}
         )
     try:
-        draft = serializer.save(**({"created_by": actor} if domain == "hahitantsoa" else {}))
+        draft = serializer.save(created_by=actor)
     except CommercialDocumentContextError as error:
         raise ValidationError({"detail": str(error)}) from error
     DocumentInstance.objects.filter(**{field: draft}, template_key=f"{domain}.proforma.v1").update(

@@ -286,6 +286,20 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
         source="customer.display_name",
         read_only=True,
     )
+    created_by_id = serializers.UUIDField(source="created_by.id", read_only=True, allow_null=True)
+    created_by_username = serializers.CharField(
+        source="created_by.username", read_only=True, allow_null=True
+    )
+    created_by_display_name = serializers.SerializerMethodField()
+
+    def get_created_by_display_name(self, obj) -> str | None:
+        user = getattr(obj, "created_by", None)
+        if user is None:
+            return None
+        get_full_name = getattr(user, "get_full_name", None)
+        full_name = get_full_name().strip() if callable(get_full_name) else ""
+        return full_name or getattr(user, "username", None) or str(getattr(user, "pk", ""))
+
     contract_signed_at = serializers.DateTimeField(read_only=True)
     contract_signed_by_id = serializers.UUIDField(read_only=True, allow_null=True)
     required_deposit_received_at = serializers.DateTimeField(read_only=True)
@@ -334,6 +348,9 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
             "lines",
             "created_at",
             "updated_at",
+            "created_by_id",
+            "created_by_username",
+            "created_by_display_name",
         )
         read_only_fields = (
             "id",
@@ -352,6 +369,9 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
             "cancelled_by_id",
             "created_at",
             "updated_at",
+            "created_by_id",
+            "created_by_username",
+            "created_by_display_name",
         )
 
     def validate_public_reference(self, value):
@@ -427,10 +447,12 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
         if validated_data.get("discount_amount", Decimal("0")):
             validated_data["discount_applied_at"] = timezone.now()
             validated_data["discount_applied_by"] = actor
+        created_by = validated_data.pop("created_by", actor)
+        updated_by = validated_data.pop("updated_by", actor)
         reservation_draft = ReservationDraft.objects.create(
             status=ReservationDraftStatus.DRAFT,
-            created_by=actor,
-            updated_by=actor,
+            created_by=created_by,
+            updated_by=updated_by,
             **validated_data,
         )
 

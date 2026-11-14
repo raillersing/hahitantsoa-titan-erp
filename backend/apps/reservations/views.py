@@ -181,6 +181,9 @@ class ReservationDraftListCreateAPIView(generics.ListCreateAPIView):
             )
         return qs
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
 
 class ReservationDraftRetrieveAPIView(generics.RetrieveUpdateAPIView):
     http_method_names = ["get", "put", "patch", "head", "options"]

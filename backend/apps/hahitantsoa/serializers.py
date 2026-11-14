@@ -862,6 +862,20 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
         queryset=Customer.objects.filter(is_active=True, is_deleted=False),
     )
     customer_display_name = serializers.CharField(source="customer.display_name", read_only=True)
+    created_by_id = serializers.UUIDField(source="created_by.id", read_only=True, allow_null=True)
+    created_by_username = serializers.CharField(
+        source="created_by.username", read_only=True, allow_null=True
+    )
+    created_by_display_name = serializers.SerializerMethodField()
+
+    def get_created_by_display_name(self, obj) -> str | None:
+        user = getattr(obj, "created_by", None)
+        if user is None:
+            return None
+        get_full_name = getattr(user, "get_full_name", None)
+        full_name = get_full_name().strip() if callable(get_full_name) else ""
+        return full_name or getattr(user, "username", None) or str(getattr(user, "pk", ""))
+
     lines = HahitantsoaEventDraftLineSerializer(many=True)
     prerequisite_status = serializers.SerializerMethodField()
     payment_schedule = serializers.SerializerMethodField()
@@ -905,6 +919,9 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             "payment_schedule",
             "created_at",
             "updated_at",
+            "created_by_id",
+            "created_by_username",
+            "created_by_display_name",
         )
         read_only_fields = (
             "id",
@@ -917,6 +934,9 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "payment_schedule",
+            "created_by_id",
+            "created_by_username",
+            "created_by_display_name",
         )
 
     def validate_public_reference(self, value):
