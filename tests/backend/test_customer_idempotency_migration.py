@@ -46,4 +46,6 @@ def test_scoped_creation_migration_preserves_history_or_stops_for_review(
     finally:
         if duplicate is not None:
             old_customer.objects.filter(pk=duplicate.pk).delete()
-        MigrationExecutor(connection).migrate([after])
+        restore_executor = MigrationExecutor(connection)
+        restore_executor.loader.build_graph()
+        restore_executor.migrate(restore_executor.loader.graph.leaf_nodes())

@@ -335,7 +335,7 @@ def test_database_rejects_titan_non_inventory_interest(customer):
             "flexible_start": date.today() + timedelta(days=8),
             "flexible_end": date.today() + timedelta(days=7),
         },
-        {"preferred_date_2": date.today() + timedelta(days=1)},
+        {"preferred_date_2": "duplicate"},
     ),
     ids=(
         "no_date_selection",
@@ -373,8 +373,11 @@ def test_database_rejects_invalid_date_selection_via_queryset_update(customer, c
         },
     )
 
+    payload = {
+        key: (entry.preferred_date_1 if val == "duplicate" else val) for key, val in changes.items()
+    }
     with pytest.raises(IntegrityError), transaction.atomic():
-        DesiredDateWaitlistEntry.objects.filter(pk=entry.pk).update(**changes)
+        DesiredDateWaitlistEntry.objects.filter(pk=entry.pk).update(**payload)
 
 
 def test_api_rejects_titan_only_material_pack_for_hahitantsoa(staff_client, customer):
