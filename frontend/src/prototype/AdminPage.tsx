@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { AdminDialog } from "./AdminDialog";
 import { AppScope } from "../App";
 import { LoadingSpinner } from "../components";
@@ -11,9 +11,20 @@ import {
   createApplicationRole,
   getNumberingSequences,
   configureNumberingSequence,
+  getIdentitySessions,
+  revokeDeviceSession,
 } from "../api";
-import type { User, ApplicationRole, NumberingSequence, NumberingSequenceBrand, NumberingSequenceType } from "../types";
+import type {
+  User,
+  ApplicationRole,
+  NumberingSequence,
+  NumberingSequenceBrand,
+  NumberingSequenceType,
+  IdentitySessionsListResponse,
+  UserDeviceSession,
+} from "../types";
 import { getRolePresentation, ROLE_PRESENTATION_CATALOG, type RolePresentationInfo } from "./rolePresentation";
+import { getDeviceIcon, formatSessionDateTime } from "./SecuritySessionsModal";
 
 const DEFAULT_SUFFIX_BY_TYPE: Record<NumberingSequenceType, string> = {
   proforma: "/{year}",
@@ -202,6 +213,118 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
       setSavingSequence(false);
     }
   };
+
+  // Sessions & Devices state
+  const [sessionsData, setSessionsData] = useState<IdentitySessionsListResponse | null>(null);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
+  const [sessionSearch, setSessionSearch] = useState("");
+  const [sessionDeviceFilter, setSessionDeviceFilter] = useState<"all" | "desktop" | "mobile" | "tablet">("all");
+  const [sessionStatusFilter, setSessionStatusFilter] = useState<"all" | "active" | "revoked">("all");
+  const [sessionConcurrentOnly, setSessionConcurrentOnly] = useState(false);
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
+
+  const loadSessions = useCallback(async () => {
+    setSessionsLoading(true);
+    setSessionsError(null);
+    try {
+      const data = await getIdentitySessions();
+      setSessionsData(data);
+    } catch (err: any) {
+      setSessionsError(err?.message || "Erreur lors du chargement des sessions d'appareils.");
+    } finally {
+      setSessionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSessions();
+  }, [loadSessions]);
+
+  const handleRevokeSession = async (session: UserDeviceSession) => {
+    const targetLabel = session.device_name || session.browser_name || "cet appareil";
+    if (!window.confirm(`Déconnecter l'appareil "${targetLabel}" du compte @${session.username} ?`)) {
+      return;
+    }
+    setRevokingSessionId(session.id);
+    try {
+      await revokeDeviceSession(session.id);
+      showToast(`Session sur ${targetLabel} (@${session.username}) révoquée avec succès.`);
+      setSessionsData((prev) => {
+        if (!prev) return prev;
+        const updatedResults = prev.results.map((s) =>
+          s.id === session.id
+            ? { ...s, is_active: false, is_online: false, revocation_reason: "admin_revocation", revoked_at: new Date().toISOString() }
+            : s
+        );
+        const activeUsersCountMap = new Map<string, { user_id: string; username: string; display_name: string; devices: string[] }>();
+        for (const s of updatedResults) {
+          if (!s.is_active) continue;
+          const existing = activeUsersCountMap.get(s.user_id) || {
+            user_id: s.user_id,
+            username: s.username,
+            display_name: s.display_name,
+            devices: [],
+          };
+          existing.devices.push(`${s.device_name} (${s.os_name})`);
+          activeUsersCountMap.set(s.user_id, existing);
+        }
+        const updatedConcurrent: any[] = [];
+        for (const [_, entry] of activeUsersCountMap.entries()) {
+          if (entry.devices.length > 1) {
+            updatedConcurrent.push({
+              user_id: entry.user_id,
+              username: entry.username,
+              display_name: entry.display_name,
+              active_devices_count: entry.devices.length,
+              devices: entry.devices,
+            });
+          }
+        }
+        return {
+          ...prev,
+          total_active_sessions: updatedResults.filter((s) => s.is_active).length,
+          users_with_concurrent_sessions: updatedConcurrent,
+          results: updatedResults,
+        };
+      });
+    } catch (err: any) {
+      showToast(err?.message || "Erreur lors de la révocation de la session.");
+    } finally {
+      setRevokingSessionId(null);
+    }
+  };
+
+  const filteredSessions = useMemo(() => {
+    if (!sessionsData) return [];
+    const q = sessionSearch.trim().toLowerCase();
+    const concurrentUserIds = new Set((sessionsData.users_with_concurrent_sessions || []).map((u) => u.user_id));
+
+    return (sessionsData.results || []).filter((s) => {
+      const matchesSearch =
+        !q ||
+        s.username.toLowerCase().includes(q) ||
+        s.display_name.toLowerCase().includes(q) ||
+        s.device_name.toLowerCase().includes(q) ||
+        s.os_name.toLowerCase().includes(q) ||
+        s.browser_name.toLowerCase().includes(q) ||
+        s.ip_address.toLowerCase().includes(q);
+
+      const matchesDevice =
+        sessionDeviceFilter === "all" ? true : s.device_type === sessionDeviceFilter;
+
+      const matchesStatus =
+        sessionStatusFilter === "all"
+          ? true
+          : sessionStatusFilter === "active"
+            ? s.is_active
+            : !s.is_active;
+
+      const matchesConcurrent = sessionConcurrentOnly ? concurrentUserIds.has(s.user_id) : true;
+
+      return matchesSearch && matchesDevice && matchesStatus && matchesConcurrent;
+    });
+  }, [sessionsData, sessionSearch, sessionDeviceFilter, sessionStatusFilter, sessionConcurrentOnly]);
 
   const fetchRoles = async (signal?: AbortSignal) => {
     try {
@@ -468,6 +591,18 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
             onClick={() => setActiveTab('settings')}
           >
             <i className="fas fa-cog mr-2"></i>Paramètres globaux
+          </button>
+          <button
+            className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'sessions' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            onClick={() => setActiveTab('sessions')}
+          >
+            <i className="fa-solid fa-laptop-code"></i>
+            <span>Connexions & Appareils</span>
+            {(sessionsData?.users_with_concurrent_sessions?.length ?? 0) > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
+                {sessionsData?.users_with_concurrent_sessions.length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -1208,6 +1343,410 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'sessions' && (
+            <div className="space-y-6">
+              {/* Header Banner */}
+              <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1 max-w-2xl">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-base">
+                      <i className="fa-solid fa-network-wired"></i>
+                    </div>
+                    <h3 className="text-lg font-bold text-white">
+                      Traçabilité des Connexions & Audit Multi-Appareils
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed pl-11">
+                    Supervisez en temps réel les terminaux connectés à l'ERP (MacBook, PC Windows, iPhone, Android, Linux), auditez l'historique complet et révoquez les sessions suspectes à distance.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 pl-11 md:pl-0">
+                  <button
+                    type="button"
+                    disabled={sessionsLoading}
+                    onClick={() => void loadSessions()}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    <i className={`fa-solid fa-arrows-rotate ${sessionsLoading ? "fa-spin" : ""}`}></i>
+                    <span>Actualiser</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* KPI Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      Sessions Actives
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      En direct
+                    </span>
+                  </div>
+                  <div className="text-2xl font-black text-slate-900 dark:text-slate-100 mt-2">
+                    {sessionsData?.total_active_sessions ?? 0}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Terminaux actuellement en ligne ou récents
+                  </p>
+                </div>
+
+                <div className={`p-5 rounded-2xl border shadow-2xs ${
+                  (sessionsData?.users_with_concurrent_sessions?.length ?? 0) > 0
+                    ? "bg-amber-50/70 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800"
+                    : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      Comptes Multi-Appareils
+                    </span>
+                    {(sessionsData?.users_with_concurrent_sessions?.length ?? 0) > 0 ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200 border border-amber-300">
+                        ⚠️ Alerte active
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                        Normal
+                      </span>
+                    )}
+                  </div>
+                  <div className={`text-2xl font-black mt-2 ${
+                    (sessionsData?.users_with_concurrent_sessions?.length ?? 0) > 0
+                      ? "text-amber-900 dark:text-amber-200"
+                      : "text-slate-900 dark:text-slate-100"
+                  }`}>
+                    {sessionsData?.users_with_concurrent_sessions?.length ?? 0}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    {(sessionsData?.users_with_concurrent_sessions?.length ?? 0) > 0
+                      ? "Comptes connectés sur plusieurs terminaux simultanément"
+                      : "Aucun compte partagé sur plusieurs terminaux"}
+                  </p>
+                </div>
+
+                <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      Historique Sessions
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                      Total
+                    </span>
+                  </div>
+                  <div className="text-2xl font-black text-slate-900 dark:text-slate-100 mt-2">
+                    {sessionsData?.results?.length ?? 0}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Enregistrements de session conservés
+                  </p>
+                </div>
+              </div>
+
+              {/* Alert Banner for concurrent sessions */}
+              {(sessionsData?.users_with_concurrent_sessions?.length ?? 0) > 0 && (
+                <div data-testid="concurrent-sessions-alert-banner" className="p-5 bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700 rounded-2xl space-y-3 shadow-xs">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 text-base shadow-xs">
+                      <i className="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-amber-950 dark:text-amber-100">
+                        Attention : Utilisation simultanée d'un même compte détectée
+                      </h4>
+                      <p className="text-xs text-amber-800 dark:text-amber-200 mt-0.5">
+                        Les utilisateurs suivants sont actuellement connectés ou actifs depuis plusieurs appareils différents en même temps :
+                      </p>
+                    </div>
+                  </div>
+                  <div className="pl-12 flex flex-wrap items-center gap-2">
+                    {sessionsData?.users_with_concurrent_sessions.map((u) => (
+                      <div
+                        key={u.user_id}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 shadow-2xs text-xs"
+                      >
+                        <span className="font-bold text-slate-900 dark:text-slate-100">
+                          {u.display_name} (@{u.username})
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200 font-extrabold text-[10px]">
+                          {u.active_devices_count} appareils
+                        </span>
+                        <span className="text-slate-400 text-[11px]">
+                          [{u.devices.join(", ")}]
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSessionSearch(u.username);
+                            setSessionConcurrentOnly(true);
+                          }}
+                          className="ml-1 text-indigo-600 dark:text-indigo-400 hover:underline font-bold text-[11px] cursor-pointer"
+                        >
+                          Filtrer
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Search & Filters */}
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+                <div className="relative flex-1 max-w-md">
+                  <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                  <input
+                    type="text"
+                    placeholder="Rechercher par nom, identifiant, appareil, IP, OS..."
+                    className="w-full pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 dark:text-slate-100"
+                    value={sessionSearch}
+                    onChange={(e) => setSessionSearch(e.target.value)}
+                  />
+                  {sessionSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setSessionSearch("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <i className="fa-solid fa-xmark text-xs"></i>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Appareil :</span>
+                  <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-0.5">
+                    {[
+                      { key: "all", label: "Tous" },
+                      { key: "desktop", label: "Ordinateurs" },
+                      { key: "mobile", label: "Mobiles" },
+                      { key: "tablet", label: "Tablettes" },
+                    ].map((tab) => (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+                          sessionDeviceFilter === tab.key
+                            ? "bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-xs"
+                            : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                        }`}
+                        onClick={() => setSessionDeviceFilter(tab.key as any)}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 ml-2">État :</span>
+                  <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-0.5">
+                    {[
+                      { key: "all", label: "Tous" },
+                      { key: "active", label: "Actifs" },
+                      { key: "revoked", label: "Révoqués" },
+                    ].map((tab) => (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+                          sessionStatusFilter === tab.key
+                            ? "bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-xs"
+                            : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                        }`}
+                        onClick={() => setSessionStatusFilter(tab.key as any)}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {(sessionsData?.users_with_concurrent_sessions?.length ?? 0) > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSessionConcurrentOnly(!sessionConcurrentOnly)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                        sessionConcurrentOnly
+                          ? "bg-amber-500 border-amber-600 text-white shadow-xs"
+                          : "border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 hover:bg-amber-100"
+                      }`}
+                    >
+                      <i className="fa-solid fa-triangle-exclamation text-[10px]"></i>
+                      Multi-appareils uniquement
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {sessionsLoading && <LoadingSpinner message="Chargement des sessions d'appareils…" />}
+
+              {sessionsError && (
+                <div role="alert" className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl text-xs font-semibold text-rose-800 dark:text-rose-200 flex items-center gap-2">
+                  <i className="fa-solid fa-triangle-exclamation text-rose-600"></i>
+                  <span>{sessionsError}</span>
+                </div>
+              )}
+
+              {/* Sessions Table */}
+              {!sessionsLoading && !sessionsError && (
+                <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[11px]">
+                        <th className="py-3 px-4">Collaborateur</th>
+                        <th className="py-3 px-4">Appareil & Système</th>
+                        <th className="py-3 px-4">Navigateur & IP</th>
+                        <th className="py-3 px-4">Statut & Simultanéité</th>
+                        <th className="py-3 px-4">Horodatage</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {filteredSessions.map((session) => {
+                        const dev = getDeviceIcon(session.device_type, session.os_name, session.device_name);
+                        const isConcurrent = (sessionsData?.users_with_concurrent_sessions || []).some(
+                          (u) => u.user_id === session.user_id
+                        );
+                        const initials = (session.display_name || session.username || "U")
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .slice(0, 2)
+                          .toUpperCase();
+
+                        return (
+                          <tr
+                            key={session.id}
+                            className={`hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors ${
+                              isConcurrent && session.is_active ? "bg-amber-50/30 dark:bg-amber-950/20" : ""
+                            }`}
+                          >
+                            {/* Collaborateur */}
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-xs shrink-0">
+                                  {initials}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-bold text-slate-900 dark:text-slate-100 truncate">
+                                    {session.display_name || session.username}
+                                  </div>
+                                  <div className="text-[11px] text-slate-400 truncate">
+                                    @{session.username}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Appareil & Système */}
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2.5">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0 ${dev.color}`}>
+                                  <i className={dev.icon}></i>
+                                </div>
+                                <div>
+                                  <div className="font-bold text-slate-800 dark:text-slate-200">
+                                    {session.device_name || "Appareil inconnu"}
+                                  </div>
+                                  <div className="text-[11px] text-slate-400">
+                                    {session.os_name || "Système inconnu"}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Navigateur & IP */}
+                            <td className="py-3 px-4">
+                              <div className="font-medium text-slate-700 dark:text-slate-300">
+                                {session.browser_name || "Inconnu"}
+                              </div>
+                              <div className="font-mono text-[11px] text-slate-400 mt-0.5">
+                                {session.ip_address}
+                              </div>
+                            </td>
+
+                            {/* Statut & Simultanéité */}
+                            <td className="py-3 px-4">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {session.is_current ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                    Cette session
+                                  </span>
+                                ) : null}
+
+                                {session.is_active ? (
+                                  session.is_online ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                      En ligne
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                                      Actif
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                    Déconnecté
+                                  </span>
+                                )}
+
+                                {isConcurrent && session.is_active ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200 border border-amber-300">
+                                    <i className="fa-solid fa-triangle-exclamation text-[9px]"></i>
+                                    Multi-appareils
+                                  </span>
+                                ) : null}
+                              </div>
+                            </td>
+
+                            {/* Horodatage */}
+                            <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
+                              <div>
+                                <span className="text-slate-400 text-[10px]">Connexion :</span>{" "}
+                                {formatSessionDateTime(session.logged_in_at)}
+                              </div>
+                              {session.last_seen_at && (
+                                <div className="text-[11px] text-slate-400 mt-0.5">
+                                  <span>Activité :</span> {formatSessionDateTime(session.last_seen_at)}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Actions */}
+                            <td className="py-3 px-4 text-right">
+                              {session.is_active ? (
+                                <button
+                                  type="button"
+                                  disabled={revokingSessionId === session.id}
+                                  onClick={() => handleRevokeSession(session)}
+                                  className="px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-xs font-bold hover:bg-rose-100 hover:text-rose-700 transition disabled:opacity-50 cursor-pointer"
+                                >
+                                  {revokingSessionId === session.id ? "Déconnexion..." : "Déconnecter"}
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-slate-400 italic">
+                                  {session.revocation_reason === "admin_revocation" ? "Révoquée par admin" : "Session terminée"}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+
+                      {filteredSessions.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-slate-400">
+                            <i className="fa-solid fa-desktop text-2xl mb-2 block opacity-40"></i>
+                            Aucune session ne correspond à vos critères de recherche.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>

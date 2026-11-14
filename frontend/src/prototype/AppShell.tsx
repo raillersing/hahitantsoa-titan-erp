@@ -5,6 +5,7 @@ import type { AppScope } from "../App";
 import { getNotifications, type SessionUser } from "../api";
 import BrandIdentity, { type BrandScope } from "./BrandIdentity";
 import { useTutorial, getTutorialsForScope } from "../tutorial";
+import SecuritySessionsModal from "./SecuritySessionsModal";
 
 import type { FrontendCapabilities } from "../capabilities";
 
@@ -108,6 +109,7 @@ export default function AppShell({
   const activeBrand = resolveBrandScope(activeScope, activeParam);
   const { isInvitationVisible, dismissInvitation, startTutorial, canAccessTutorial } = useTutorial();
   const [showGuides, setShowGuides] = React.useState(false);
+  const [showSecuritySessionsModal, setShowSecuritySessionsModal] = React.useState(false);
   const matchingGuides = getTutorialsForScope(activeScope).filter((item) => canAccessTutorial(item.id));
   const hasAuthenticatedUser = Boolean(user);
   const canManageIdentity = capabilities?.canManageIdentity ?? !hasAuthenticatedUser;
@@ -498,6 +500,20 @@ export default function AppShell({
           {isUserMenuOpen && (
             <div className="absolute bottom-full mb-2 left-4 right-4 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 z-50">
               <a href="#profile" onClick={(e) => { e.preventDefault(); setIsUserMenuOpen(false); onNavigate("profile"); }} className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">Profil utilisateur</a>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsUserMenuOpen(false);
+                  setShowSecuritySessionsModal(true);
+                }}
+                className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center justify-between cursor-pointer"
+              >
+                <span className="flex items-center gap-2">
+                  <i className="fa-solid fa-shield-halved text-xs text-indigo-400"></i>
+                  Sécurité & Sessions
+                </span>
+                <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-medium">Appareils</span>
+              </button>
               <button type="button" disabled className="block w-full cursor-not-allowed px-4 py-2 text-left text-sm text-slate-500" title="Disponible dans un prochain lot">Préférences</button>
               <a href="#help" onClick={(e) => { e.preventDefault(); setIsUserMenuOpen(false); onNavigate("help"); }} className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">Aide / support</a>
               <div className="my-1 border-t border-slate-700"></div>
@@ -668,6 +684,11 @@ export default function AppShell({
           {children}
         </main>
       </div>
+
+      <SecuritySessionsModal
+        isOpen={showSecuritySessionsModal}
+        onClose={() => setShowSecuritySessionsModal(false)}
+      />
     </div>
   );
 }

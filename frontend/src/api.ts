@@ -1,6 +1,10 @@
 import { DATA_CHANGED_EVENT } from "./liveDataEvents";
 import type {
   ApplicationRole,
+  IdentitySessionsListResponse,
+  UserPersonalSessionsResponse,
+  SessionQueryParams,
+  UserDeviceSession,
   BillingInvoice,
   BillingInvoiceCorrectPayload,
   BillingInvoiceInstallment,
@@ -2240,6 +2244,55 @@ export function createApplicationRole(
   signal?: AbortSignal,
 ): Promise<ApplicationRole> {
   return postAuthenticatedJson("/api/v1/identity/roles/", payload, signal);
+}
+
+function buildSessionQuery(params?: SessionQueryParams): string {
+  if (!params) return "";
+  const qs = new URLSearchParams();
+  if (params.user_id) qs.set("user_id", params.user_id);
+  if (typeof params.is_active === "boolean") qs.set("is_active", String(params.is_active));
+  if (typeof params.has_concurrent === "boolean") qs.set("has_concurrent", String(params.has_concurrent));
+  if (params.device_type) qs.set("device_type", params.device_type);
+  if (params.search) qs.set("search", params.search);
+  const q = qs.toString();
+  return q ? `?${q}` : "";
+}
+
+export function getIdentitySessions(
+  params?: SessionQueryParams,
+  signal?: AbortSignal,
+): Promise<IdentitySessionsListResponse> {
+  return getAuthenticatedJson(
+    `/api/v1/identity/sessions/${buildSessionQuery(params)}`,
+    signal,
+  );
+}
+
+export function getMyDeviceSessions(
+  signal?: AbortSignal,
+): Promise<UserPersonalSessionsResponse> {
+  return getAuthenticatedJson("/api/v1/identity/sessions/me/", signal);
+}
+
+export function revokeDeviceSession(
+  sessionId: string,
+  signal?: AbortSignal,
+): Promise<{ detail: string; session_id: string }> {
+  return postAuthenticatedJson(
+    `/api/v1/identity/sessions/${sessionId}/revoke/`,
+    {},
+    signal,
+  );
+}
+
+export function revokeAllOtherDeviceSessions(
+  signal?: AbortSignal,
+): Promise<{ detail: string; revoked_count: number }> {
+  return postAuthenticatedJson(
+    "/api/v1/identity/sessions/revoke-others/",
+    {},
+    signal,
+  );
 }
 
 function buildAuditQuery(params?: AuditEventQueryParams): string {
