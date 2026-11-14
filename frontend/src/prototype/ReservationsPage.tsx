@@ -33,6 +33,9 @@ export interface UnifiedReservationItem {
   venue_name?: string;
   event_name?: string;
   created_at?: string;
+  created_by_id?: string | null;
+  created_by_username?: string | null;
+  created_by_display_name?: string | null;
   raw: ReservationDraft | HahitantsoaEventDraft;
 }
 
@@ -94,6 +97,9 @@ export default function ReservationsPage({
             status: r.status,
             line_count: r.lines?.length ?? 0,
             created_at: r.created_at,
+            created_by_id: r.created_by_id,
+            created_by_username: r.created_by_username,
+            created_by_display_name: r.created_by_display_name,
             raw: r,
           })),
           ...hahitantsoaData.map((h): UnifiedReservationItem => ({
@@ -109,6 +115,9 @@ export default function ReservationsPage({
             venue_name: h.venue_name,
             event_name: h.event_name,
             created_at: h.created_at,
+            created_by_id: h.created_by_id,
+            created_by_username: h.created_by_username,
+            created_by_display_name: h.created_by_display_name,
             raw: h,
           })),
         ];
@@ -189,6 +198,19 @@ export default function ReservationsPage({
     const start = startAt ? new Date(startAt).toLocaleDateString("fr-FR") : "—";
     const end = endAt ? new Date(endAt).toLocaleDateString("fr-FR") : "—";
     return `${start} → ${end}`;
+  };
+
+  const formatDate = (dateStr: string | undefined | null) => {
+    if (!dateStr) return "—";
+    try {
+      return new Date(dateStr).toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return dateStr;
+    }
   };
 
   return (
@@ -343,6 +365,17 @@ export default function ReservationsPage({
                         <p className="text-xs text-slate-500 mt-0.5 font-medium ml-1">
                           {r.event_name}
                         </p>
+                      )}
+                      {(r.created_at || r.created_by_display_name || r.created_by_username) && (
+                        <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5 ml-1">
+                          <i className="fa-regular fa-clock text-[10px]"></i>
+                          <span>
+                            {r.created_at ? `Créé le ${formatDate(r.created_at)}` : "Créé"}
+                            {(r.created_by_display_name || r.created_by_username) && (
+                              <> par <span className="font-medium text-slate-600">{r.created_by_display_name || `@${r.created_by_username}`}</span></>
+                            )}
+                          </span>
+                        </div>
                       )}
                     </td>
                     <td className="px-4 py-3">

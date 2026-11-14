@@ -348,6 +348,17 @@ export default function HahitantsoaPage({
                           {deletingId === r.id ? "Suppression…" : "Supprimer test"}
                         </button>
                       )}
+                      {(r.created_at || r.created_by_display_name || r.created_by_username) && (
+                        <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5">
+                          <i className="fa-regular fa-clock text-[10px]"></i>
+                          <span>
+                            {r.created_at ? `Créé le ${formatDate(r.created_at)}` : "Créé"}
+                            {(r.created_by_display_name || r.created_by_username) && (
+                              <> par <span className="font-medium text-slate-600">{r.created_by_display_name || `@${r.created_by_username}`}</span></>
+                            )}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <button
