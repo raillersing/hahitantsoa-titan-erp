@@ -348,6 +348,9 @@ export type ReservationDraft = {
   lines: ReservationDraftLine[];
   created_at: string;
   updated_at: string;
+  created_by_id?: string | null;
+  created_by_username?: string | null;
+  created_by_display_name?: string | null;
 };
 
 export type ReservationDraftAmendment = {
@@ -501,6 +504,9 @@ export type HahitantsoaEventDraft = {
   lines: HahitantsoaEventDraftLine[];
   created_at: string;
   updated_at: string;
+  created_by_id?: string | null;
+  created_by_username?: string | null;
+  created_by_display_name?: string | null;
 };
 
 export type HahitantsoaEventType =

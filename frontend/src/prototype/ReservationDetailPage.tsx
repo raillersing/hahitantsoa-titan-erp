@@ -118,6 +118,19 @@ function formatDateFr(dateStr: string | undefined): string {
   }).format(date);
 }
 
+function formatDateTimeFr(dateStr: string | undefined): string {
+  if (!dateStr) return "—";
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 /* ── types ────────────────────────────────────────────────────────── */
 
 type PreviewDoc =
@@ -1553,32 +1566,61 @@ export default function ReservationDetailPage({
         </div>
       </div>
 
-      {/* ── status badge ──────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 mb-4">
-        <span
-          className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
-            draftStatus === "confirmed"
-              ? "bg-emerald-100 text-emerald-700"
+      {/* ── status badge & author metadata ────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-3">
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
+              draftStatus === "confirmed"
+                ? "bg-emerald-100 text-emerald-700"
+                : draftStatus === "cancelled"
+                  ? "bg-red-100 text-red-700"
+                  : "bg-amber-100 text-amber-700"
+            }`}
+          >
+            {draftStatus === "confirmed"
+              ? "Confirmée"
               : draftStatus === "cancelled"
-                ? "bg-red-100 text-red-700"
-                : "bg-amber-100 text-amber-700"
-          }`}
-        >
-          {draftStatus === "confirmed"
-            ? "Confirmée"
-            : draftStatus === "cancelled"
-              ? "Annulée"
-              : "Brouillon"}
-        </span>
-        {draft.contract_signed_at && (
-          <span className="text-xs text-emerald-600 font-medium">
-            <i className="fa-solid fa-check-circle mr-1"></i> Contrat signé
+                ? "Annulée"
+                : "Brouillon"}
           </span>
-        )}
-        {draft.required_deposit_received_at && (
-          <span className="text-xs text-emerald-600 font-medium">
-            <i className="fa-solid fa-check-circle mr-1"></i> Acompte reçu
-          </span>
+          {draft.contract_signed_at && (
+            <span className="text-xs text-emerald-600 font-medium">
+              <i className="fa-solid fa-check-circle mr-1"></i> Contrat signé
+            </span>
+          )}
+          {draft.required_deposit_received_at && (
+            <span className="text-xs text-emerald-600 font-medium">
+              <i className="fa-solid fa-check-circle mr-1"></i> Acompte reçu
+            </span>
+          )}
+        </div>
+
+        {(draft.created_at || draft.created_by_display_name || draft.created_by_username) && (
+          <div
+            data-testid="reservation-author-metadata"
+            className="flex flex-wrap items-center gap-3 text-xs text-slate-500 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-1.5"
+          >
+            <span className="inline-flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-200">
+              <i className="fa-regular fa-calendar-plus text-indigo-500"></i>
+              Créée le {formatDateTimeFr(draft.created_at)}
+            </span>
+            {(draft.created_by_display_name || draft.created_by_username) && (
+              <span className="inline-flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-200">
+                <i className="fa-solid fa-user-pen text-indigo-500"></i>
+                Auteur : <strong className="text-slate-900 dark:text-slate-100">{draft.created_by_display_name || draft.created_by_username}</strong>
+                {draft.created_by_username && draft.created_by_display_name && (
+                  <span className="text-slate-400">(@{draft.created_by_username})</span>
+                )}
+              </span>
+            )}
+            {draft.updated_at && draft.updated_at !== draft.created_at && (
+              <span className="inline-flex items-center gap-1.5 text-slate-400 border-l border-slate-200 dark:border-slate-700 pl-3">
+                <i className="fa-solid fa-clock-rotate-left"></i>
+                Mis à jour le {formatDateTimeFr(draft.updated_at)}
+              </span>
+            )}
+          </div>
         )}
       </div>
 
@@ -1861,8 +1903,13 @@ export default function ReservationDetailPage({
               </div>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Créé le {formatDateFr(draft.created_at)}</span>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+            <span>
+              Créé le {formatDateTimeFr(draft.created_at)}
+              {(draft.created_by_display_name || draft.created_by_username) && (
+                <> par <strong className="text-slate-700">{draft.created_by_display_name || `@${draft.created_by_username}`}</strong></>
+              )}
+            </span>
             <span>Réf : {publicRef}</span>
           </div>
         </div>

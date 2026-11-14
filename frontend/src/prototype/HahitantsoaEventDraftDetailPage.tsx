@@ -1792,6 +1792,32 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             Du {formatDateTimeFr(draft.start_at)} au {formatDateTimeFr(draft.end_at)}
             {draft.venue_name && <span className="ml-3"><i className="fa-solid fa-location-dot mr-1.5 text-rose-500"></i>{draft.venue_name}</span>}
           </p>
+          {(draft.created_at || draft.created_by_display_name || draft.created_by_username) && (
+            <div
+              data-testid="hahitantsoa-author-metadata"
+              className="mt-2.5 flex flex-wrap items-center gap-3 text-xs text-slate-500 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-1.5 w-fit"
+            >
+              <span className="inline-flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-200">
+                <i className="fa-regular fa-calendar-plus text-amber-600"></i>
+                Créé le {formatDateTimeFr(draft.created_at)}
+              </span>
+              {(draft.created_by_display_name || draft.created_by_username) && (
+                <span className="inline-flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-200">
+                  <i className="fa-solid fa-user-pen text-amber-600"></i>
+                  Auteur : <strong className="text-slate-900 dark:text-slate-100">{draft.created_by_display_name || draft.created_by_username}</strong>
+                  {draft.created_by_username && draft.created_by_display_name && (
+                    <span className="text-slate-400">(@{draft.created_by_username})</span>
+                  )}
+                </span>
+              )}
+              {draft.updated_at && draft.updated_at !== draft.created_at && (
+                <span className="inline-flex items-center gap-1.5 text-slate-400 border-l border-slate-200 dark:border-slate-700 pl-3">
+                  <i className="fa-solid fa-clock-rotate-left"></i>
+                  Mis à jour le {formatDateTimeFr(draft.updated_at)}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Action button bar */}
