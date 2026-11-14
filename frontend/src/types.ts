@@ -1699,6 +1699,60 @@ export type AssignRolePayload = {
   notes?: string;
 };
 
+// ---- Device Sessions & Connection Logs ----
+
+export type DeviceType = "desktop" | "mobile" | "tablet" | "unknown";
+
+export type UserDeviceSession = {
+  id: string;
+  user_id: string;
+  username: string;
+  display_name: string;
+  device_type: DeviceType;
+  device_name: string;
+  os_name: string;
+  browser_name: string;
+  client_platform?: string;
+  ip_address: string;
+  logged_in_at: string;
+  last_seen_at: string;
+  is_active: boolean;
+  is_online: boolean;
+  is_current: boolean;
+  revoked_at?: string | null;
+  revoked_by?: string | null;
+  revocation_reason?: string;
+};
+
+export type ConcurrentUserSummary = {
+  user_id: string;
+  username: string;
+  display_name: string;
+  active_devices_count: number;
+  devices: string[];
+};
+
+export type IdentitySessionsListResponse = {
+  total_active_sessions: number;
+  users_with_concurrent_sessions: ConcurrentUserSummary[];
+  results: UserDeviceSession[];
+};
+
+export type UserPersonalSessionsResponse = {
+  has_concurrent_sessions: boolean;
+  active_sessions_count: number;
+  current_session_id?: string | null;
+  sessions: UserDeviceSession[];
+};
+
+export type SessionQueryParams = {
+  user_id?: string;
+  is_active?: boolean;
+  has_concurrent?: boolean;
+  device_type?: DeviceType;
+  search?: string;
+};
+
 export type RevokeRolePayload = {
   notes?: string;
 };
