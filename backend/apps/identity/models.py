@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 from apps.common.models import AuditableModel, TimestampedModel, UUIDModel
 
@@ -93,3 +94,51 @@ class UserRoleAssignment(UUIDModel, TimestampedModel, AuditableModel):
             raise ValidationError("An active assignment cannot have a revocation date.")
         if not self.is_active and self.revoked_at is None:
             raise ValidationError("A revoked assignment must have a revocation date.")
+
+
+class DeviceType(models.TextChoices):
+    DESKTOP = "desktop", "Ordinateur"
+    MOBILE = "mobile", "Smartphone"
+    TABLET = "tablet", "Tablette"
+    UNKNOWN = "unknown", "Inconnu"
+
+
+class UserDeviceSession(UUIDModel, TimestampedModel):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="device_sessions",
+        db_index=True,
+    )
+    session_key = models.CharField(max_length=64, db_index=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    device_type = models.CharField(
+        max_length=16,
+        choices=DeviceType.choices,
+        default=DeviceType.UNKNOWN,
+    )
+    device_name = models.CharField(max_length=64, default="Appareil inconnu")
+    os_name = models.CharField(max_length=64, blank=True)
+    browser_name = models.CharField(max_length=64, blank=True)
+    client_platform = models.CharField(max_length=64, blank=True)
+    logged_in_at = models.DateTimeField(default=timezone.now, db_index=True)
+    last_seen_at = models.DateTimeField(default=timezone.now, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    revocation_reason = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        ordering = ["-last_seen_at"]
+        verbose_name = "Session d'appareil utilisateur"
+        verbose_name_plural = "Sessions d'appareils utilisateurs"
+
+    def __str__(self) -> str:
+        return f"{self.user} - {self.device_name} ({self.session_key[:8]}...)"

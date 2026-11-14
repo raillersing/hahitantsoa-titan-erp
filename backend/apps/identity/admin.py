@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from apps.identity.models import ApplicationRole, UserRoleAssignment
+from apps.identity.models import ApplicationRole, UserDeviceSession, UserRoleAssignment
 
 
 @admin.register(ApplicationRole)
@@ -17,3 +17,20 @@ class UserRoleAssignmentAdmin(admin.ModelAdmin):
     list_filter = ("is_active", "role", "assigned_at")
     search_fields = ("user__username", "role__name", "notes")
     readonly_fields = ("id", "created_at", "updated_at", "assigned_at")
+
+
+@admin.register(UserDeviceSession)
+class UserDeviceSessionAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "device_name",
+        "device_type",
+        "os_name",
+        "browser_name",
+        "ip_address",
+        "is_active",
+        "last_seen_at",
+    )
+    list_filter = ("device_type", "is_active", "logged_in_at")
+    search_fields = ("user__username", "device_name", "ip_address", "session_key")
+    readonly_fields = ("id", "created_at", "updated_at", "logged_in_at", "last_seen_at")

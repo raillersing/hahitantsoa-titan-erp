@@ -24,6 +24,10 @@ from apps.identity.auth_services import (
 )
 from apps.identity.authorization import access_capabilities_for_actor
 from apps.identity.selectors import user_effective_role_slugs
+from apps.identity.session_services import (
+    record_device_session_login,
+    record_device_session_logout,
+)
 
 
 class _CsrfProtectedAPIView(APIView):
@@ -134,6 +138,7 @@ class SessionLoginAPIView(_CsrfProtectedAPIView):
         django_login(request, user)
         try:
             record_login_success(user=user, keys=throttle_keys)
+            record_device_session_login(request=request, user=user)
         except Exception:
             # Do not leave a usable session when its mandatory audit write fails.
             django_logout(request)
@@ -161,6 +166,7 @@ class SessionLogoutAPIView(_CsrfProtectedAPIView):
         if authenticated_user is not None:
             # Persist intent first so an audit failure never silently follows logout.
             record_logout_started(user=authenticated_user)
+            record_device_session_logout(request=request)
         django_logout(request)
         rotate_token(request)
         if authenticated_user is not None:

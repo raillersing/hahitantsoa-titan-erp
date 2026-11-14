@@ -1,5 +1,11 @@
 from django.urls import path
 
+from .session_views import (
+    IdentitySessionsListAPIView,
+    RevokeOtherSessionsAPIView,
+    RevokeSessionAPIView,
+    UserPersonalSessionsAPIView,
+)
 from .views import (
     ApplicationRoleDetailAPIView,
     ApplicationRoleListCreateAPIView,
@@ -47,5 +53,17 @@ urlpatterns = [
         "assignments/<uuid:id>/revoke/",
         RevokeRoleAPIView.as_view(),
         name="identity-assignment-revoke",
+    ),
+    path("sessions/", IdentitySessionsListAPIView.as_view(), name="identity-session-list"),
+    path("sessions/me/", UserPersonalSessionsAPIView.as_view(), name="identity-session-me"),
+    path(
+        "sessions/<uuid:session_id>/revoke/",
+        RevokeSessionAPIView.as_view(),
+        name="identity-session-revoke",
+    ),
+    path(
+        "sessions/revoke-others/",
+        RevokeOtherSessionsAPIView.as_view(),
+        name="identity-session-revoke-others",
     ),
 ]
