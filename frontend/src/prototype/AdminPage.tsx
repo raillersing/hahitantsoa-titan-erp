@@ -71,14 +71,36 @@ function editableRoleSlugs(user: User, catalog: ApplicationRole[]): string[] {
   return Array.from(new Set([...assigned, ...(user.group_role_slugs ?? [])]));
 }
 
-function AccessSummary({ slugs, catalog, base = {}, active = true }: { slugs: string[]; catalog: ApplicationRole[]; base?: Record<string, boolean>; active?: boolean }) {
+function AccessSummary({
+  slugs,
+  catalog,
+  base = {},
+  active = true,
+  isStaff = false,
+  isOwnerManager = false,
+}: {
+  slugs: string[];
+  catalog: ApplicationRole[];
+  base?: Record<string, boolean>;
+  active?: boolean;
+  isStaff?: boolean;
+  isOwnerManager?: boolean;
+}) {
   const granted = { ...base };
+  const contributingRoles: string[] = [];
   for (const slug of slugs) {
-    for (const [key, value] of Object.entries(catalog.find(role => role.slug === slug)?.capabilities ?? {})) {
-      granted[key] = granted[key] || value;
+    const role = catalog.find(r => r.slug === slug);
+    if (role) {
+      contributingRoles.push(role.name || slug);
+      for (const [key, value] of Object.entries(role.capabilities ?? {})) {
+        granted[key] = granted[key] || value;
+      }
     }
   }
   const known = slugs.every(slug => catalog.find(role => role.slug === slug)?.capabilities !== undefined);
+  const effectiveIsOwnerManager = isOwnerManager || slugs.includes("owner_manager");
+  const effectiveIsStaff = isStaff || slugs.includes("identity_admin");
+
   const actions = [
     ["canSensitiveWrite", "Confirmer les réservations et enregistrer les paiements"],
     ["canManageIdentity", "Gérer les collaborateurs et leurs rôles"],
@@ -93,18 +115,125 @@ function AccessSummary({ slugs, catalog, base = {}, active = true }: { slugs: st
     ["canOverrideLogistics", "Autoriser les dérogations logistiques"],
     ["canSuperAdminDelete", "Supprimer les données métier"],
   ];
-  if (!active) return <section aria-label="Résumé des droits" className="rounded-xl border border-amber-200 p-4 text-xs">
-    <h4 className="font-bold">Compte suspendu : aucun accès autorisé</h4>
-    <p>Les profils affichés sont conservés. Réactivez le compte pour consulter ses droits effectifs et les modifier.</p>
-  </section>;
-  return <section aria-label="Résumé des droits" className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-xs space-y-2">
-    <h4 className="font-bold">Vérifiez les accès avant d’enregistrer</h4>
-    <p>{active ? "Dossiers partagés de l’entreprise : ce compte peut consulter et reprendre les brouillons créés par ses collègues." : "Compte suspendu : aucune connexion autorisée. Les droits indiqués seront disponibles après réactivation."}</p>
-    {!known && <p role="status">Le serveur ne fournit pas encore le détail de certains profils. Vérifiez leurs autorisations avant attribution.</p>}
-    <ul className="space-y-1">{actions.map(([key, label]) => <li key={key}>{granted[key] ? "Autorisé" : known ? "Non autorisé" : "À vérifier"} : {label}.</li>)}</ul>
-    {!slugs.length && <p className="font-semibold">Sans rôle, le compte conserve ces accès aux brouillons. Pour bloquer toute connexion, suspendez le compte.</p>}
-    <p>Toute confirmation reste soumise au contrat signé, à l’acompte et à la disponibilité.</p>
-  </section>;
+
+  if (!active) {
+    return (
+      <section aria-label="Résumé des droits" className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 text-xs space-y-2">
+        <h4 className="font-bold text-amber-900 flex items-center gap-1.5">
+          <i className="fas fa-user-slash text-amber-600"></i>
+          Compte suspendu : aucun accès autorisé
+        </h4>
+        <p className="text-slate-600">
+          Les profils affichés sont conservés. Réactivez le compte pour consulter ses droits effectifs et lui restituer ses accès.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section aria-label="Résumé des droits" className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 text-xs space-y-3">
+      <div className="flex items-center justify-between pb-1 border-b border-indigo-100">
+        <h4 className="font-bold text-indigo-950 flex items-center gap-1.5">
+          <i className="fas fa-shield-halved text-indigo-600"></i>
+          Droits d'accès effectifs (Français simple)
+        </h4>
+        <span className="text-[10px] text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded font-semibold uppercase tracking-wider">
+          Contrat unifié
+        </span>
+      </div>
+
+      {/* Explication des cumuls et de l'origine des droits */}
+      <div className="rounded-lg bg-white/90 border border-indigo-100 p-2.5 space-y-1 text-slate-700 leading-relaxed">
+        <p className="font-semibold text-slate-900 flex items-center gap-1.5">
+          <i className="fas fa-layer-group text-indigo-500"></i>
+          Origine des droits & Règle de cumul :
+        </p>
+        <p>
+          {contributingRoles.length > 0 ? (
+            <>Les droits de ce collaborateur proviennent du cumul de ses profils actifs : <strong>{contributingRoles.join(", ")}</strong>. Chaque profil enrichit les capacités accordées ; aucun profil ne peut révoquer un droit attribué par un autre.</>
+          ) : (
+            <>Sans profil métier attribué, le compte ne dispose d'aucune habilitation opérationnelle spécifique.</>
+          )}
+        </p>
+        <p>
+          <strong>Dossiers partagés de l'entreprise :</strong> tout collaborateur actif accède en consultation et peut reprendre les brouillons partagés créés par ses collègues.
+        </p>
+        <p className="text-slate-500 text-[11px] italic">
+          Aucune réaffectation automatique : l'enregistrement n'impacte que ce collaborateur sans modifier les autres comptes.
+        </p>
+      </div>
+
+      {/* Distinction Gérant Métier vs Administration Technique */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className={`p-2.5 rounded-lg border text-[11px] transition-colors ${
+          effectiveIsOwnerManager
+            ? "bg-amber-50/90 border-amber-300 text-amber-950"
+            : "bg-slate-50/80 border-slate-200 text-slate-500"
+        }`}>
+          <div className="font-bold flex items-center gap-1.5 mb-1 text-slate-800">
+            <i className="fas fa-crown text-amber-600"></i>
+            <span>Gérant Métier (owner_manager)</span>
+            {effectiveIsOwnerManager && (
+              <span className="ml-auto text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded font-bold">Actif</span>
+            )}
+          </div>
+          <p className="leading-snug">
+            <strong>Rôle opérationnel & direction générale :</strong> arbitrage commercial, validation des devis, barèmes tarifaires et supervision globale. Distinct de l'administration technique système.
+          </p>
+        </div>
+
+        <div className={`p-2.5 rounded-lg border text-[11px] transition-colors ${
+          effectiveIsStaff
+            ? "bg-purple-50/90 border-purple-300 text-purple-950"
+            : "bg-slate-50/80 border-slate-200 text-slate-500"
+        }`}>
+          <div className="font-bold flex items-center gap-1.5 mb-1 text-slate-800">
+            <i className="fas fa-user-shield text-purple-600"></i>
+            <span>Administration Technique (is_staff)</span>
+            {effectiveIsStaff && (
+              <span className="ml-auto text-[10px] bg-purple-200 text-purple-900 px-1.5 py-0.5 rounded font-bold">Actif</span>
+            )}
+          </div>
+          <p className="leading-snug">
+            <strong>Administration des accès & sécurité :</strong> gestion des comptes et attribution des rôles. Sans pouvoir d'engagement ou de confirmation commerciale sans habilitation dédiée.
+          </p>
+        </div>
+      </div>
+
+      {!known && (
+        <p role="status" className="text-amber-800 bg-amber-50 p-2 rounded border border-amber-200">
+          Le serveur ne fournit pas encore le détail de certains profils. Vérifiez leurs autorisations avant attribution.
+        </p>
+      )}
+
+      {/* Liste des actions en clair */}
+      <ul className="space-y-1">
+        {actions.map(([key, label]) => (
+          <li key={key} className="flex items-center gap-1.5">
+            <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold ${
+              granted[key]
+                ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                : known
+                ? "bg-slate-100 text-slate-600 border border-slate-200"
+                : "bg-amber-100 text-amber-800 border border-amber-200"
+            }`}>
+              {granted[key] ? "Autorisé" : known ? "Non autorisé" : "À vérifier"}
+            </span>{" "}
+            <span className="text-slate-700">: {label}.</span>
+          </li>
+        ))}
+      </ul>
+
+      {!slugs.length && (
+        <p className="font-semibold text-slate-700">
+          Sans rôle, le compte conserve ces accès aux brouillons. Pour bloquer toute connexion, suspendez le compte.
+        </p>
+      )}
+      <p className="text-[11px] text-slate-500">
+        Toute confirmation reste soumise au contrat signé, à l’acompte et à la disponibilité.
+      </p>
+    </section>
+  );
 }
 
 export default function AdminPage({ onNavigate }: AdminPageProps) {
@@ -745,9 +874,18 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                                 </div>
                               </td>
                               <td className="py-3 px-4">
-                                {user.role_names.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1.5 max-w-xs">
-                                    {user.role_names.map((roleName, idx) => {
+                                <div className="flex flex-wrap gap-1.5 max-w-xs items-center">
+                                  {user.is_staff && (
+                                    <span
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border border-purple-300 bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800"
+                                      title="Administration Technique (is_staff) : gestion des comptes et sécurité"
+                                    >
+                                      <i className="fas fa-screwdriver-wrench text-[10px]"></i>
+                                      <span>Admin Technique</span>
+                                    </span>
+                                  )}
+                                  {user.role_names.length > 0 ? (
+                                    user.role_names.map((roleName, idx) => {
                                       const matchedRole = roles.find((r) => r.name === roleName || r.slug === roleName);
                                       const roleObj: ApplicationRole = matchedRole || {
                                         id: "",
@@ -770,13 +908,13 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                                           <span>{info.title}</span>
                                         </span>
                                       );
-                                    })}
-                                  </div>
-                                ) : (
-                                  <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-xs font-medium">
-                                    Aucun rôle
-                                  </span>
-                                )}
+                                    })
+                                  ) : !user.is_staff ? (
+                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-xs font-medium">
+                                      Aucun rôle
+                                    </span>
+                                  ) : null}
+                                </div>
                               </td>
                               <td className="py-3 px-4 text-center">
                                 {user.is_active ? (
@@ -2258,7 +2396,12 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                 </div>
               </div>
 
-              <AccessSummary slugs={newUserRoleSlugs} catalog={roles} />
+              <AccessSummary
+                slugs={newUserRoleSlugs}
+                catalog={roles}
+                isOwnerManager={newUserRoleSlugs.includes("owner_manager")}
+                isStaff={newUserRoleSlugs.includes("identity_admin")}
+              />
 
               {/* Boutons d'action */}
               <div className="pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
@@ -2437,7 +2580,14 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                 {" "}Profils retirés : {editableRoleSlugs(editingUser, roles).filter(slug => !editUserRoleSlugs.includes(slug)).map(slug => roles.find(role => role.slug === slug)?.name ?? slug).join(", ") || "aucun"}.
               </p>
               {!editingUser.is_active && <p className="text-xs text-amber-800">Réactivez ce compte pour modifier ses profils. Ses attributions sont conservées pendant la suspension.</p>}
-              <AccessSummary slugs={editUserRoleSlugs} catalog={roles} base={editingUser.base_capabilities} active={editingUser.is_active} />
+              <AccessSummary
+                slugs={editUserRoleSlugs}
+                catalog={roles}
+                base={editingUser.base_capabilities}
+                active={editingUser.is_active}
+                isStaff={editingUser.is_staff || editUserRoleSlugs.includes("identity_admin")}
+                isOwnerManager={editUserRoleSlugs.includes("owner_manager")}
+              />
 
               {/* Boutons d'action */}
               <div className="pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
