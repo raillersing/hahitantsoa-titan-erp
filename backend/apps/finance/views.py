@@ -5,7 +5,7 @@ from rest_framework import generics, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.identity.permissions import HasReservationSensitiveAccess
+from apps.identity.permissions import HasFinancialOperationAccess
 
 from .models import FinanceBankProfile
 from .serializers import (
@@ -22,7 +22,7 @@ from .services import (
 
 class FinanceBankProfileListCreateAPIView(generics.ListAPIView):
     http_method_names = ["get", "post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasFinancialOperationAccess]
     serializer_class = FinanceBankProfileSerializer
 
     def get_queryset(self):
@@ -55,6 +55,8 @@ class FinanceBankProfileListCreateAPIView(generics.ListAPIView):
                     account_label=data.pop("account_label"),
                     **data,
                 )
+        except PermissionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)
         except (DjangoValidationError, ValueError) as error:
             detail = (
                 getattr(error, "message_dict", None)
@@ -67,7 +69,7 @@ class FinanceBankProfileListCreateAPIView(generics.ListAPIView):
 
 class FinanceBankProfileUpdateAPIView(APIView):
     http_method_names = ["patch", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasFinancialOperationAccess]
 
     @extend_schema(
         request=FinanceBankProfileUpdateSerializer,
@@ -83,6 +85,8 @@ class FinanceBankProfileUpdateAPIView(APIView):
                 actor=request.user,
                 **serializer.validated_data,
             )
+        except PermissionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)
         except (DjangoValidationError, ValueError) as error:
             detail = (
                 getattr(error, "message_dict", None)

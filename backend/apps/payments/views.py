@@ -10,7 +10,10 @@ from rest_framework.views import APIView
 
 from apps.finance.models import FinanceAccount
 from apps.hahitantsoa.models import HahitantsoaEventDraft
-from apps.identity.permissions import HasReservationSensitiveAccess
+from apps.identity.permissions import (
+    HasFinancialOperationAccess,
+    HasReservationSensitiveAccess,
+)
 from apps.reservations.models import ReservationDraft
 
 from .gateway import PaymentGatewayError
@@ -88,7 +91,7 @@ class PaymentListCreateAPIView(ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method.lower() == "post":
-            return [HasReservationSensitiveAccess()]
+            return [HasFinancialOperationAccess()]
         return [permission() for permission in self.permission_classes]
 
     def get_serializer_class(self):
@@ -122,7 +125,13 @@ class PaymentListCreateAPIView(ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        payment = create_payment(actor=request.user, **serializer.validated_data)
+        try:
+            payment = create_payment(actor=request.user, **serializer.validated_data)
+        except PaymentLifecycleError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
 
 
@@ -167,7 +176,7 @@ class PaymentReminderWhatsAppAPIView(APIView):
     """Build a reviewed payment recap for an operator to open in WhatsApp."""
 
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasFinancialOperationAccess]
 
     def get(self, request):
         reservation_draft_id = request.query_params.get("reservation_draft_id")
@@ -233,7 +242,7 @@ class PaymentRetrieveAPIView(RetrieveAPIView):
 
 class PaymentConfirmAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasFinancialOperationAccess]
 
     @extend_schema(
         request=PaymentConfirmSerializer,
@@ -299,7 +308,7 @@ class PaymentCancelAPIView(APIView):
 
 class PaymentReconciliationCsvPreviewAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasFinancialOperationAccess]
 
     def post(self, request):
         serializer = ReconciliationCsvPreviewSerializer(data=request.data)
@@ -329,7 +338,7 @@ class PaymentReconciliationCsvPreviewAPIView(APIView):
 
 class PaymentReconciliationImportCommitAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasFinancialOperationAccess]
 
     def post(self, request, id):
         serializer = ReconciliationCommitSerializer(data=request.data)
@@ -354,7 +363,7 @@ class PaymentReconciliationImportCommitAPIView(APIView):
 
 class PaymentReconcileAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasFinancialOperationAccess]
 
     @extend_schema(
         responses={

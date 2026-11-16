@@ -3,9 +3,11 @@ from __future__ import annotations
 from rest_framework.permissions import BasePermission
 
 from apps.identity.authorization import (
+    FINANCIAL_OPERATION_PERMISSION_DENIED_MESSAGE,
     LOGISTICS_OVERRIDE_PERMISSION_DENIED_MESSAGE,
     RESERVATION_SENSITIVE_PERMISSION_DENIED_MESSAGE,
     is_cashbox_operator_actor,
+    is_financial_operation_actor,
     is_identity_admin_actor,
     is_inventory_management_actor,
     is_logistics_operator_actor,
@@ -44,6 +46,13 @@ class HasManagementOrFinanceAccess(BasePermission):
 
     def has_permission(self, request, view) -> bool:
         return is_management_or_finance_actor(actor=request.user)
+
+
+class HasFinancialOperationAccess(BasePermission):
+    message = FINANCIAL_OPERATION_PERMISSION_DENIED_MESSAGE
+
+    def has_permission(self, request, view) -> bool:
+        return is_financial_operation_actor(actor=request.user)
 
 
 class HasInventoryManagementAccess(BasePermission):
