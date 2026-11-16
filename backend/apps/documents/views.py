@@ -45,6 +45,8 @@ from apps.documents.serializers import (
     UploadedAttachmentSerializer,
 )
 from apps.documents.services import (
+    FINANCIAL_DOCUMENT_TYPES,
+    LOGISTICS_DOCUMENT_TYPES,
     ProformaActionError,
     create_document_instance_from_reservation_draft,
     generate_document_instance_pdf,
@@ -53,9 +55,14 @@ from apps.documents.services import (
     get_titan_proforma_draft_preview_payload_service,
     override_document_instance_content,
     prepare_contract_from_proforma,
+    require_private_document_actor,
     void_proforma,
 )
-from apps.identity.permissions import HasLogisticsOperationAccess, HasReservationSensitiveAccess
+from apps.identity.authorization import capabilities_for_persisted_actor
+from apps.identity.permissions import (
+    HasPrivateDocumentAccess,
+    HasReservationSensitiveAccess,
+)
 from apps.reservations.models import ReservationDraft
 
 
@@ -621,7 +628,7 @@ class TitanProformaDraftPreviewAPIView(APIView):
 
 class DocumentInstancePrivateArtifactAPIView(APIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasLogisticsOperationAccess]
+    permission_classes = [HasPrivateDocumentAccess]
 
     @extend_schema(
         responses={
@@ -708,7 +715,7 @@ def active_reservation_drafts_for_document_runtime():
 
 class ReservationDraftDocumentInstanceListCreateAPIView(ListCreateAPIView):
     http_method_names = ["get", "post", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasPrivateDocumentAccess]
 
     def get_serializer_class(self):
         if self.request.method.lower() == "post":
@@ -723,7 +730,18 @@ class ReservationDraftDocumentInstanceListCreateAPIView(ListCreateAPIView):
 
     def get_queryset(self):
         reservation_draft = self.get_reservation_draft()
-        return list_document_instances_for_reservation_draft(reservation_draft=reservation_draft)
+        qs = list_document_instances_for_reservation_draft(reservation_draft=reservation_draft)
+        capabilities = capabilities_for_persisted_actor(actor=self.request.user)
+        if capabilities.get("canSensitiveWrite"):
+            return qs
+        allowed_types = set()
+        if capabilities.get("canManageFinance"):
+            allowed_types.update(FINANCIAL_DOCUMENT_TYPES)
+        if capabilities.get("canOperateLogistics"):
+            allowed_types.update(LOGISTICS_DOCUMENT_TYPES)
+        if not allowed_types:
+            return qs.none()
+        return qs.filter(document_type__in=allowed_types)
 
     @extend_schema(
         responses=DocumentInstanceSerializer(many=True),
@@ -767,7 +785,7 @@ class ReservationDraftDocumentInstanceListCreateAPIView(ListCreateAPIView):
 
 class ReservationDraftDocumentInstanceRetrieveAPIView(RetrieveAPIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasPrivateDocumentAccess]
     serializer_class = DocumentInstanceSerializer
     lookup_field = "id"
 
@@ -777,10 +795,12 @@ class ReservationDraftDocumentInstanceRetrieveAPIView(RetrieveAPIView):
             pk=self.kwargs["reservation_draft_id"],
         )
         try:
-            return get_reservation_draft_document_instance_or_404(
+            instance = get_reservation_draft_document_instance_or_404(
                 reservation_draft=reservation_draft,
                 document_instance_id=self.kwargs["id"],
             )
+            require_private_document_actor(actor=self.request.user, document_instance=instance)
+            return instance
         except DocumentInstance.DoesNotExist:
             raise Http404("Document instance not found.")
 
@@ -876,7 +896,7 @@ class ReservationDraftDocumentInstancePDFGenerateAPIView(APIView):
 
 class DocumentInstancePDFRetrieveAPIView(APIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasLogisticsOperationAccess]
+    permission_classes = [HasPrivateDocumentAccess]
 
     @extend_schema(
         responses={
@@ -1074,13 +1094,14 @@ class DocumentInstanceRetrieveAPIView(APIView):
     """Retrieve a document instance by its UUID."""
 
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasPrivateDocumentAccess]
 
     @extend_schema(responses={200: DocumentInstanceSerializer})
     def get(self, request, id):
         instance = get_document_instance_by_id(document_instance_id=id)
         if instance is None:
             raise Http404("Document instance not found.")
+        require_private_document_actor(actor=request.user, document_instance=instance)
         return Response(DocumentInstanceSerializer(instance).data, status=status.HTTP_200_OK)
 
 
@@ -1128,7 +1149,7 @@ class DocumentInstanceListAPIView(APIView):
     """Globally list document instances with optional filtering."""
 
     http_method_names = ["get", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasPrivateDocumentAccess]
 
     @extend_schema(
         parameters=[
@@ -1189,5 +1210,15 @@ class DocumentInstanceListAPIView(APIView):
             search=request.query_params.get("search"),
             ordering=request.query_params.get("ordering", "-created_at"),
         )
+        capabilities = capabilities_for_persisted_actor(actor=request.user)
+        if not capabilities.get("canSensitiveWrite"):
+            allowed_types = set()
+            if capabilities.get("canManageFinance"):
+                allowed_types.update(FINANCIAL_DOCUMENT_TYPES)
+            if capabilities.get("canOperateLogistics"):
+                allowed_types.update(LOGISTICS_DOCUMENT_TYPES)
+            if not allowed_types:
+                return Response([])
+            qs = qs.filter(document_type__in=allowed_types)
         serializer = DocumentInstanceListSerializer(qs, many=True)
         return Response(serializer.data)

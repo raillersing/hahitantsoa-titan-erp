@@ -118,30 +118,41 @@ def is_management_or_finance_actor(*, actor: object | None) -> bool:
     return access_capabilities_for_actor(actor=actor)["canManageFinance"]
 
 
-def is_financial_operation_actor(*, actor: object | None) -> bool:
+def capabilities_for_persisted_actor(*, actor: object | None) -> dict[str, bool]:
     if not is_authenticated_active_actor(actor=actor):
-        return False
+        return capabilities_for_roles([])
     actor_id = getattr(actor, "pk", None)
     if actor_id is not None and getattr(actor, "_meta", None) is not None:
         persisted = (
             User.objects.filter(pk=actor_id).only("is_active", "is_staff", "is_superuser").first()
         )
         if persisted is None or not persisted.is_active:
-            return False
-        capabilities = capabilities_for_roles(
+            return capabilities_for_roles([])
+        return capabilities_for_roles(
             user_effective_role_slugs(user=persisted),
             is_staff=persisted.is_staff is True,
             is_superuser=persisted.is_superuser is True,
         )
-        return bool(capabilities.get("canSensitiveWrite") or capabilities.get("canManageFinance"))
+    return access_capabilities_for_actor(actor=actor)
 
-    capabilities = access_capabilities_for_actor(actor=actor)
+
+def is_financial_operation_actor(*, actor: object | None) -> bool:
+    capabilities = capabilities_for_persisted_actor(actor=actor)
     return bool(capabilities.get("canSensitiveWrite") or capabilities.get("canManageFinance"))
 
 
 def require_financial_operation_actor(*, actor: object | None) -> None:
     if not is_financial_operation_actor(actor=actor):
         raise PermissionError(FINANCIAL_OPERATION_PERMISSION_DENIED_MESSAGE)
+
+
+def is_private_document_actor(*, actor: object | None) -> bool:
+    capabilities = capabilities_for_persisted_actor(actor=actor)
+    return bool(
+        capabilities.get("canSensitiveWrite")
+        or capabilities.get("canManageFinance")
+        or capabilities.get("canOperateLogistics")
+    )
 
 
 def is_inventory_management_actor(*, actor: object | None) -> bool:
