@@ -19,7 +19,10 @@ const authMock = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("./AuthContext", () => ({ useAuth: () => authMock.value }));
+vi.mock("./AuthContext", () => ({
+  useAuth: () => authMock.value,
+  useOptionalAuth: () => authMock.value,
+}));
 
 beforeEach(() => {
   window.localStorage.clear();
