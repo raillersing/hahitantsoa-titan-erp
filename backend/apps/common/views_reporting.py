@@ -8,9 +8,12 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.identity.selectors import user_effective_role_slugs
-
-from .reports import CATEGORY_KPIS, KPI_CALCULATORS, ReportCategory, can_role_view_report
+from .reports import (
+    CATEGORY_KPIS,
+    KPI_CALCULATORS,
+    ReportCategory,
+    categories_for_user_roles,
+)
 
 
 class ReportDataAPIView(APIView):
@@ -21,11 +24,8 @@ class ReportDataAPIView(APIView):
         if category not in {c.value for c in ReportCategory}:
             raise Http404("Unknown report category.")
 
-        user_roles = user_effective_role_slugs(user=request.user)
-        is_staff = getattr(request.user, "is_staff", False) is True
-        if not is_staff and not any(
-            can_role_view_report(role_slug=role, category=category) for role in user_roles
-        ):
+        allowed_categories = categories_for_user_roles(request.user)
+        if category not in allowed_categories:
             return Response(
                 {"detail": "You do not have permission to view this report category."},
                 status=403,

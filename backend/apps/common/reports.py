@@ -178,6 +178,92 @@ def can_role_export_report(*, role_slug: str, category: str) -> bool:
     return category in REPORT_ACCESS_MATRIX.get(role_slug, {}).get("export", [])
 
 
+def categories_for_user_roles(user: object | None) -> list[str]:
+    """Return the sorted list of report category slugs viewable by the user.
+
+    - Unauthenticated or inactive users: empty list.
+    - Technical administrators (is_staff or is_superuser): all ReportCategory values.
+    - Business roles: union of 'view' categories defined in REPORT_ACCESS_MATRIX.
+    - Always verifies fresh persisted status in database to protect against
+      stale in-memory privileges.
+    """
+    if user is None or getattr(user, "is_authenticated", False) is not True:
+        return []
+
+    if getattr(user, "is_active", None) is False:
+        return []
+
+    user_id = getattr(user, "pk", None)
+    if user_id is not None and getattr(user, "_meta", None) is not None:
+        from django.contrib.auth import get_user_model
+
+        user_model = get_user_model()
+        persisted = (
+            user_model.objects.filter(pk=user_id)
+            .values("is_active", "is_staff", "is_superuser")
+            .first()
+        )
+        if not persisted or not persisted["is_active"]:
+            return []
+        if persisted["is_staff"] or persisted["is_superuser"]:
+            return sorted([c.value for c in ReportCategory])
+    elif getattr(user, "is_staff", False) is True or getattr(user, "is_superuser", False) is True:
+        return sorted([c.value for c in ReportCategory])
+
+    from apps.identity.selectors import user_effective_role_slugs
+
+    role_slugs = user_effective_role_slugs(user=user)
+    allowed: set[str] = set()
+    for role in role_slugs:
+        allowed.update(REPORT_ACCESS_MATRIX.get(role, {}).get("view", []))
+
+    valid_categories = {c.value for c in ReportCategory}
+    return sorted(allowed & valid_categories)
+
+
+def export_categories_for_user_roles(user: object | None) -> list[str]:
+    """Return the sorted list of report category slugs exportable by the user.
+
+    - Unauthenticated or inactive users: empty list.
+    - Technical administrators (is_staff or is_superuser): all ReportCategory values.
+    - Business roles: union of 'export' categories defined in REPORT_ACCESS_MATRIX.
+    - Always verifies fresh persisted status in database to protect against
+      stale in-memory privileges.
+    """
+    if user is None or getattr(user, "is_authenticated", False) is not True:
+        return []
+
+    if getattr(user, "is_active", None) is False:
+        return []
+
+    user_id = getattr(user, "pk", None)
+    if user_id is not None and getattr(user, "_meta", None) is not None:
+        from django.contrib.auth import get_user_model
+
+        user_model = get_user_model()
+        persisted = (
+            user_model.objects.filter(pk=user_id)
+            .values("is_active", "is_staff", "is_superuser")
+            .first()
+        )
+        if not persisted or not persisted["is_active"]:
+            return []
+        if persisted["is_staff"] or persisted["is_superuser"]:
+            return sorted([c.value for c in ReportCategory])
+    elif getattr(user, "is_staff", False) is True or getattr(user, "is_superuser", False) is True:
+        return sorted([c.value for c in ReportCategory])
+
+    from apps.identity.selectors import user_effective_role_slugs
+
+    role_slugs = user_effective_role_slugs(user=user)
+    allowed: set[str] = set()
+    for role in role_slugs:
+        allowed.update(REPORT_ACCESS_MATRIX.get(role, {}).get("export", []))
+
+    valid_categories = {c.value for c in ReportCategory}
+    return sorted(allowed & valid_categories)
+
+
 # ----------------------------------------------------------------------
 # Period helpers
 # ----------------------------------------------------------------------

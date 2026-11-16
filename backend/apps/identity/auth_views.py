@@ -13,6 +13,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.common.reports import categories_for_user_roles
 from apps.identity.auth_serializers import SessionLoginSerializer, SessionStateSerializer
 from apps.identity.auth_services import (
     consume_login_attempt,
@@ -68,6 +69,7 @@ def _session_payload(user: object) -> dict[str, object]:
             "is_staff": bool(getattr(user, "is_staff", False)),
             "roles": sorted(user_effective_role_slugs(user=user)),
             "capabilities": access_capabilities_for_actor(actor=user),
+            "reportCategories": categories_for_user_roles(user),
         },
     }
 

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import transaction
 from django.db.models import Prefetch
 from django.http import HttpResponse
@@ -8,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.audit.services import record_audit_event_on_commit
 from apps.documents.models import DocumentInstance
 from apps.documents.pdf import DocumentPDFGenerationError
 from apps.documents.runtime import (
@@ -72,6 +75,7 @@ from apps.hahitantsoa.services import (
     resume_hahitantsoa_event_draft,
 )
 from apps.identity.permissions import (
+    HasCommercialTermsSettingsAccess,
     HasInventoryManagementAccess,
     HasLogisticsOperationAccess,
     HasReservationSensitiveAccess,
@@ -186,7 +190,7 @@ class HahitantsoaCommercialTermsAPIView(APIView):
 
     def get_permissions(self):
         if self.request.method in {"PUT", "PATCH"}:
-            return [HasSuperAdminAccess()]
+            return [HasCommercialTermsSettingsAccess()]
         return [IsAuthenticated()]
 
     @extend_schema(responses=HahitantsoaCommercialTermsSerializer)
@@ -198,11 +202,24 @@ class HahitantsoaCommercialTermsAPIView(APIView):
         request=HahitantsoaCommercialTermsSerializer,
         responses=HahitantsoaCommercialTermsSerializer,
     )
+    @transaction.atomic
     def patch(self, request):
         terms = get_hahitantsoa_commercial_terms()
         serializer = HahitantsoaCommercialTermsSerializer(terms, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save(updated_by=request.user)
+        instance = serializer.save(updated_by=request.user)
+        record_audit_event_on_commit(
+            actor=request.user,
+            action="commercial_terms.updated",
+            target_type="commercial_terms",
+            target_id=str(instance.id),
+            metadata={
+                field: str(serializer.validated_data[field])
+                if isinstance(serializer.validated_data[field], Decimal)
+                else serializer.validated_data[field]
+                for field in serializer.validated_data
+            },
+        )
         return Response(serializer.data)
 
     put = patch

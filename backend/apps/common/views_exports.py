@@ -11,9 +11,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.identity.selectors import user_effective_role_slugs
-
-from .reports import ReportCategory, can_role_export_report
+from .reports import ReportCategory, export_categories_for_user_roles
 from .services_exports import (
     BREAKAGE_REGISTER_HEADERS,
     CAUTIONS_BALANCE_HEADERS,
@@ -45,15 +43,9 @@ class CSVRenderer(BaseRenderer):
 
 
 def _check_export_permission(request: Request, categories: list[str]) -> bool:
-    """Verify that the user is staff or has export permission for at least one of the categories."""
-    if getattr(request.user, "is_staff", False) is True:
-        return True
-    user_roles = user_effective_role_slugs(user=request.user)
-    return any(
-        can_role_export_report(role_slug=role, category=cat)
-        for role in user_roles
-        for cat in categories
-    )
+    """Verify that the user has export permission for at least one of the categories."""
+    allowed = export_categories_for_user_roles(request.user)
+    return any(cat in allowed for cat in categories)
 
 
 class SalesJournalExportAPIView(APIView):

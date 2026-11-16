@@ -6,6 +6,7 @@ from apps.identity.authorization import (
     LOGISTICS_OVERRIDE_PERMISSION_DENIED_MESSAGE,
     RESERVATION_SENSITIVE_PERMISSION_DENIED_MESSAGE,
     is_cashbox_operator_actor,
+    is_commercial_terms_settings_actor,
     is_identity_admin_actor,
     is_inventory_management_actor,
     is_logistics_operator_actor,
@@ -72,3 +73,13 @@ class HasCashboxOperationAccess(BasePermission):
 
     def has_permission(self, request, view) -> bool:
         return is_cashbox_operator_actor(actor=request.user)
+
+
+class HasCommercialTermsSettingsAccess(BasePermission):
+    message = (
+        "Seul le gérant propriétaire ou un administrateur technique peut "
+        "modifier les conditions commerciales."
+    )
+
+    def has_permission(self, request, view) -> bool:
+        return is_commercial_terms_settings_actor(actor=request.user)
