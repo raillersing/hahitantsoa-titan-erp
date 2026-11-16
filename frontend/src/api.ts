@@ -2342,6 +2342,7 @@ export type SessionUser = {
   is_staff: boolean;
   roles: string[];
   capabilities?: Record<string, boolean>;
+  reportCategories?: ReportCategory[];
 };
 
 export type SessionStateResponse =
