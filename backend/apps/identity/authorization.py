@@ -123,8 +123,18 @@ def is_financial_operation_actor(*, actor: object | None) -> bool:
         return False
     actor_id = getattr(actor, "pk", None)
     if actor_id is not None and getattr(actor, "_meta", None) is not None:
-        if not User.objects.filter(pk=actor_id, is_active=True).exists():
+        persisted = (
+            User.objects.filter(pk=actor_id).only("is_active", "is_staff", "is_superuser").first()
+        )
+        if persisted is None or not persisted.is_active:
             return False
+        capabilities = capabilities_for_roles(
+            user_effective_role_slugs(user=persisted),
+            is_staff=persisted.is_staff is True,
+            is_superuser=persisted.is_superuser is True,
+        )
+        return bool(capabilities.get("canSensitiveWrite") or capabilities.get("canManageFinance"))
+
     capabilities = access_capabilities_for_actor(actor=actor)
     return bool(capabilities.get("canSensitiveWrite") or capabilities.get("canManageFinance"))
 

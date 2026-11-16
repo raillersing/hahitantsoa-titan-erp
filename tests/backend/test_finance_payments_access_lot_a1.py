@@ -285,6 +285,61 @@ def test_bank_profile_create_refuses_stale_in_memory_deactivated_accountant():
     assert not FinanceAccount.objects.filter(code="BANK-STALE-01").exists()
 
 
+def test_bank_profile_create_refuses_stale_in_memory_revoked_staff_privileges():
+    # User created with is_staff=True without specific financial/sensitive application role
+    staff_user = User.objects.create_user(
+        username="stale-staff-user",
+        email="stale-staff@example.com",
+        password="test-password-123",
+        is_staff=True,
+        is_active=True,
+    )
+    client = _client_for(staff_user)
+
+    # In database, revoke staff privilege without updating the in-memory staff_user object
+    User.objects.filter(pk=staff_user.pk).update(is_staff=False, is_superuser=False)
+    assert staff_user.is_staff is True
+
+    response = client.post(
+        "/api/v1/finance/banks/",
+        {
+            "business_scope": "titan",
+            "account_code": "BANK-REVOKED-STAFF-01",
+            "account_label": "Compte Revoked Staff",
+            "bank_name": "BOA",
+            "account_holder": "Titan SARL",
+            "rib": "000010000200099",
+        },
+        format="json",
+    )
+    assert response.status_code == 403
+    assert not FinanceAccount.objects.filter(code="BANK-REVOKED-STAFF-01").exists()
+
+
+def test_bank_profile_service_refuses_stale_in_memory_revoked_staff_privileges():
+    staff_user = User.objects.create_user(
+        username="stale-staff-srv",
+        email="stale-staff-srv@example.com",
+        password="test-password-123",
+        is_staff=True,
+        is_active=True,
+    )
+    account = _create_test_bank_account("BANK-REV-SRV-01")
+
+    # In database, revoke staff privilege
+    User.objects.filter(pk=staff_user.pk).update(is_staff=False, is_superuser=False)
+    assert staff_user.is_staff is True
+
+    with pytest.raises(PermissionError):
+        create_finance_bank_profile(
+            account=account,
+            actor=staff_user,
+            bank_name="Banque Revoked",
+            account_holder="Titan",
+            rib="000010000200098",
+        )
+
+
 def test_bank_profile_service_direct_authorization_and_refusal():
     accountant = _create_accountant_user("acct-srv-direct")
     sensitive_op = _create_sensitive_user("sens-srv-direct")
