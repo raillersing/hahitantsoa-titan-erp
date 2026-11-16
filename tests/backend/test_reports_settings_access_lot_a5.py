@@ -465,7 +465,9 @@ def test_commercial_terms_patch_preserves_historical_records(client: Client) -> 
         create_document_instance_from_hahitantsoa_event_draft,
         generate_hahitantsoa_event_draft_document_instance_html,
     )
-    from apps.hahitantsoa.services import calculate_hahitantsoa_eve_access_window
+    from apps.hahitantsoa.commercial_terms import (
+        get_hahitantsoa_contract_article_3_access_text,
+    )
 
     start_at = timezone.now() + timedelta(days=10)
     end_at = start_at + timedelta(hours=6)
@@ -494,18 +496,13 @@ def test_commercial_terms_patch_preserves_historical_records(client: Client) -> 
         event_draft=draft,
         template_key="hahitantsoa.proforma.v1",
     )
-    generate_hahitantsoa_event_draft_document_instance_html(document_instance=doc)
+    generate_hahitantsoa_event_draft_document_instance_html(document_instance_id=doc.id)
     doc.refresh_from_db()
     original_html = doc.html_content
 
-    # Verify eve access window calculation remains functional and dependent
-    # on eve occupation (DEC-009)
-    eve_window = calculate_hahitantsoa_eve_access_window(
-        target_event_start_at=start_at,
-        venue_key="hahitantsoa-default-space",
-    )
-    assert eve_window is not None
-    assert eve_window.is_occupied_on_eve is False
+    # Verify Article 3 eve access schedule calculation (DEC-009)
+    article_3_text = get_hahitantsoa_contract_article_3_access_text(event_draft=draft)
+    assert "15 heures 30" in article_3_text  # Case 1: no prior event on D-1
 
     # Update terms via owner_manager PATCH with radically higher rates
     owner = User.objects.create_user(username="owner-history", password="pwd")
@@ -535,10 +532,6 @@ def test_commercial_terms_patch_preserves_historical_records(client: Client) -> 
     doc.refresh_from_db()
     assert doc.html_content == original_html
 
-    # Ensure eve window calculation is not affected by commercial terms patch
-    post_patch_window = calculate_hahitantsoa_eve_access_window(
-        target_event_start_at=start_at,
-        venue_key="hahitantsoa-default-space",
-    )
-    assert post_patch_window.is_occupied_on_eve == eve_window.is_occupied_on_eve
-    assert post_patch_window.allowed_start_at == eve_window.allowed_start_at
+    # Ensure Article 3 access schedule is computed dynamically and untouched by terms patch
+    post_patch_article_3 = get_hahitantsoa_contract_article_3_access_text(event_draft=draft)
+    assert post_patch_article_3 == article_3_text
