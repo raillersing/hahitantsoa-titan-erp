@@ -13,6 +13,7 @@ from apps.identity.authorization import (
     is_management_or_finance_actor,
     is_reservation_sensitive_actor,
     is_super_admin_actor,
+    is_support_management_actor,
 )
 
 IDENTITY_ADMIN_PERMISSION_DENIED_MESSAGE = "Actor is not allowed to manage identity roles."
@@ -72,3 +73,10 @@ class HasCashboxOperationAccess(BasePermission):
 
     def has_permission(self, request, view) -> bool:
         return is_cashbox_operator_actor(actor=request.user)
+
+
+class HasSupportManagementAccess(BasePermission):
+    message = "Accès réservé aux gestionnaires de support et administrateurs."
+
+    def has_permission(self, request, view) -> bool:
+        return is_support_management_actor(actor=request.user)
