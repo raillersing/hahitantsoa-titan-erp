@@ -314,7 +314,15 @@ def test_commercial_terms_patch_owner_manager_without_staff_succeeds(
 
     payload = {
         "contract_validity_days": 25,
+        "base_space_rental_amount": "7000000.00",
+        "included_guest_count": 300,
+        "excess_guest_amount": "6000.00",
         "bare_deposit_amount": "1200000.00",
+        "logistics_deposit_amount": "1800000.00",
+        "night_option_1_amount": "350000.00",
+        "night_option_2_amount": "550000.00",
+        "night_security_amount": "200000.00",
+        "caution_amount": "600000.00",
     }
     with django_capture_on_commit_callbacks(execute=True):
         response = client.patch(
@@ -325,15 +333,31 @@ def test_commercial_terms_patch_owner_manager_without_staff_succeeds(
     assert response.status_code == 200
     data = response.json()
     assert data["contract_validity_days"] == 25
+    assert Decimal(str(data["base_space_rental_amount"])) == Decimal("7000000.00")
+    assert data["included_guest_count"] == 300
+    assert Decimal(str(data["excess_guest_amount"])) == Decimal("6000.00")
     assert Decimal(str(data["bare_deposit_amount"])) == Decimal("1200000.00")
+    assert Decimal(str(data["logistics_deposit_amount"])) == Decimal("1800000.00")
+    assert Decimal(str(data["night_option_1_amount"])) == Decimal("350000.00")
+    assert Decimal(str(data["night_option_2_amount"])) == Decimal("550000.00")
+    assert Decimal(str(data["night_security_amount"])) == Decimal("200000.00")
+    assert Decimal(str(data["caution_amount"])) == Decimal("600000.00")
 
     # Verify persisted in database
     terms.refresh_from_db()
     assert terms.contract_validity_days == 25
+    assert terms.base_space_rental_amount == Decimal("7000000.00")
+    assert terms.included_guest_count == 300
+    assert terms.excess_guest_amount == Decimal("6000.00")
     assert terms.bare_deposit_amount == Decimal("1200000.00")
+    assert terms.logistics_deposit_amount == Decimal("1800000.00")
+    assert terms.night_option_1_amount == Decimal("350000.00")
+    assert terms.night_option_2_amount == Decimal("550000.00")
+    assert terms.night_security_amount == Decimal("200000.00")
+    assert terms.caution_amount == Decimal("600000.00")
     assert terms.updated_by == owner
 
-    # Verify AuditEvent recorded
+    # Verify AuditEvent recorded with all modified fields
     audit = AuditEvent.objects.filter(
         action="commercial_terms.updated",
         target_type="commercial_terms",
@@ -342,6 +366,11 @@ def test_commercial_terms_patch_owner_manager_without_staff_succeeds(
     assert audit is not None
     assert audit.actor == owner
     assert audit.metadata["contract_validity_days"] == 25
+    assert audit.metadata["base_space_rental_amount"] == "7000000.00"
+    assert audit.metadata["included_guest_count"] == 300
+    assert audit.metadata["excess_guest_amount"] == "6000.00"
+    assert audit.metadata["bare_deposit_amount"] == "1200000.00"
+    assert audit.metadata["logistics_deposit_amount"] == "1800000.00"
 
 
 def test_commercial_terms_patch_superadmin_succeeds(client: Client) -> None:
@@ -425,11 +454,18 @@ def test_commercial_terms_patch_stale_in_memory_revocation_refused(client: Clien
 def test_commercial_terms_patch_preserves_historical_records(client: Client) -> None:
     """Historical preservation: updating commercial terms must not alter
 
-    existing draft totals or contracts retroactively.
+    existing draft totals, contracts, or generated document instances retroactively.
+    Also verifies that computed eve access windows (DEC-009) remain protected.
     """
     from datetime import timedelta
 
     from django.utils import timezone
+
+    from apps.documents.services import (
+        create_document_instance_from_hahitantsoa_event_draft,
+        generate_hahitantsoa_event_draft_document_instance_html,
+    )
+    from apps.hahitantsoa.services import calculate_hahitantsoa_eve_access_window
 
     start_at = timezone.now() + timedelta(days=10)
     end_at = start_at + timedelta(hours=6)
@@ -452,19 +488,57 @@ def test_commercial_terms_patch_preserves_historical_records(client: Client) -> 
         required_deposit_amount=Decimal("1000000.00"),
     )
     original_space_rental = draft.space_rental_amount
+    original_deposit = draft.required_deposit_amount
 
-    # Update terms via owner_manager PATCH
+    doc = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft,
+        template_key="hahitantsoa.proforma.v1",
+    )
+    generate_hahitantsoa_event_draft_document_instance_html(document_instance=doc)
+    doc.refresh_from_db()
+    original_html = doc.html_content
+
+    # Verify eve access window calculation remains functional and dependent
+    # on eve occupation (DEC-009)
+    eve_window = calculate_hahitantsoa_eve_access_window(
+        target_event_start_at=start_at,
+        venue_key="hahitantsoa-default-space",
+    )
+    assert eve_window is not None
+    assert eve_window.is_occupied_on_eve is False
+
+    # Update terms via owner_manager PATCH with radically higher rates
     owner = User.objects.create_user(username="owner-history", password="pwd")
     _assign_role(owner, "owner_manager")
     client.force_login(owner)
 
     response = client.patch(
         "/api/v1/hahitantsoa/commercial-terms/",
-        data=json.dumps({"base_space_rental_amount": "8000000.00"}),
+        data=json.dumps(
+            {
+                "base_space_rental_amount": "9500000.00",
+                "bare_deposit_amount": "2000000.00",
+                "contract_validity_days": 45,
+                "excess_guest_amount": "10000.00",
+            }
+        ),
         content_type="application/json",
     )
     assert response.status_code == 200
 
-    # Ensure existing draft is NOT modified retroactively
+    # Ensure existing draft space rental and deposit amounts are NOT modified retroactively
     draft.refresh_from_db()
     assert draft.space_rental_amount == original_space_rental
+    assert draft.required_deposit_amount == original_deposit
+
+    # Ensure existing generated document instance HTML and snapshot remain unchanged
+    doc.refresh_from_db()
+    assert doc.html_content == original_html
+
+    # Ensure eve window calculation is not affected by commercial terms patch
+    post_patch_window = calculate_hahitantsoa_eve_access_window(
+        target_event_start_at=start_at,
+        venue_key="hahitantsoa-default-space",
+    )
+    assert post_patch_window.is_occupied_on_eve == eve_window.is_occupied_on_eve
+    assert post_patch_window.allowed_start_at == eve_window.allowed_start_at
