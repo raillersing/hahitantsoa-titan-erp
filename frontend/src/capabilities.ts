@@ -1,30 +1,62 @@
 import type { SessionUser } from "./api";
+import type { ReportCategory } from "./types";
 
 /**
- * Capabilities are a presentation hint derived from the backend session.
+ * Capabilities are a presentation hint derived strictly from the backend session.
  * The backend remains authoritative for every read/write request.
+ * No capabilities are deduced from role names in the frontend.
  */
 export type FrontendCapabilities = {
   canManageIdentity: boolean;
   canViewAudit: boolean;
   canSensitiveWrite: boolean;
   canSuperAdminDelete: boolean;
+  canManageFinance: boolean;
+  canManageInventory: boolean;
+  canOperateLogistics: boolean;
+  canOperateCashbox: boolean;
+  canSuperviseCashbox: boolean;
+  canOverrideLogistics?: boolean;
+  canViewPayroll?: boolean;
+  canEditPayroll?: boolean;
+  canActivatePayroll?: boolean;
 };
 
-const RESERVATION_SENSITIVE_ROLE = "reservation_sensitive_operator";
-const IDENTITY_ADMIN_ROLE = "identity_admin";
-
-function hasRole(user: SessionUser, role: string): boolean {
-  return user.roles.includes(role);
-}
+export const CANONICAL_REPORT_CATEGORIES: readonly ReportCategory[] = [
+  "reservations",
+  "sales_billing",
+  "payments",
+  "prospects",
+  "logistics",
+  "inventory",
+  "documents",
+] as const;
 
 export function capabilitiesForUser(user: SessionUser): FrontendCapabilities {
-  const canSensitiveWrite = user.capabilities?.canSensitiveWrite ?? (user.is_staff || hasRole(user, RESERVATION_SENSITIVE_ROLE));
+  const caps = user.capabilities ?? {};
 
   return {
-    canManageIdentity: user.capabilities?.canManageIdentity ?? (user.is_staff || hasRole(user, IDENTITY_ADMIN_ROLE)),
-    canViewAudit: user.capabilities?.canViewAudit ?? canSensitiveWrite,
-    canSensitiveWrite,
-    canSuperAdminDelete: user.capabilities?.canSuperAdminDelete ?? user.is_staff,
+    canManageIdentity: caps.canManageIdentity === true,
+    canViewAudit: caps.canViewAudit === true,
+    canSensitiveWrite: caps.canSensitiveWrite === true,
+    canSuperAdminDelete: caps.canSuperAdminDelete === true,
+    canManageFinance: caps.canManageFinance === true,
+    canManageInventory: caps.canManageInventory === true,
+    canOperateLogistics: caps.canOperateLogistics === true,
+    canOperateCashbox: caps.canOperateCashbox === true,
+    canSuperviseCashbox: caps.canSuperviseCashbox === true,
+    canOverrideLogistics: caps.canOverrideLogistics === true,
+    canViewPayroll: caps.canViewPayroll === true,
+    canEditPayroll: caps.canEditPayroll === true,
+    canActivatePayroll: caps.canActivatePayroll === true,
   };
+}
+
+export function reportCategoriesForUser(user: SessionUser): ReportCategory[] {
+  if (!Array.isArray(user.reportCategories)) {
+    return [];
+  }
+  return user.reportCategories.filter((category): category is ReportCategory =>
+    (CANONICAL_REPORT_CATEGORIES as readonly string[]).includes(category)
+  );
 }
