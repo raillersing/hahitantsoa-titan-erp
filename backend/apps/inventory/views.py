@@ -175,7 +175,7 @@ class InventoryStorageLocationListCreateAPIView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method.lower() == "post":
-            return [HasReservationSensitiveAccess()]
+            return [HasInventoryManagementAccess()]
         return [permission() for permission in self.permission_classes]
 
     def get_queryset(self):

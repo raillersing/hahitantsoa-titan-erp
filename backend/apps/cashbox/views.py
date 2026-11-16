@@ -85,6 +85,8 @@ class CashboxSessionOpenAPIView(APIView):
             serializer.validated_data["cash_account"] = None
         try:
             session = open_cashbox_session(actor=request.user, **serializer.validated_data)
+        except PermissionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)
         except CashboxLifecycleError as error:
             return _lifecycle_error_response(error)
         return Response(CashboxSessionSerializer(session).data, status=status.HTTP_201_CREATED)
@@ -124,6 +126,8 @@ class CashboxSessionCountSubmitAPIView(APIView):
             raise Http404("Cashbox session not found.")
         try:
             submit_cashbox_count(session=session, actor=request.user, **serializer.validated_data)
+        except PermissionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)
         except CashboxLifecycleError as error:
             return _lifecycle_error_response(error)
         session.refresh_from_db()
@@ -226,6 +230,8 @@ class CashboxMovementCreateAPIView(APIView):
             movement = record_cashbox_movement(
                 session=session, actor=request.user, **serializer.validated_data
             )
+        except PermissionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)
         except CashboxLifecycleError as error:
             return _lifecycle_error_response(error)
         return Response(CashboxMovementSerializer(movement).data, status=status.HTTP_201_CREATED)
