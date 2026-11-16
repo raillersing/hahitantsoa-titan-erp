@@ -496,9 +496,14 @@ def test_commercial_terms_patch_preserves_historical_records(client: Client) -> 
         event_draft=draft,
         template_key="hahitantsoa.proforma.v1",
     )
-    generate_hahitantsoa_event_draft_document_instance_html(document_instance_id=doc.id)
+    generate_hahitantsoa_event_draft_document_instance_html(
+        event_draft=draft,
+        document_instance_id=doc.id,
+    )
     doc.refresh_from_db()
-    original_html = doc.html_content
+    original_checksum = doc.content_checksum
+    original_validity_days = doc.proforma_validity_days
+    assert doc.status == "generated"
 
     # Verify Article 3 eve access schedule calculation (DEC-009)
     article_3_text = get_hahitantsoa_contract_article_3_access_text(event_draft=draft)
@@ -528,9 +533,10 @@ def test_commercial_terms_patch_preserves_historical_records(client: Client) -> 
     assert draft.space_rental_amount == original_space_rental
     assert draft.required_deposit_amount == original_deposit
 
-    # Ensure existing generated document instance HTML and snapshot remain unchanged
+    # Ensure existing generated document instance checksum and validity remain unchanged
     doc.refresh_from_db()
-    assert doc.html_content == original_html
+    assert doc.content_checksum == original_checksum
+    assert doc.proforma_validity_days == original_validity_days
 
     # Ensure Article 3 access schedule is computed dynamically and untouched by terms patch
     post_patch_article_3 = get_hahitantsoa_contract_article_3_access_text(event_draft=draft)
