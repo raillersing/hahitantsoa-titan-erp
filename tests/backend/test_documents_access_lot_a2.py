@@ -426,11 +426,11 @@ def test_read_time_generation_rejected_for_unauthorized_actor(
 
 
 # -----------------------------------------------------------------------------
-# 4. Dossier & Global List Filtering
+# 4. Direct UUID and Dossier Detail Route Access Controls
 # -----------------------------------------------------------------------------
 
 
-def test_dossier_and_global_list_filtering(
+def test_direct_and_dossier_instance_access_controls(
     commercial_colleague_1: User,
     accountant: User,
     logistics_operator: User,
@@ -438,7 +438,6 @@ def test_dossier_and_global_list_filtering(
     shared_reservation_draft: ReservationDraft,
     shared_customer: Customer,
 ):
-    # Create 1 invoice, 1 delivery_note, 1 contract
     inv = _create_doc_instance(
         document_type="invoice",
         reservation_draft=shared_reservation_draft,
@@ -458,58 +457,81 @@ def test_dossier_and_global_list_filtering(
         prepared_by=commercial_colleague_1,
     )
 
-    # 1. Commercial sees all 3
+    # 1. Commercial can retrieve all 3 via direct UUID and dossier route
     client_comm = APIClient()
     client_comm.force_authenticate(user=commercial_colleague_1)
-    res_dossier_comm = client_comm.get(
-        f"/api/v1/documents/reservation-drafts/{shared_reservation_draft.id}/instances/"
-    )
-    assert res_dossier_comm.status_code == 200
-    ids_comm = {item["id"] for item in res_dossier_comm.data}
-    assert {str(inv.id), str(dn.id), str(ctr.id)}.issubset(ids_comm)
+    for doc in (inv, dn, ctr):
+        assert client_comm.get(f"/api/v1/documents/instances/{doc.id}/").status_code == 200
+        assert (
+            client_comm.get(
+                f"/api/v1/documents/reservation-drafts/{shared_reservation_draft.id}/instances/{doc.id}/"
+            ).status_code
+            == 200
+        )
 
-    # 2. Accountant sees only financial (invoice), neither delivery_note nor contract
+    # 2. Accountant can retrieve invoice, but is strictly forbidden (403)
+    # from delivery_note and contract
     client_acc = APIClient()
     client_acc.force_authenticate(user=accountant)
-    res_dossier_acc = client_acc.get(
-        f"/api/v1/documents/reservation-drafts/{shared_reservation_draft.id}/instances/"
-    )
-    assert res_dossier_acc.status_code == 200
-    ids_acc = {item["id"] for item in res_dossier_acc.data}
-    assert str(inv.id) in ids_acc
-    assert str(dn.id) not in ids_acc
-    assert str(ctr.id) not in ids_acc
-
-    # Global list for accountant
-    res_global_acc = client_acc.get("/api/v1/documents/instances/")
-    assert res_global_acc.status_code == 200
-    global_ids_acc = {item["id"] for item in res_global_acc.data}
-    assert str(inv.id) in global_ids_acc
-    assert str(dn.id) not in global_ids_acc
-    assert str(ctr.id) not in global_ids_acc
-
-    # 3. Logistics sees only logistics (delivery_note), neither invoice nor contract
-    client_log = APIClient()
-    client_log.force_authenticate(user=logistics_operator)
-    res_dossier_log = client_log.get(
-        f"/api/v1/documents/reservation-drafts/{shared_reservation_draft.id}/instances/"
-    )
-    assert res_dossier_log.status_code == 200
-    ids_log = {item["id"] for item in res_dossier_log.data}
-    assert str(dn.id) in ids_log
-    assert str(inv.id) not in ids_log
-    assert str(ctr.id) not in ids_log
-
-    # 4. Unprivileged gets 403 on both
-    client_unp = APIClient()
-    client_unp.force_authenticate(user=unprivileged_user)
+    assert client_acc.get(f"/api/v1/documents/instances/{inv.id}/").status_code == 200
     assert (
-        client_unp.get(
-            f"/api/v1/documents/reservation-drafts/{shared_reservation_draft.id}/instances/"
+        client_comm.get(
+            f"/api/v1/documents/reservation-drafts/{shared_reservation_draft.id}/instances/{inv.id}/"
+        ).status_code
+        == 200
+    )
+    assert client_acc.get(f"/api/v1/documents/instances/{dn.id}/").status_code == 403
+    assert (
+        client_acc.get(
+            f"/api/v1/documents/reservation-drafts/{shared_reservation_draft.id}/instances/{dn.id}/"
         ).status_code
         == 403
     )
-    assert client_unp.get("/api/v1/documents/instances/").status_code == 403
+    assert client_acc.get(f"/api/v1/documents/instances/{ctr.id}/").status_code == 403
+    assert (
+        client_acc.get(
+            f"/api/v1/documents/reservation-drafts/{shared_reservation_draft.id}/instances/{ctr.id}/"
+        ).status_code
+        == 403
+    )
+
+    # 3. Logistics can retrieve delivery_note, but is strictly forbidden (403)
+    # from invoice and contract
+    client_log = APIClient()
+    client_log.force_authenticate(user=logistics_operator)
+    assert client_log.get(f"/api/v1/documents/instances/{dn.id}/").status_code == 200
+    assert (
+        client_log.get(
+            f"/api/v1/documents/reservation-drafts/{shared_reservation_draft.id}/instances/{dn.id}/"
+        ).status_code
+        == 200
+    )
+    assert client_log.get(f"/api/v1/documents/instances/{inv.id}/").status_code == 403
+    assert (
+        client_log.get(
+            f"/api/v1/documents/reservation-drafts/{shared_reservation_draft.id}/instances/{inv.id}/"
+        ).status_code
+        == 403
+    )
+    assert client_log.get(f"/api/v1/documents/instances/{ctr.id}/").status_code == 403
+    assert (
+        client_log.get(
+            f"/api/v1/documents/reservation-drafts/{shared_reservation_draft.id}/instances/{ctr.id}/"
+        ).status_code
+        == 403
+    )
+
+    # 4. Unprivileged gets 403 on direct UUID and dossier detail
+    client_unp = APIClient()
+    client_unp.force_authenticate(user=unprivileged_user)
+    for doc in (inv, dn, ctr):
+        assert client_unp.get(f"/api/v1/documents/instances/{doc.id}/").status_code == 403
+        assert (
+            client_unp.get(
+                f"/api/v1/documents/reservation-drafts/{shared_reservation_draft.id}/instances/{doc.id}/"
+            ).status_code
+            == 403
+        )
 
 
 # -----------------------------------------------------------------------------
