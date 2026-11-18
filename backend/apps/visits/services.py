@@ -45,6 +45,11 @@ def _apply_values(*, visit: VisitAppointment, values: dict, actor: object) -> Vi
 
 @transaction.atomic
 def create_visit_appointment(*, values: dict, actor: object) -> VisitAppointment:
+    if "responsible" in values:
+        from apps.visits.selectors import is_eligible_visit_responsible
+
+        if not is_eligible_visit_responsible(user=values["responsible"]):
+            raise VisitLifecycleError("Responsible user is not eligible for visit appointments.")
     visit = VisitAppointment(created_by=actor, updated_by=actor, **values)
     if visit.reminder_at is None:
         visit.reminder_at = default_visit_reminder_at(scheduled_at=visit.scheduled_at)
@@ -67,6 +72,11 @@ def update_visit_appointment(
     locked_visit = VisitAppointment.objects.select_for_update().get(pk=visit.pk)
     if locked_visit.status != VisitStatus.SCHEDULED:
         raise VisitLifecycleError("Only scheduled visits can be updated.")
+    if "responsible" in values:
+        from apps.visits.selectors import is_eligible_visit_responsible
+
+        if not is_eligible_visit_responsible(user=values["responsible"]):
+            raise VisitLifecycleError("Responsible user is not eligible for visit appointments.")
     updated = _apply_values(visit=locked_visit, values=values, actor=actor)
     record_audit_event_on_commit(
         actor=actor,

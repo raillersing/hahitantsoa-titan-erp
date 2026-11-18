@@ -182,3 +182,92 @@ def can_assign_application_role(*, actor, role) -> bool:
         or getattr(actor, "is_staff", False) is True
         or actor_has_application_role(actor=actor, role_slug="owner_manager")
     )
+
+
+# Decision D04: Eligible roles for visit appointments
+ELIGIBLE_VISIT_RESPONSIBLE_ROLE_SLUGS = frozenset(
+    {
+        "owner_manager",
+        "manager",
+        "reservation_sensitive_operator",
+    }
+)
+
+
+def is_support_management_actor(*, actor: object | None) -> bool:
+    """Per Decision D03:
+
+    Global view and status update for bug reports are opened to owner_manager
+    and technical administrators (is_staff=True or is_superuser=True).
+    Explicit rule: canManageIdentity does NOT grant support access automatically.
+    Checks fresh persisted actor status in the database.
+    """
+    if not is_authenticated_active_actor(actor=actor):
+        return False
+
+    actor_id = getattr(actor, "pk", None)
+    if actor_id is not None and getattr(actor, "_meta", None) is not None:
+        persisted = (
+            User.objects.filter(pk=actor_id).values("is_active", "is_staff", "is_superuser").first()
+        )
+        if not persisted or not persisted["is_active"]:
+            return False
+        if persisted["is_staff"] or persisted["is_superuser"]:
+            return True
+        from apps.identity.models import UserRoleAssignment
+
+        return UserRoleAssignment.objects.filter(
+            user_id=actor_id,
+            role__slug="owner_manager",
+            role__is_active=True,
+            is_active=True,
+        ).exists()
+
+    if getattr(actor, "is_staff", False) is True or getattr(actor, "is_superuser", False) is True:
+        return True
+
+    return actor_has_application_role(actor=actor, role_slug="owner_manager")
+
+
+def is_eligible_visit_responsible_actor(*, actor: object | None) -> bool:
+    """Per Decision D04:
+
+    Active users holding role: owner_manager, manager, reservation_sensitive_operator
+    or technical privileges (is_staff=True or is_superuser=True).
+    Checks fresh persisted actor status in the database.
+    """
+    if not is_authenticated_active_actor(actor=actor):
+        return False
+
+    actor_id = getattr(actor, "pk", None)
+    if actor_id is not None and getattr(actor, "_meta", None) is not None:
+        persisted = (
+            User.objects.filter(pk=actor_id).values("is_active", "is_staff", "is_superuser").first()
+        )
+        if not persisted or not persisted["is_active"]:
+            return False
+        if persisted["is_staff"] or persisted["is_superuser"]:
+            return True
+        from apps.identity.models import UserRoleAssignment
+
+        has_role = UserRoleAssignment.objects.filter(
+            user_id=actor_id,
+            role__slug__in=ELIGIBLE_VISIT_RESPONSIBLE_ROLE_SLUGS,
+            role__is_active=True,
+            is_active=True,
+        ).exists()
+        if has_role:
+            return True
+        # Legacy group check
+        return actor_has_identity_role(
+            actor=actor, role=IdentityRole.RESERVATION_SENSITIVE_OPERATOR
+        )
+
+    if getattr(actor, "is_staff", False) is True or getattr(actor, "is_superuser", False) is True:
+        return True
+
+    for slug in ELIGIBLE_VISIT_RESPONSIBLE_ROLE_SLUGS:
+        if actor_has_application_role(actor=actor, role_slug=slug):
+            return True
+
+    return actor_has_identity_role(actor=actor, role=IdentityRole.RESERVATION_SENSITIVE_OPERATOR)
