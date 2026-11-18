@@ -88,6 +88,16 @@ def test_session_returns_minimal_authenticated_user_and_sorted_active_roles(
     assert capabilities["canManageIdentity"] is True
     assert capabilities["canSensitiveWrite"] is False
     assert capabilities["canSuperAdminDelete"] is False
+    report_categories = payload["user"].pop("reportCategories")
+    assert report_categories == [
+        "documents",
+        "inventory",
+        "logistics",
+        "payments",
+        "prospects",
+        "reservations",
+        "sales_billing",
+    ]
     assert payload == {
         "authenticated": True,
         "user": {

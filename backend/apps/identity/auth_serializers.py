@@ -13,6 +13,7 @@ class SessionUserSerializer(serializers.Serializer):
     is_staff = serializers.BooleanField()
     capabilities = serializers.DictField(child=serializers.BooleanField(), read_only=True)
     roles = serializers.ListField(child=serializers.CharField())
+    reportCategories = serializers.ListField(child=serializers.CharField(), required=False)
 
 
 class SessionStateSerializer(serializers.Serializer):

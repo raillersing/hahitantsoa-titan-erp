@@ -271,3 +271,38 @@ def is_eligible_visit_responsible_actor(*, actor: object | None) -> bool:
             return True
 
     return actor_has_identity_role(actor=actor, role=IdentityRole.RESERVATION_SENSITIVE_OPERATOR)
+
+
+def is_commercial_terms_settings_actor(*, actor: object | None) -> bool:
+    """Per Decision D02:
+
+    Allow modification of business commercial terms to owner_manager
+    and technical administrators (is_staff=True or is_superuser=True).
+    Checks fresh persisted actor status in the database to protect against
+    stale in-memory privileges.
+    """
+    if not is_authenticated_active_actor(actor=actor):
+        return False
+
+    actor_id = getattr(actor, "pk", None)
+    if actor_id is not None and getattr(actor, "_meta", None) is not None:
+        persisted = (
+            User.objects.filter(pk=actor_id).values("is_active", "is_staff", "is_superuser").first()
+        )
+        if not persisted or not persisted["is_active"]:
+            return False
+        if persisted["is_staff"] or persisted["is_superuser"]:
+            return True
+        from apps.identity.models import UserRoleAssignment
+
+        return UserRoleAssignment.objects.filter(
+            user_id=actor_id,
+            role__slug="owner_manager",
+            role__is_active=True,
+            is_active=True,
+        ).exists()
+
+    if getattr(actor, "is_staff", False) is True or getattr(actor, "is_superuser", False) is True:
+        return True
+
+    return actor_has_application_role(actor=actor, role_slug="owner_manager")
