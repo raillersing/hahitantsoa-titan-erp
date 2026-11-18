@@ -8,6 +8,7 @@ from django.db import transaction
 from apps.audit.services import record_audit_event_on_commit
 from apps.identity.authorization import (
     actor_has_application_role,
+    require_financial_operation_actor,
     require_reservation_sensitive_actor,
 )
 from apps.identity.roles import CompanyRole
@@ -52,7 +53,7 @@ def create_finance_bank_profile(
     swift_bic: str = "",
     is_default_for_documents: bool = False,
 ) -> FinanceBankProfile:
-    require_reservation_sensitive_actor(actor=actor)
+    require_financial_operation_actor(actor=actor)
     account_scope = FinanceAccount.objects.only("business_scope").get(pk=account.pk).business_scope
     locked_accounts = list(
         FinanceAccount.objects.select_for_update()
@@ -117,7 +118,7 @@ def create_finance_bank_profile_with_account(
 def configure_finance_bank_profile(
     *, profile: FinanceBankProfile, actor, is_default_for_documents: bool | None = None, **fields
 ) -> FinanceBankProfile:
-    require_reservation_sensitive_actor(actor=actor)
+    require_financial_operation_actor(actor=actor)
     account_scope = (
         FinanceBankProfile.objects.select_related("account")
         .only("account__business_scope")
@@ -207,7 +208,7 @@ def seed_fixed_financial_categories(*, actor) -> list[FinancialCategory]:
 def create_finance_account(
     *, actor, business_scope: str, code: str, label: str, kind: str
 ) -> FinanceAccount:
-    require_reservation_sensitive_actor(actor=actor)
+    require_financial_operation_actor(actor=actor)
     account = FinanceAccount(
         business_scope=business_scope,
         code=code,

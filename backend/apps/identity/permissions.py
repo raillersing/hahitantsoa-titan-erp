@@ -3,14 +3,17 @@ from __future__ import annotations
 from rest_framework.permissions import BasePermission
 
 from apps.identity.authorization import (
+    FINANCIAL_OPERATION_PERMISSION_DENIED_MESSAGE,
     LOGISTICS_OVERRIDE_PERMISSION_DENIED_MESSAGE,
     RESERVATION_SENSITIVE_PERMISSION_DENIED_MESSAGE,
     is_cashbox_operator_actor,
+    is_financial_operation_actor,
     is_identity_admin_actor,
     is_inventory_management_actor,
     is_logistics_operator_actor,
     is_logistics_override_actor,
     is_management_or_finance_actor,
+    is_private_document_actor,
     is_reservation_sensitive_actor,
     is_super_admin_actor,
     is_support_management_actor,
@@ -47,6 +50,13 @@ class HasManagementOrFinanceAccess(BasePermission):
         return is_management_or_finance_actor(actor=request.user)
 
 
+class HasFinancialOperationAccess(BasePermission):
+    message = FINANCIAL_OPERATION_PERMISSION_DENIED_MESSAGE
+
+    def has_permission(self, request, view) -> bool:
+        return is_financial_operation_actor(actor=request.user)
+
+
 class HasInventoryManagementAccess(BasePermission):
     message = "Une capacité de gestion du stock est requise."
 
@@ -73,6 +83,13 @@ class HasCashboxOperationAccess(BasePermission):
 
     def has_permission(self, request, view) -> bool:
         return is_cashbox_operator_actor(actor=request.user)
+
+
+class HasPrivateDocumentAccess(BasePermission):
+    message = "Une autorisation de consultation de document privé est requise."
+
+    def has_permission(self, request, view) -> bool:
+        return is_private_document_actor(actor=request.user)
 
 
 class HasSupportManagementAccess(BasePermission):
