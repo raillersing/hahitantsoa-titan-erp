@@ -4,7 +4,10 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.identity.permissions import HasReservationSensitiveAccess
+from apps.identity.permissions import (
+    HasFinancialOperationAccess,
+    HasReservationSensitiveAccess,
+)
 from apps.payments.models import Payment
 
 from .models import BillingRefundObligation
@@ -99,7 +102,7 @@ class BillingInvoiceRetrieveAPIView(generics.RetrieveAPIView):
 
 class BillingInvoiceSettleAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasFinancialOperationAccess]
 
     @extend_schema(
         request=BillingInvoiceSettleSerializer,
@@ -174,7 +177,7 @@ class BillingInvoiceCancelAPIView(APIView):
 
 class BillingInvoiceInstallmentCreateAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasFinancialOperationAccess]
 
     @extend_schema(
         request=BillingInstallmentScheduleCreateSerializer,
@@ -219,7 +222,7 @@ class BillingInvoiceInstallmentCreateAPIView(APIView):
 
 class BillingInstallmentAllocateAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasFinancialOperationAccess]
 
     @extend_schema(
         request=BillingInstallmentAllocateSerializer,

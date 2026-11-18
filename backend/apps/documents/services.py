@@ -1422,19 +1422,66 @@ def activate_document_template_version(*, actor, version_id):
     return version
 
 
+FINANCIAL_DOCUMENT_TYPES: frozenset[str] = frozenset(
+    {
+        "invoice",
+        "proforma",
+        "payment_receipt",
+        "payment_refund_receipt",
+        "breakage_repair_invoice",
+        "supplier_purchase_order",
+    }
+)
+
+LOGISTICS_DOCUMENT_TYPES: frozenset[str] = frozenset(
+    {
+        "delivery_note",
+        "preparation_sheet",
+        "return_note",
+        "internal_release_note",
+        "liability_release",
+        "house_rules",
+    }
+)
+
+COMMERCIAL_RESTRICTED_DOCUMENT_TYPES: frozenset[str] = frozenset(
+    {
+        "contract",
+        "contract_amendment",
+        "material_contract",
+        "material_amendment",
+    }
+)
+
+
+def is_document_instance_accessible_by_actor(*, actor: object | None, document_instance) -> bool:
+    from apps.identity.authorization import capabilities_for_persisted_actor
+
+    capabilities = capabilities_for_persisted_actor(actor=actor)
+
+    # 1. Commercial / sensitive operators have full access to all document types
+    if capabilities.get("canSensitiveWrite"):
+        return True
+
+    doc_type = getattr(document_instance, "document_type", None)
+
+    # 2. Financial operators have access only to approved financial document types
+    # (Contracts, amendments, and operational logistics documents are strictly excluded)
+    if capabilities.get("canManageFinance") and doc_type in FINANCIAL_DOCUMENT_TYPES:
+        return True
+
+    # 3. Logistics operators have access only to approved operational logistics documents
+    # (Contracts, financial invoices, receipts, and proformas are strictly excluded)
+    if capabilities.get("canOperateLogistics") and doc_type in LOGISTICS_DOCUMENT_TYPES:
+        return True
+
+    return False
+
+
 def require_private_document_actor(*, actor, document_instance):
     from django.core.exceptions import PermissionDenied
 
-    from apps.identity.authorization import (
-        is_logistics_operator_actor,
-        is_reservation_sensitive_actor,
-    )
-
-    if is_reservation_sensitive_actor(actor=actor):
-        return
-    if document_instance.document_type in {
-        "delivery_note",
-        "preparation_sheet",
-    } and is_logistics_operator_actor(actor=actor):
-        return
-    raise PermissionDenied("Vous ne disposez pas des droits requis pour ce document privé.")
+    if not is_document_instance_accessible_by_actor(
+        actor=actor, document_instance=document_instance
+    ):
+        raise PermissionDenied("Vous ne disposez pas des droits requis pour ce document privé.")

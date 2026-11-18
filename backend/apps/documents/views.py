@@ -53,9 +53,13 @@ from apps.documents.services import (
     get_titan_proforma_draft_preview_payload_service,
     override_document_instance_content,
     prepare_contract_from_proforma,
+    require_private_document_actor,
     void_proforma,
 )
-from apps.identity.permissions import HasLogisticsOperationAccess, HasReservationSensitiveAccess
+from apps.identity.permissions import (
+    HasPrivateDocumentAccess,
+    HasReservationSensitiveAccess,
+)
 from apps.reservations.models import ReservationDraft
 
 
@@ -621,7 +625,7 @@ class TitanProformaDraftPreviewAPIView(APIView):
 
 class DocumentInstancePrivateArtifactAPIView(APIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasLogisticsOperationAccess]
+    permission_classes = [HasPrivateDocumentAccess]
 
     @extend_schema(
         responses={
@@ -767,7 +771,7 @@ class ReservationDraftDocumentInstanceListCreateAPIView(ListCreateAPIView):
 
 class ReservationDraftDocumentInstanceRetrieveAPIView(RetrieveAPIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasPrivateDocumentAccess]
     serializer_class = DocumentInstanceSerializer
     lookup_field = "id"
 
@@ -777,10 +781,12 @@ class ReservationDraftDocumentInstanceRetrieveAPIView(RetrieveAPIView):
             pk=self.kwargs["reservation_draft_id"],
         )
         try:
-            return get_reservation_draft_document_instance_or_404(
+            instance = get_reservation_draft_document_instance_or_404(
                 reservation_draft=reservation_draft,
                 document_instance_id=self.kwargs["id"],
             )
+            require_private_document_actor(actor=self.request.user, document_instance=instance)
+            return instance
         except DocumentInstance.DoesNotExist:
             raise Http404("Document instance not found.")
 
@@ -876,7 +882,7 @@ class ReservationDraftDocumentInstancePDFGenerateAPIView(APIView):
 
 class DocumentInstancePDFRetrieveAPIView(APIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasLogisticsOperationAccess]
+    permission_classes = [HasPrivateDocumentAccess]
 
     @extend_schema(
         responses={
@@ -1074,13 +1080,14 @@ class DocumentInstanceRetrieveAPIView(APIView):
     """Retrieve a document instance by its UUID."""
 
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasPrivateDocumentAccess]
 
     @extend_schema(responses={200: DocumentInstanceSerializer})
     def get(self, request, id):
         instance = get_document_instance_by_id(document_instance_id=id)
         if instance is None:
             raise Http404("Document instance not found.")
+        require_private_document_actor(actor=request.user, document_instance=instance)
         return Response(DocumentInstanceSerializer(instance).data, status=status.HTTP_200_OK)
 
 

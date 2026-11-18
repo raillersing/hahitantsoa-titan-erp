@@ -1,8 +1,8 @@
-from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from apps.customers.models import Customer
 from apps.visits.models import VisitAppointment
+from apps.visits.selectors import get_eligible_visit_responsibles, is_eligible_visit_responsible
 
 
 class VisitAppointmentSerializer(serializers.ModelSerializer):
@@ -13,9 +13,16 @@ class VisitAppointmentSerializer(serializers.ModelSerializer):
     customer_display_name = serializers.CharField(source="customer.display_name", read_only=True)
     responsible_id = serializers.PrimaryKeyRelatedField(
         source="responsible",
-        queryset=get_user_model().objects.filter(is_active=True, is_staff=True),
+        queryset=get_eligible_visit_responsibles(),
     )
     responsible_username = serializers.CharField(source="responsible.username", read_only=True)
+
+    def validate_responsible(self, value):
+        if not is_eligible_visit_responsible(user=value):
+            raise serializers.ValidationError(
+                "L'utilisateur sélectionné n'est pas éligible comme responsable de visite."
+            )
+        return value
 
     class Meta:
         model = VisitAppointment

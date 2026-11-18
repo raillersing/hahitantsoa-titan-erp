@@ -6,10 +6,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.audit.services import record_audit_event_on_commit
 from apps.hahitantsoa.models import HahitantsoaEventDraft
-from apps.identity.permissions import HasReservationSensitiveAccess
+from apps.identity.permissions import (
+    HasReservationSensitiveAccess,
+    HasSupportManagementAccess,
+)
 from apps.notifications.models import BugReport, PaymentReminderDispatch
-from apps.notifications.selectors import visible_notifications
+from apps.notifications.selectors import visible_bug_reports, visible_notifications
 from apps.notifications.serializers import (
     BugReportSerializer,
     BugReportStatusSerializer,
@@ -45,10 +49,7 @@ class BugReportListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = BugReportSerializer
 
     def get_queryset(self):
-        queryset = BugReport.objects.select_related("reporter")
-        if self.request.user.is_staff or self.request.user.is_superuser:
-            return queryset
-        return queryset.filter(reporter=self.request.user)
+        return visible_bug_reports(actor=self.request.user)
 
     def perform_create(self, serializer):
         report = serializer.save(reporter=self.request.user)
@@ -63,18 +64,27 @@ class BugReportListCreateAPIView(generics.ListCreateAPIView):
 
 class BugReportStatusAPIView(APIView):
     http_method_names = ["patch", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasSupportManagementAccess]
 
     def patch(self, request, id):
-        if not (request.user.is_staff or request.user.is_superuser):
-            return Response(
-                {"detail": "Accès administrateur requis."}, status=status.HTTP_403_FORBIDDEN
-            )
         report = get_object_or_404(BugReport.objects.select_related("reporter"), pk=id)
         serializer = BugReportStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         report.status = serializer.validated_data["status"]
         report.save(update_fields=["status", "updated_at"])
+        logger.info(
+            "bug_report_status_updated report_id=%s updated_by_id=%s status=%s",
+            report.id,
+            request.user.id,
+            report.status,
+        )
+        record_audit_event_on_commit(
+            actor=request.user,
+            action="bug_report.status_updated",
+            target_type="BugReport",
+            target_id=str(report.id),
+            metadata={"status": report.status},
+        )
         return Response(BugReportSerializer(report).data)
 
 
