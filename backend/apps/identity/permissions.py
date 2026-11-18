@@ -13,6 +13,7 @@ from apps.identity.authorization import (
     is_logistics_operator_actor,
     is_logistics_override_actor,
     is_management_or_finance_actor,
+    is_private_document_actor,
     is_reservation_sensitive_actor,
     is_super_admin_actor,
 )
@@ -81,3 +82,10 @@ class HasCashboxOperationAccess(BasePermission):
 
     def has_permission(self, request, view) -> bool:
         return is_cashbox_operator_actor(actor=request.user)
+
+
+class HasPrivateDocumentAccess(BasePermission):
+    message = "Une autorisation de consultation de document privé est requise."
+
+    def has_permission(self, request, view) -> bool:
+        return is_private_document_actor(actor=request.user)
