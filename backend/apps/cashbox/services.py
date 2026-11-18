@@ -11,7 +11,11 @@ from django.utils import timezone
 from apps.audit.services import record_audit_event_on_commit
 from apps.finance.models import FinanceAccountKind, FinanceBusinessScope, FinanceCurrency
 from apps.finance.services import create_finance_account
-from apps.identity.authorization import is_cashbox_operator_actor, require_cashbox_supervisor_actor
+from apps.identity.authorization import (
+    is_cashbox_operator_actor,
+    is_cashbox_supervisor_actor,
+    require_cashbox_supervisor_actor,
+)
 from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, PaymentMethod
 
 from .models import (
@@ -51,6 +55,48 @@ def _require_current_cashbox_session(session: CashboxSession) -> None:
             "Legacy cashbox sessions without a physical cash account are read-only.",
             code=CASHBOX_SESSION_LEGACY_ACCOUNT_UNASSIGNED,
         )
+
+
+def _get_persisted_active_actor(actor: object | None):
+    """Reload actor from persistent store to ensure active state is current."""
+    if actor is None or not getattr(actor, "is_authenticated", False):
+        return None
+    actor_id = getattr(actor, "pk", None)
+    if actor_id is None:
+        return None
+    user_model = get_user_model()
+    persisted = user_model.objects.filter(pk=actor_id).first()
+    if persisted is None or not persisted.is_active:
+        return None
+    return persisted
+
+
+def _can_operate_cashbox_session(*, session: CashboxSession, actor: object | None) -> bool:
+    """Validate that actor is authenticated, active, and authorized for this session.
+
+    Authorized actors:
+    1. Active superuser or staff.
+    2. Active user with effective cashbox supervisor capability (`canSuperviseCashbox`).
+    3. The session's operator (`session.operator_id == actor.pk`), provided they are active
+       and currently retain the cashbox operation capability (`canOperateCashbox`).
+    """
+    fresh_actor = _get_persisted_active_actor(actor)
+    if fresh_actor is None:
+        return False
+
+    # Active superuser or staff (technical maintenance / administrative override)
+    if fresh_actor.is_superuser or fresh_actor.is_staff:
+        return True
+
+    # Active supervisor with effective capability
+    if is_cashbox_supervisor_actor(actor=fresh_actor):
+        return True
+
+    # Active operator must match session AND still hold active canOperateCashbox capability
+    if session.operator_id == fresh_actor.pk:
+        return is_cashbox_operator_actor(actor=fresh_actor)
+
+    return False
 
 
 @dataclass(frozen=True)
@@ -103,7 +149,8 @@ def compute_cashbox_session_theoretical_amount(session: CashboxSession) -> Decim
 def get_or_create_operator_cash_account(
     *, operator, actor, business_scope=FinanceBusinessScope.TITAN
 ):
-    if not is_cashbox_operator_actor(actor=actor):
+    fresh_actor = _get_persisted_active_actor(actor)
+    if not is_cashbox_operator_actor(actor=fresh_actor):
         raise CashboxLifecycleError(
             "This user is not authorized to operate a cashbox.",
             code=CASHBOX_OPERATOR_NOT_AUTHORIZED,
@@ -146,6 +193,36 @@ def open_cashbox_session(
     actor: object | None = None,
     opening_note: str = "",
 ) -> CashboxSession:
+    if actor is None:
+        raise PermissionError("Un acteur authentifié et actif est requis pour ouvrir une caisse.")
+    fresh_actor = _get_persisted_active_actor(actor)
+    if fresh_actor is None:
+        raise PermissionError("L'acteur doit être authentifié et actif pour ouvrir une caisse.")
+
+    fresh_operator = _get_persisted_active_actor(operator)
+    if fresh_operator is None:
+        raise PermissionError("L'opérateur désigné pour la caisse doit être actif et habilité.")
+
+    operator_pk = fresh_operator.pk
+    actor_pk = fresh_actor.pk
+    is_technical_admin = fresh_actor.is_superuser or fresh_actor.is_staff
+
+    if actor_pk == operator_pk:
+        # Operator opening own cashbox
+        if not (is_technical_admin or is_cashbox_operator_actor(actor=fresh_actor)):
+            raise PermissionError("Cet opérateur n'a pas l'autorisation d'ouvrir une caisse.")
+    else:
+        # Cross-operator opening: only active supervisor or technical admin
+        if not (is_technical_admin or is_cashbox_supervisor_actor(actor=fresh_actor)):
+            raise PermissionError("Un opérateur ne peut ouvrir que sa propre caisse.")
+        # Target operator must also have cashbox operator capability
+        if not (
+            fresh_operator.is_superuser
+            or fresh_operator.is_staff
+            or is_cashbox_operator_actor(actor=fresh_operator)
+        ):
+            raise PermissionError("L'opérateur désigné pour la caisse doit être actif et habilité.")
+
     if cash_account is None:
         cash_account = get_or_create_operator_cash_account(operator=operator, actor=actor)
     user_model = get_user_model()
@@ -226,6 +303,8 @@ def submit_cashbox_count(
 ) -> CashboxClosureAttempt:
     locked_session = CashboxSession.objects.select_for_update().get(pk=session.pk)
     _require_current_cashbox_session(locked_session)
+    if not _can_operate_cashbox_session(session=locked_session, actor=actor):
+        raise PermissionError("Actor is not allowed to submit count for this cashbox session.")
     if not (idempotency_key or "").strip():
         raise CashboxLifecycleError(
             "Cashbox count submission requires an idempotency key.",
@@ -281,7 +360,8 @@ def validate_cashbox_count(
     actor,
     idempotency_key: str,
 ) -> CashboxClosureAttempt:
-    require_cashbox_supervisor_actor(actor=actor)
+    fresh_actor = _get_persisted_active_actor(actor)
+    require_cashbox_supervisor_actor(actor=fresh_actor)
     if not (idempotency_key or "").strip():
         raise CashboxLifecycleError(
             "Cashbox count validation requires an idempotency key.",
@@ -343,7 +423,8 @@ def reopen_cashbox_session(
 ) -> CashboxSession:
     """Reopen only a supervisor-validated close, retaining immutable proof."""
 
-    require_cashbox_supervisor_actor(actor=actor)
+    fresh_actor = _get_persisted_active_actor(actor)
+    require_cashbox_supervisor_actor(actor=fresh_actor)
     if not (reason or "").strip():
         raise CashboxLifecycleError(
             "Cashbox reopening requires a reason.",
@@ -428,6 +509,8 @@ def record_cashbox_movement(
 ) -> CashboxMovement:
     locked_session = CashboxSession.objects.select_for_update().get(pk=session.pk)
     _require_current_cashbox_session(locked_session)
+    if not _can_operate_cashbox_session(session=locked_session, actor=actor):
+        raise PermissionError("Actor is not allowed to record movements for this cashbox session.")
     if locked_session.status != "open":
         raise CashboxLifecycleError(
             "Cashbox movements require an open session.",
