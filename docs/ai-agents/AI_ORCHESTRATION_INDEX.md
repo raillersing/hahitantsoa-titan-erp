@@ -117,3 +117,8 @@ Official short starter prompts live in:
 
 Use those starters as entry points for new conversations instead of copying large prompt
 blocks by hand.
+
+## Plans d’implémentation approuvés
+
+- [Index des plans](implementation-plans/README.md).
+- [Accès utilisateurs et dossiers partagés — 16 novembre 2026](implementation-plans/access-and-shared-dossiers-2026-11-16.md) : plan approuvé, matrice normative à finaliser avant correction produit ; aucun déploiement revendiqué.
