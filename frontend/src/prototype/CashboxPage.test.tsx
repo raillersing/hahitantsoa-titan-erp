@@ -7,7 +7,10 @@ import CashboxPage from "./CashboxPage";
 import type { CashboxSession, CashboxMovement, User, ReservationDraft } from "../types";
 
 const { mockAuth } = vi.hoisted(() => ({ mockAuth: vi.fn() }));
-vi.mock("../AuthContext", () => ({ useAuth: () => mockAuth() }));
+vi.mock("../AuthContext", () => ({
+  useAuth: () => mockAuth(),
+  useOptionalAuth: () => mockAuth(),
+}));
 
 const MOCK_USER: User = {
   id: "user-1",
