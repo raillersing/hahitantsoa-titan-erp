@@ -10,6 +10,8 @@ import { ProspectConversionAssistant } from "./ProspectConversionAssistant";
 import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
 import LifecycleTimeline from "./LifecycleTimeline";
 import PaymentRegistrationModal from "./PaymentRegistrationModal";
+import { useOptionalAuth } from "../AuthContext";
+import { capabilitiesForUser } from "../capabilities";
 import { ProformaVersionHistoryModal } from "../components/ProformaVersionHistoryModal";
 import { buildProformaVersionHistory } from "../proformaVersionHistory";
 import {
@@ -173,6 +175,11 @@ export default function ReservationDetailPage({
   domain = "Titan",
 }: ReservationDetailPageProps) {
   const draftId = param || "";
+  const auth = useOptionalAuth();
+  const user = auth?.state.status === "authenticated" ? auth.state.user : null;
+  const caps = user ? capabilitiesForUser(user) : null;
+  const canSensitiveWrite = caps ? caps.canSensitiveWrite : true;
+  const canWriteFinancials = caps ? (caps.canManageFinance || caps.canSensitiveWrite) : true;
 
   /* ── data state ───────────────────────────────────────────────── */
   const [draft, setDraft] = useState<ReservationDraft | null>(null);
@@ -567,6 +574,10 @@ export default function ReservationDetailPage({
   /* ── action handlers (real API) ───────────────────────────────── */
   const handleContractSigned = async () => {
     if (!draft) return;
+    if (!canSensitiveWrite) {
+      showToast("Action non autorisée : la signature de contrat est réservée au pôle commercial.", "error");
+      return;
+    }
     setActionLoading("contract");
     try {
       const result = await markReservationDraftContractSigned(draft.id);
@@ -696,6 +707,10 @@ export default function ReservationDetailPage({
 
   const handleConfirm = async () => {
     if (!draft) return;
+    if (!canSensitiveWrite) {
+      showToast("Action non autorisée : la confirmation de réservation est réservée au pôle commercial.", "error");
+      return;
+    }
     setActionLoading("confirm");
     try {
       const result = await confirmReservationDraft(draft.id);
@@ -1650,19 +1665,21 @@ export default function ReservationDetailPage({
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setPaymentModalInitialKind("deposit");
-                  setShowPaymentModal(true);
-                }}
-                className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 font-bold text-white shadow-sm hover:bg-amber-700 text-xs transition-all cursor-pointer"
-              >
-                <i className="fa-solid fa-money-bill-transfer"></i>
-                {confirmedDepositAmount >= requiredDepositAmount
-                  ? "Encaisser un versement"
-                  : `Encaisser l'acompte (25% = ${formatMoney(depositShortfall > 0 ? depositShortfall : requiredDepositAmount)})`}
-              </button>
+              {canWriteFinancials && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentModalInitialKind("deposit");
+                    setShowPaymentModal(true);
+                  }}
+                  className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 font-bold text-white shadow-sm hover:bg-amber-700 text-xs transition-all cursor-pointer"
+                >
+                  <i className="fa-solid fa-money-bill-transfer"></i>
+                  {confirmedDepositAmount >= requiredDepositAmount
+                    ? "Encaisser un versement"
+                    : `Encaisser l'acompte (25% = ${formatMoney(depositShortfall > 0 ? depositShortfall : requiredDepositAmount)})`}
+                </button>
+              )}
             </div>
           </div>
 
@@ -1710,7 +1727,7 @@ export default function ReservationDetailPage({
             </div>
 
             <div className="flex items-center gap-2">
-              {!draft.contract_signed_at && (
+              {!draft.contract_signed_at && canSensitiveWrite && (
                 <button
                   type="button"
                   disabled={actionLoading === "contract"}
@@ -1720,7 +1737,7 @@ export default function ReservationDetailPage({
                   <i className="fa-solid fa-signature mr-1.5"></i> Marquer contrat signé
                 </button>
               )}
-              {draft.contract_signed_at && draft.required_deposit_received_at && (
+              {draft.contract_signed_at && draft.required_deposit_received_at && canSensitiveWrite && (
                 <button
                   type="button"
                   disabled={actionLoading === "confirm"}
@@ -2012,19 +2029,21 @@ export default function ReservationDetailPage({
                       <i className="fa-solid fa-file-invoice mr-1 text-indigo-600"></i> Reçu Caution
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPaymentModalInitialKind("caution");
-                      setShowPaymentModal(true);
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-2xs transition cursor-pointer"
-                  >
-                    <i className="fa-solid fa-shield-halved mr-1"></i>
-                    {cautionPaidAmount >= cautionAmount
-                      ? "Encaisser complément caution"
-                      : `+ Encaisser Caution (${formatMoney(Math.max(0, cautionAmount - cautionPaidAmount))})`}
-                  </button>
+                  {canWriteFinancials && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentModalInitialKind("caution");
+                        setShowPaymentModal(true);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-2xs transition cursor-pointer"
+                    >
+                      <i className="fa-solid fa-shield-halved mr-1"></i>
+                      {cautionPaidAmount >= cautionAmount
+                        ? "Encaisser complément caution"
+                        : `+ Encaisser Caution (${formatMoney(Math.max(0, cautionAmount - cautionPaidAmount))})`}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -2201,17 +2220,19 @@ export default function ReservationDetailPage({
               <i className="fa-solid fa-receipt text-indigo-600"></i> Paiements & Règlements enregistrés
             </h3>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setPaymentModalInitialKind(remainingAmount > 0 ? "balance" : "deposit");
-                  setShowPaymentModal(true);
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-bold transition-colors cursor-pointer"
-              >
-                <i className="fa-solid fa-plus"></i>
-                <span>Enregistrer un versement</span>
-              </button>
+              {canWriteFinancials && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentModalInitialKind(remainingAmount > 0 ? "balance" : "deposit");
+                    setShowPaymentModal(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-bold transition-colors cursor-pointer"
+                >
+                  <i className="fa-solid fa-plus"></i>
+                  <span>Enregistrer un versement</span>
+                </button>
+              )}
               <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                 {payments.length} versement{payments.length > 1 ? "s" : ""}
               </span>
@@ -2295,7 +2316,7 @@ export default function ReservationDetailPage({
           Actions sur la réservation
         </h3>
         <div className="flex flex-wrap gap-4">
-          {!draft.contract_signed_at && (
+          {!draft.contract_signed_at && canSensitiveWrite && (
             <button
               onClick={handleContractSigned}
               disabled={actionLoading === "contract"}
@@ -2310,7 +2331,7 @@ export default function ReservationDetailPage({
             </button>
           )}
 
-          {draft.contract_signed_at && !draft.required_deposit_received_at && (
+          {draft.contract_signed_at && !draft.required_deposit_received_at && canWriteFinancials && (
             <div className="flex flex-wrap items-end gap-3">
               <label className="text-xs font-semibold text-slate-600">
                 Montant de l'acompte
@@ -2367,7 +2388,8 @@ export default function ReservationDetailPage({
 
           {draftStatus === "draft" &&
             draft.contract_signed_at &&
-            draft.required_deposit_received_at && (
+            draft.required_deposit_received_at &&
+            canSensitiveWrite && (
               <button
                 onClick={handleConfirm}
                 disabled={actionLoading === "confirm"}

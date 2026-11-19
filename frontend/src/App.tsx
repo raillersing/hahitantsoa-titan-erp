@@ -50,7 +50,7 @@ import BankSettingsPage from "./prototype/BankSettingsPage";
 import HahitantsoaCommercialTermsPage from "./prototype/HahitantsoaCommercialTermsPage";
 import { RouteNotFoundPage } from "./prototype/RouteNotFoundPage";
 import { createBugReport } from "./api";
-import { capabilitiesForUser } from "./capabilities";
+import { capabilitiesForUser, reportCategoriesForUser } from "./capabilities";
 import ErrorBoundary from "./ErrorBoundary";
 
 export type { AppScope } from "./app-routes";
@@ -192,12 +192,19 @@ function App() {
     );
   }
 
+  const userReportCategories = state.status === "authenticated" ? reportCategoriesForUser(state.user) : [];
+  const isOwnerManager = state.status === "authenticated" && state.user.roles.includes("owner_manager");
+  const isStaff = state.status === "authenticated" && state.user.is_staff;
+  const canAccessCommercialTerms = isOwnerManager || isStaff;
+  const canAccessBankSettings = (capabilities?.canSensitiveWrite ?? false) || (capabilities?.canManageFinance ?? false);
+  const canViewReports = userReportCategories.length > 0 || (capabilities?.canSensitiveWrite ?? false) || isStaff;
+
   const deniedRoute = effectiveRoute.kind === "known" && (
     (effectiveRoute.scope === "admin" && capabilities && !capabilities.canManageIdentity) ||
     (effectiveRoute.scope === "audit" && capabilities && !capabilities.canViewAudit) ||
-    (effectiveRoute.scope === "reservation-new" && capabilities && !capabilities.canSensitiveWrite)
-    || (effectiveRoute.scope === "bank-settings" && capabilities && !capabilities.canSensitiveWrite)
-    || (effectiveRoute.scope === "hahitantsoa-settings" && capabilities && !capabilities.canSensitiveWrite)
+    (effectiveRoute.scope === "reservation-new" && capabilities && !capabilities.canSensitiveWrite) ||
+    (effectiveRoute.scope === "bank-settings" && capabilities && !canAccessBankSettings) ||
+    (effectiveRoute.scope === "hahitantsoa-settings" && capabilities && !canAccessCommercialTerms)
   );
 
   const renderKnownRoute = (scope: AppScope) => {
@@ -262,7 +269,7 @@ function App() {
       case "breakage-loss": return <BreakageLossPage onNavigate={navigate} param={activeParam} />;
       case "audit": return <AuditPage onNavigate={navigate} />;
       case "reports":
-        return capabilities?.canSensitiveWrite ? (
+        return canViewReports ? (
           <ReportsPage onNavigate={navigate} />
         ) : (
           <div className="p-8 text-center max-w-lg mx-auto mt-12 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
@@ -293,7 +300,7 @@ function App() {
       case "procurement": return <ProcurementPage onNavigate={navigate} />;
       case "mobile-tablet": return <MobileTabletPage onNavigate={navigate} />;
       case "bank-settings": return <BankSettingsPage />;
-      case "hahitantsoa-settings": return <HahitantsoaCommercialTermsPage canEdit={capabilities?.canSuperAdminDelete ?? false} />;
+      case "hahitantsoa-settings": return <HahitantsoaCommercialTermsPage canEdit={canAccessCommercialTerms} />;
     }
   };
 

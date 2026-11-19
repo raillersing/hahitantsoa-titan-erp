@@ -31,12 +31,12 @@ export const ROLE_PRESENTATION_CATALOG: Record<string, Omit<RolePresentationInfo
     title: "Administrateur des Accès & Sécurité",
     subtitle: "Gestion des utilisateurs, affectation des rôles et contrôle d'accès",
     category: "direction",
-    categoryLabel: "Sécurité & Accès",
+    categoryLabel: "Administration Technique",
     badgeClass: "border-purple-200 bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800",
     iconClass: "fa-user-shield text-purple-600 dark:text-purple-400",
     iconBgClass: "bg-purple-500/10 border-purple-500/20",
     targetAudience: "Responsable informatique, Direction générale ou administrateur délégué.",
-    summary: "Responsable de la création des comptes collaborateurs, de l'attribution des rôles applicatifs et de la réinitialisation des accès. Garant de la politique de sécurité de l'ERP.",
+    summary: "Administration Technique : responsable de la création des comptes collaborateurs, de l'attribution des rôles applicatifs et de la réinitialisation des accès. Distinct de la direction opérationnelle ou du gérant métier.",
     keyRights: [
       "Création, modification et suspension des comptes collaborateurs",
       "Attribution et révocation sécurisée des rôles applicatifs",
@@ -45,6 +45,7 @@ export const ROLE_PRESENTATION_CATALOG: Record<string, Omit<RolePresentationInfo
     ],
     restrictions: [
       "Ne peut pas modifier les barèmes comptables et tarifaires",
+      "Ne dispose d'aucun pouvoir d'engagement ou de confirmation commerciale sans rôle dédié",
       "Toutes les opérations d'attribution sont tracées nominativement",
     ],
     matrix: [
@@ -236,23 +237,25 @@ export const ROLE_PRESENTATION_CATALOG: Record<string, Omit<RolePresentationInfo
   },
 
   owner_manager: {
-    title: "Direction Générale & Gérant",
-    subtitle: "Pilotage stratégique, arbitrages d'exception et gouvernance globale",
+    title: "Gérant Métier & Direction Générale",
+    subtitle: "Pilotage stratégique, autorité opérationnelle globale et arbitrages d'agence",
     category: "direction",
-    categoryLabel: "Direction & Décision",
+    categoryLabel: "Gérant Métier",
     badgeClass: "border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
     iconClass: "fa-crown text-amber-600 dark:text-amber-400",
     iconBgClass: "bg-amber-500/10 border-amber-500/20",
-    targetAudience: "Gérant, propriétaire de l'entreprise, directoire.",
-    summary: "Vision et autorité complète sur l'ensemble de l'activité de l'agence. Arbitre les litiges commerciaux, autorise les dérogations exceptionnelles et consulte l'ensemble des indicateurs de rentabilité et d'audit.",
+    targetAudience: "Gérant, propriétaire de l'entreprise, directoire opérationnel.",
+    summary: "Gérant Métier opérationnel : autorité complète sur l'ensemble de l'activité de l'agence (Titan & Hahitantsoa). Arbitre les litiges commerciaux, valide les devis, modifie les barèmes tarifaires et supervise les caisses et stocks. Distinct d'un compte d'administration technique.",
     keyRights: [
       "Accès transversal à l'ensemble des modules opérationnels",
       "Validation des remises exceptionnelles et arbitrages de caution",
+      "Modification des conditions commerciales et barèmes tarifaires",
       "Consultation des tableaux de bord financiers et de performance",
       "Inspection complète de la piste d'audit de l'agence",
     ],
     restrictions: [
       "Les suppressions de données restent sécurisées (soft-delete obligatoire)",
+      "Toute modification tarifaire est non-rétroactive sur les contrats déjà signés",
     ],
     matrix: [
       { domain: "Devis & Proformas", icon: "fa-file-lines", allowed: true, actionText: "Accès total, révision et arbitrages" },

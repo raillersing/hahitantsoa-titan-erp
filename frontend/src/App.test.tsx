@@ -19,7 +19,10 @@ const authMock = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("./AuthContext", () => ({ useAuth: () => authMock.value }));
+vi.mock("./AuthContext", () => ({
+  useAuth: () => authMock.value,
+  useOptionalAuth: () => authMock.value,
+}));
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -70,6 +73,7 @@ describe("App Prototype", () => {
     authMock.value.state.user = {
       ...authMock.value.state.user,
       roles: ["reservation_sensitive_operator"],
+      capabilities: { canSensitiveWrite: true, canViewAudit: true },
     };
     window.history.replaceState(null, "", "/#reports");
     render(<App />);
@@ -161,6 +165,7 @@ describe("App Prototype", () => {
     authMock.value.state.user = {
       ...authMock.value.state.user,
       roles: ["reservation_sensitive_operator"],
+      capabilities: { canSensitiveWrite: true },
     };
     window.history.replaceState(null, "", "/#dashboard");
     render(<App />);
