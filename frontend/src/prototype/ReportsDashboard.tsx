@@ -1,7 +1,9 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { getReportCategory, downloadTabularExport } from "../api";
 import type { ReportCategory, ReportCategoryResponse, ReportKpi } from "../types";
 import { LoadingSpinner } from "../components";
+import { useOptionalAuth } from "../AuthContext";
+import { reportCategoriesForUser } from "../capabilities";
 
 interface ReportsDashboardProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -77,7 +79,24 @@ function trendIcon(trend?: number): string {
 }
 
 export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) {
+  const auth = useOptionalAuth();
+  const userCategories = useMemo(() => {
+    if (!auth || auth.state.status !== "authenticated") return [];
+    return reportCategoriesForUser(auth.state.user);
+  }, [auth]);
+
+  const availableCategories = useMemo(() => {
+    if (userCategories.length === 0) return CATEGORIES;
+    return CATEGORIES.filter((cat) => userCategories.includes(cat.key));
+  }, [userCategories]);
+
   const [activeCategory, setActiveCategory] = useState<ReportCategory>("reservations");
+
+  useEffect(() => {
+    if (userCategories.length > 0 && !userCategories.includes(activeCategory)) {
+      setActiveCategory(userCategories[0]);
+    }
+  }, [userCategories, activeCategory]);
   const [period, setPeriod] = useState<PeriodKey>("month");
   const [data, setData] = useState<ReportCategoryResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -168,7 +187,7 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
 
       {/* Category tabs */}
       <div className="flex flex-wrap gap-2">
-        {CATEGORIES.map((cat) => (
+        {availableCategories.map((cat) => (
           <button
             key={cat.key}
             onClick={() => setActiveCategory(cat.key)}

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { SessionUser } from "../api";
 import type { AppScope } from "../app-routes";
+import { capabilitiesForUser, type FrontendCapabilities } from "../capabilities";
 import { getTutorialById } from "./catalog";
 import {
   clearUserTutorialProgress,
@@ -40,22 +41,48 @@ export function TutorialProvider({
   // Capabilities are provided by the session; absent capabilities fail closed.
   const canAccessTutorial = useCallback((id: string) => {
     if (!user) return false;
-    const required: Record<string, string | string[]> = {
-      ADMIN: "canManageIdentity",
-      SETTINGS: ["canSensitiveWrite", "canManageIdentity"],
-      HR: "canViewPayroll",
-      PAYMENT: "canManageFinance", CASH: "canOperateCashbox",
-      PREP: "canOperateLogistics", DELIVERY: "canOperateLogistics", RETURN: "canOperateLogistics",
-      SETS: "canManageInventory", IMPORT: "canManageInventory", BUY: "canManageFinance",
-      "HAH-NEW": "canSensitiveWrite", "TIT-NEW": "canSensitiveWrite",
-      AMEND: "canSensitiveWrite", CLOSE: "canSensitiveWrite",
-    };
-    const capability = required[id];
-    if (!capability) return true;
-    if (Array.isArray(capability)) {
-      return capability.some((cap) => user.capabilities?.[cap] === true);
+    const caps = capabilitiesForUser(user);
+
+    if (id === "REPORT") {
+      return (
+        caps.canSensitiveWrite ||
+        caps.canManageFinance ||
+        Boolean(user.is_staff) ||
+        Boolean(user.reportCategories && user.reportCategories.length > 0)
+      );
     }
-    return user.capabilities?.[capability] === true;
+
+    if (id === "ADMIN") {
+      return caps.canManageIdentity || Boolean(user.is_staff);
+    }
+
+    if (id === "SETTINGS") {
+      return (
+        caps.canSensitiveWrite ||
+        caps.canManageFinance ||
+        caps.canManageIdentity ||
+        Boolean(user.is_staff)
+      );
+    }
+
+    const required: Record<string, (keyof FrontendCapabilities)[]> = {
+      HR: ["canViewPayroll", "canEditPayroll", "canActivatePayroll"],
+      PAYMENT: ["canManageFinance", "canSensitiveWrite"],
+      CASH: ["canOperateCashbox", "canSuperviseCashbox"],
+      PREP: ["canOperateLogistics", "canOverrideLogistics"],
+      DELIVERY: ["canOperateLogistics", "canOverrideLogistics"],
+      RETURN: ["canOperateLogistics", "canOverrideLogistics"],
+      SETS: ["canManageInventory"],
+      IMPORT: ["canManageInventory"],
+      BUY: ["canManageFinance"],
+      "HAH-NEW": ["canSensitiveWrite"],
+      "TIT-NEW": ["canSensitiveWrite"],
+      AMEND: ["canSensitiveWrite"],
+      CLOSE: ["canSensitiveWrite"],
+    };
+    const capabilityKeys = required[id];
+    if (!capabilityKeys) return true;
+    return capabilityKeys.some((cap) => caps[cap] === true);
   }, [user]);
 
   const [progress, setProgress] = useState<UserTutorialStorage>(() =>

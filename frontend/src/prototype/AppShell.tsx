@@ -7,7 +7,7 @@ import BrandIdentity, { type BrandScope } from "./BrandIdentity";
 import { useTutorial, getTutorialsForScope } from "../tutorial";
 import SecuritySessionsModal from "./SecuritySessionsModal";
 
-import type { FrontendCapabilities } from "../capabilities";
+import { type FrontendCapabilities, reportCategoriesForUser } from "../capabilities";
 
 interface AppShellProps {
   activeScope: AppScope;
@@ -115,6 +115,8 @@ export default function AppShell({
   const canManageIdentity = capabilities?.canManageIdentity ?? !hasAuthenticatedUser;
   const canViewAudit = capabilities?.canViewAudit ?? !hasAuthenticatedUser;
   const canSensitiveWrite = capabilities?.canSensitiveWrite ?? !hasAuthenticatedUser;
+  const userReportCategories = user ? reportCategoriesForUser(user) : [];
+  const canViewReports = userReportCategories.length > 0 || canSensitiveWrite || Boolean(user?.is_staff);
   const scopeHeading: Record<string, string> = {
     dashboard: "Tableau de bord",
     planning: "Planning",
@@ -452,9 +454,11 @@ export default function AppShell({
           <a href="#notifications" onClick={(e) => { e.preventDefault(); onNavigate("notifications"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "notifications" ? "active" : ""}`}>
             <i className="fas fa-bell w-5 text-center"></i><span>Notifications</span>
           </a>
-          <a href="#reports" onClick={(e) => { e.preventDefault(); onNavigate("reports"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "reports" ? "active" : ""}`}>
-            <i className="fas fa-chart-bar w-5 text-center"></i><span>Reporting</span>
-          </a>
+          {canViewReports && (
+            <a href="#reports" onClick={(e) => { e.preventDefault(); onNavigate("reports"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "reports" ? "active" : ""}`}>
+              <i className="fas fa-chart-bar w-5 text-center"></i><span>Reporting</span>
+            </a>
+          )}
           {canManageIdentity && (
             <a href="#admin" onClick={(e) => { e.preventDefault(); onNavigate("admin"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "admin" ? "active" : ""}`}>
               <i className="fas fa-cogs w-5 text-center"></i><span>Administration</span>

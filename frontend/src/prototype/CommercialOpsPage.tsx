@@ -21,6 +21,8 @@ import type {
 } from "../types";
 import { LoadingSpinner } from "../components";
 import { PaymentRegistrationModal } from "./PaymentRegistrationModal";
+import { useOptionalAuth } from "../AuthContext";
+import { capabilitiesForUser } from "../capabilities";
 
 interface CommercialOpsPageProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -117,6 +119,12 @@ function paymentMethodLabel(method: string): string {
 /* -------------------------------------------------------------------------- */
 
 export default function CommercialOpsPage({ onNavigate }: CommercialOpsPageProps) {
+  const auth = useOptionalAuth();
+  const user = auth?.state.status === "authenticated" ? auth.state.user : null;
+  const caps = user ? capabilitiesForUser(user) : null;
+  const canWriteFinancials = caps ? (caps.canManageFinance || caps.canSensitiveWrite) : true;
+  const canSensitiveWrite = caps ? caps.canSensitiveWrite : true;
+
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState<"invoices" | "schedule" | "credit_notes" | "payments">("invoices");
 
@@ -446,6 +454,10 @@ export default function CommercialOpsPage({ onNavigate }: CommercialOpsPageProps
   /* -------------------------------------------------------------------------- */
 
   const handleSettleInvoice = async (inv: BillingInvoice) => {
+    if (!canWriteFinancials) {
+      alert("Action non autorisée : permissions financières requises.");
+      return;
+    }
     if (!window.confirm(`Confirmer le règlement intégral de la facture ${inv.id.slice(0, 8)} (${formatAmount(inv.amount)} Ar) ?`)) {
       return;
     }
@@ -465,6 +477,10 @@ export default function CommercialOpsPage({ onNavigate }: CommercialOpsPageProps
   };
 
   const handleCancelInvoice = async (inv: BillingInvoice) => {
+    if (!canSensitiveWrite) {
+      alert("Action non autorisée : l'annulation de facture est réservée au pôle commercial.");
+      return;
+    }
     const reason = window.prompt("Motif d'annulation de cette facture :");
     if (reason === null) return;
 
@@ -483,6 +499,10 @@ export default function CommercialOpsPage({ onNavigate }: CommercialOpsPageProps
   const handleIssueCreditNoteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!creditNoteInvoice) return;
+    if (!canSensitiveWrite) {
+      setCreditNoteError("Action non autorisée : l'émission d'avoirs est réservée au pôle commercial.");
+      return;
+    }
     setCreditNoteSubmitting(true);
     setCreditNoteError(null);
 
@@ -929,7 +949,7 @@ export default function CommercialOpsPage({ onNavigate }: CommercialOpsPageProps
                               </button>
 
                               {/* Settle */}
-                              {inv.invoice_status === "open" && (
+                              {inv.invoice_status === "open" && canWriteFinancials && (
                                 <button
                                   type="button"
                                   disabled={actionLoadingId === inv.id}
@@ -943,7 +963,7 @@ export default function CommercialOpsPage({ onNavigate }: CommercialOpsPageProps
                               )}
 
                               {/* Issue Credit Note */}
-                              {inv.invoice_status === "settled" && (
+                              {inv.invoice_status === "settled" && canSensitiveWrite && (
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -959,7 +979,7 @@ export default function CommercialOpsPage({ onNavigate }: CommercialOpsPageProps
                               )}
 
                               {/* Cancel */}
-                              {inv.invoice_status === "open" && (
+                              {inv.invoice_status === "open" && canSensitiveWrite && (
                                 <button
                                   type="button"
                                   disabled={actionLoadingId === inv.id}
@@ -1109,14 +1129,16 @@ export default function CommercialOpsPage({ onNavigate }: CommercialOpsPageProps
                         <div className="flex items-center gap-2">
                           {item.remainingAmount > 0 && (
                             <>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenPaymentFromSchedule(item)}
-                                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
-                              >
-                                <i className="fa-solid fa-credit-card"></i>
-                                <span>Encaisser</span>
-                              </button>
+                              {canWriteFinancials && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenPaymentFromSchedule(item)}
+                                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                                >
+                                  <i className="fa-solid fa-credit-card"></i>
+                                  <span>Encaisser</span>
+                                </button>
+                              )}
 
                               <button
                                 type="button"
