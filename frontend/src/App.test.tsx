@@ -70,6 +70,7 @@ describe("App Prototype", () => {
     authMock.value.state.user = {
       ...authMock.value.state.user,
       roles: ["reservation_sensitive_operator"],
+      capabilities: { canSensitiveWrite: true, canViewAudit: true },
     };
     window.history.replaceState(null, "", "/#reports");
     render(<App />);
@@ -161,6 +162,7 @@ describe("App Prototype", () => {
     authMock.value.state.user = {
       ...authMock.value.state.user,
       roles: ["reservation_sensitive_operator"],
+      capabilities: { canSensitiveWrite: true },
     };
     window.history.replaceState(null, "", "/#dashboard");
     render(<App />);

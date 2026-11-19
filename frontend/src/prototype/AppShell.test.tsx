@@ -81,6 +81,11 @@ describe('AppShell', () => {
       canViewAudit: false,
       canSensitiveWrite: false,
       canSuperAdminDelete: false,
+      canManageFinance: false,
+      canManageInventory: false,
+      canOperateLogistics: false,
+      canOperateCashbox: false,
+      canSuperviseCashbox: false,
     };
     render(
       <AppShell
