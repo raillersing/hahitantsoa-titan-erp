@@ -45,6 +45,8 @@ import { printDocumentHtml } from "./DocumentCanvasViewer";
 import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
 import LifecycleTimeline from "./LifecycleTimeline";
 import PaymentRegistrationModal from "./PaymentRegistrationModal";
+import { useOptionalAuth } from "../AuthContext";
+import { capabilitiesForUser } from "../capabilities";
 import { ProformaVersionHistoryModal } from "../components/ProformaVersionHistoryModal";
 import { buildProformaVersionHistory } from "../proformaVersionHistory";
 import {
@@ -288,6 +290,12 @@ const AMENDMENT_APPLICANTS = [
 ];
 
 export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onBack }: Props) {
+  const auth = useOptionalAuth();
+  const user = auth?.state.status === "authenticated" ? auth.state.user : null;
+  const caps = user ? capabilitiesForUser(user) : null;
+  const canSensitiveWrite = caps ? caps.canSensitiveWrite : true;
+  const canWriteFinancials = caps ? (caps.canManageFinance || caps.canSensitiveWrite) : true;
+
   const [draft, setDraft] = useState<HahitantsoaEventDraft | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [preflight, setPreflight] = useState<HahitantsoaEventDraftConfirmationPreflight | null>(null);
@@ -656,6 +664,10 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
   const markContractSigned = async () => {
     if (!param) return;
+    if (!canSensitiveWrite) {
+      setError("Action non autorisée : la signature de contrat est réservée au pôle commercial.");
+      return;
+    }
     setBusy("contract");
     setError(null);
     setActionNotice(null);
@@ -672,6 +684,10 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
   const markExistingDepositReceived = async () => {
     if (!param) return;
+    if (!canWriteFinancials) {
+      setError("Action non autorisée : permissions financières requises.");
+      return;
+    }
     setBusy("existing-deposit");
     setError(null);
     setActionNotice(null);
@@ -688,6 +704,10 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
   const confirmDraft = async () => {
     if (!param) return;
+    if (!canSensitiveWrite) {
+      setError("Action non autorisée : la confirmation de réservation est réservée au pôle commercial.");
+      return;
+    }
     setBusy("confirm");
     setError(null);
     setActionNotice(null);
@@ -704,6 +724,10 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
   const handleCancelEvent = async () => {
     if (!param) return;
+    if (!canSensitiveWrite) {
+      setCancelError("Action non autorisée : l'annulation d'événement est réservée au pôle commercial.");
+      return;
+    }
     const trimmed = cancellationReason.trim();
     if (trimmed.length < 15) {
       setCancelError("Le motif d'annulation de force majeure doit comporter au moins 15 caractères.");
@@ -1832,7 +1856,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             </button>
           )}
 
-          {draft.status === "draft" && contractExists && !contractSigned && (
+          {draft.status === "draft" && contractExists && !contractSigned && canSensitiveWrite && (
             <button
               className="flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 font-bold text-white shadow-sm hover:bg-teal-700 disabled:opacity-50 transition-all text-sm"
               disabled={busy !== null || isContractExpired}
@@ -1843,7 +1867,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             </button>
           )}
 
-          {draft.status === "draft" && canMarkExistingDeposit && (
+          {draft.status === "draft" && canMarkExistingDeposit && canWriteFinancials && (
             <button
               className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all text-sm"
               disabled={busy !== null}
@@ -1853,7 +1877,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             </button>
           )}
 
-          {draft.status === "draft" && preflight?.can_confirm && (
+          {draft.status === "draft" && preflight?.can_confirm && canSensitiveWrite && (
             <button
               className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 transition-all text-sm"
               disabled={busy !== null}
@@ -1863,7 +1887,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             </button>
           )}
 
-          {draft.status === "confirmed" && (
+          {draft.status === "confirmed" && canSensitiveWrite && (
             <button
               type="button"
               onClick={() => setShowCancelModal(true)}
@@ -1892,21 +1916,23 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             <i className="fa-solid fa-pen-to-square"></i> Demander un avenant
           </button>
 
-          <button
-            type="button"
-            onClick={() => setShowPaymentModal(true)}
-            disabled={draft.status === "draft" && (!contractSigned || isContractExpired)}
-            title={
-              draft.status === "draft" && !contractSigned
-                ? "Le contrat doit être signé avant d'enregistrer le versement contractuel."
-                : draft.status === "draft" && isContractExpired
-                ? "Le contrat a expiré. Une nouvelle révision doit être générée."
-                : undefined
-            }
-            className="flex items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2 font-semibold text-white shadow-sm hover:bg-slate-800 text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <i className="fa-solid fa-plus"></i> Enregistrer versement
-          </button>
+          {canWriteFinancials && (
+            <button
+              type="button"
+              onClick={() => setShowPaymentModal(true)}
+              disabled={draft.status === "draft" && (!contractSigned || isContractExpired)}
+              title={
+                draft.status === "draft" && !contractSigned
+                  ? "Le contrat doit être signé avant d'enregistrer le versement contractuel."
+                  : draft.status === "draft" && isContractExpired
+                  ? "Le contrat a expiré. Une nouvelle révision doit être générée."
+                  : undefined
+              }
+              className="flex items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2 font-semibold text-white shadow-sm hover:bg-slate-800 text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <i className="fa-solid fa-plus"></i> Enregistrer versement
+            </button>
+          )}
 
           <PaymentWhatsAppReminderButton draftId={param || draft.id} businessScope="hahitantsoa" />
         </div>
@@ -2022,27 +2048,29 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setPaymentKindSelection("deposit");
-                  setShowPaymentModal(true);
-                }}
-                disabled={!contractSigned || isContractExpired}
-                title={
-                  !contractSigned
-                    ? "Le contrat doit être signé avant d'enregistrer le versement contractuel."
-                    : isContractExpired
-                    ? "Le contrat a expiré. Une nouvelle révision doit être générée."
-                    : undefined
-                }
-                className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 font-bold text-white shadow-sm hover:bg-amber-700 text-xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <i className="fa-solid fa-money-bill-transfer"></i>
-                {confirmedDepositAmount >= requiredDepositAmount
-                  ? "Encaisser un versement"
-                  : `Encaisser le versement (${formatMoney(depositShortfall > 0 ? depositShortfall : requiredDepositAmount)})`}
-              </button>
+              {canWriteFinancials && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentKindSelection("deposit");
+                    setShowPaymentModal(true);
+                  }}
+                  disabled={!contractSigned || isContractExpired}
+                  title={
+                    !contractSigned
+                      ? "Le contrat doit être signé avant d'enregistrer le versement contractuel."
+                      : isContractExpired
+                      ? "Le contrat a expiré. Une nouvelle révision doit être générée."
+                      : undefined
+                  }
+                  className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 font-bold text-white shadow-sm hover:bg-amber-700 text-xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <i className="fa-solid fa-money-bill-transfer"></i>
+                  {confirmedDepositAmount >= requiredDepositAmount
+                    ? "Encaisser un versement"
+                    : `Encaisser le versement (${formatMoney(depositShortfall > 0 ? depositShortfall : requiredDepositAmount)})`}
+                </button>
+              )}
             </div>
           </div>
 
@@ -2114,7 +2142,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   <i className="fa-solid fa-rotate mr-1.5"></i> Renouveler le contrat
                 </button>
               )}
-              {contractExists && !contractSigned && !isContractExpired && (
+              {contractExists && !contractSigned && !isContractExpired && canSensitiveWrite && (
                 <button
                   type="button"
                   disabled={busy !== null}
@@ -2124,7 +2152,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   <i className="fa-solid fa-signature mr-1.5"></i> Marquer contrat signé
                 </button>
               )}
-              {contractSigned && confirmedDepositAmount < requiredDepositAmount && !isContractExpired && (
+              {contractSigned && confirmedDepositAmount < requiredDepositAmount && !isContractExpired && canWriteFinancials && (
                 <button
                   type="button"
                   onClick={() => {
@@ -2136,7 +2164,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   <i className="fa-solid fa-money-bill-transfer mr-1.5"></i> Encaisser le versement
                 </button>
               )}
-              {preflight?.can_confirm && (
+              {preflight?.can_confirm && canSensitiveWrite && (
                 <button
                   type="button"
                   disabled={busy !== null}
@@ -2448,19 +2476,21 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                       <i className="fa-solid fa-file-invoice mr-1 text-indigo-600"></i> Reçu Caution
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPaymentKindSelection("caution");
-                      setShowPaymentModal(true);
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-2xs transition cursor-pointer"
-                  >
-                    <i className="fa-solid fa-shield-halved mr-1"></i>
-                    {cautionPaidAmount >= cautionAmount
-                      ? "Encaisser complément caution"
-                      : `+ Encaisser Caution (${formatMoney(Math.max(0, cautionAmount - cautionPaidAmount))})`}
-                  </button>
+                  {canWriteFinancials && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentKindSelection("caution");
+                        setShowPaymentModal(true);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-2xs transition cursor-pointer"
+                    >
+                      <i className="fa-solid fa-shield-halved mr-1"></i>
+                      {cautionPaidAmount >= cautionAmount
+                        ? "Encaisser complément caution"
+                        : `+ Encaisser Caution (${formatMoney(Math.max(0, cautionAmount - cautionPaidAmount))})`}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -2500,19 +2530,21 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                         <i className="fa-solid fa-file-invoice mr-1 text-purple-600"></i> Reçu Sécurité
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPaymentKindSelection("night_security");
-                        setShowPaymentModal(true);
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white font-bold text-[11px] shadow-2xs transition cursor-pointer"
-                    >
-                      <i className="fa-solid fa-moon mr-1"></i>
-                      {nightSecurityPaidAmount >= nightSecurityRequiredAmount
-                        ? "Sécurité réglée ✓"
-                        : `+ Encaisser Sécurité (${formatMoney(Math.max(0, nightSecurityRequiredAmount - nightSecurityPaidAmount))})`}
-                    </button>
+                    {canWriteFinancials && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaymentKindSelection("night_security");
+                          setShowPaymentModal(true);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white font-bold text-[11px] shadow-2xs transition cursor-pointer"
+                      >
+                        <i className="fa-solid fa-moon mr-1"></i>
+                        {nightSecurityPaidAmount >= nightSecurityRequiredAmount
+                          ? "Sécurité réglée ✓"
+                          : `+ Encaisser Sécurité (${formatMoney(Math.max(0, nightSecurityRequiredAmount - nightSecurityPaidAmount))})`}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

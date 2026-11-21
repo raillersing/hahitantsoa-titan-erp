@@ -4,7 +4,10 @@ import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
 const auth = vi.hoisted(() => ({ state: { status: "authenticated", user: { id: "A", username: "A", roles: ["commercial"] }, error: null } }));
 const pending = vi.hoisted(() => new Map<string, (value: string) => void>());
-vi.mock("./AuthContext", () => ({ useAuth: () => ({ ...auth, isOnline: true }) }));
+vi.mock("./AuthContext", () => ({
+  useAuth: () => ({ ...auth, isOnline: true }),
+  useOptionalAuth: () => ({ ...auth, isOnline: true }),
+}));
 vi.mock("./prototype/AppShell", () => ({ default: ({ children }: { children: ReactNode }) => children }));
 function Dossier({ param }: { param: string }) {
   const [value, setValue] = useState("");
