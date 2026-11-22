@@ -46,7 +46,7 @@ stacks and journeys, then implement one consolidated corrective bundle for ordin
 findings. Security, authorization, data-integrity, migration, financial, concurrency,
 CI, and release-blocking findings remain immediate corrective work.
 
-Current next bundle: **Phase Integration Checkpoint / Hardware Acceptance (Lot 8)**. The transformation cycle (Phases 1 through 12) and the post-Phase 12 Client Corrections Plan (2026-11-05, Lots 0-7, PRs #897-#901, and remaining software lots R11, R5, R9, R8 via PRs #910-#913) have been fully implemented, integrated, and verified with exact-SHA green `main` CI (`aa8e69697dfcfc2d9c193123ed50b0fecd2cb6b0`).
+Current next bundle: **Phase Integration Checkpoint / Hardware Acceptance (Lot 8) & Production Deployment Planning**. The transformation cycle (Phases 1 through 12), the post-Phase 12 Client Corrections Plan (2026-11-05, PRs #897–#901, #910–#913), and the User Access & Shared Dossiers Program (2026-11-16, Lots A0–A6 & B1–B4, PRs #929–#939) have been implemented, integrated, and verified with exact-SHA green `main` CI (`766300ff309c3cd6f87bc7a41c2d0ee5f493fa81`).
 
 ## Product target
 
@@ -87,9 +87,9 @@ authorization control, and a successful mock notification is not persistence evi
 
 ## Current program checkpoint
 
-Checkpoint date: 2026-11-07. Current verified baseline:
-`aa8e69697dfcfc2d9c193123ed50b0fecd2cb6b0`, with exact-SHA `main` CI success in run
-`42350697616` (PR #913).
+Checkpoint date: 2026-11-21. Current verified baseline:
+`766300ff309c3cd6f87bc7a41c2d0ee5f493fa81`, with exact-SHA `main` CI success in run
+`44937497927` (PR #938).
 
 | Item | Status | Evidence or limitation |
 |---|---|---|
@@ -492,3 +492,37 @@ Bounded main integration checkpoint42307733781 passed on exact
 shards, frontend and tooling. Seven journeys used the real isolated backend;
 eight scenarios qualified the observer. No client environment was exercised.
 Open original-plan implementation and physical/deployment gates remain unchanged.
+
+
+## User Access & Shared Dossiers Program (Lots A0–A6 & B1–B4) — 2026-11-21
+
+Following the client-approved implementation plan ([`access-and-shared-dossiers-2026-11-16.md`](../implementation-plans/access-and-shared-dossiers-2026-11-16.md)) and explicit human authorization for sequential controlled merge, all 11 PRs (A0–A6 backend/docs and B1–B4 frontend) were rebased onto current `main`, verified with green PR CI on each exact rebased SHA, merged via `scripts/dev/erp-pr-finalize-from-root`, and confirmed with green exact-SHA `main` CI.
+
+| Sequence | Lot | PR | Reviewed head | Merged main | Successful exact-SHA main CI |
+|---|---|---|---|---|---|
+| 1 | A0 — Normative Matrix & Implementation Plan | #930 | `42ac4fc79e5fec0841c6deb389365afe5290bf65` | `7b4f4ed47372ad7aa0891cd6c827cd71da500bf7` | [44230314872](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/44230314872) |
+| 2 | A3 — Cashbox Persistent Auth Guard & Storage Locations | #929 | `e1ce04b2c18be9ff1af2544b479990bd48fc60b0` | `d1b769012fc8abd75751300fae0c982406715de8` | [44234302143](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/44234302143) |
+| 3 | A1 — Finance D01 & `HasFinancialOperationAccess` | #931 | `8d17beac3491b8c7b61f5be3469b26f06d5c6b9c` | `47aed7b53f0efa635b61ad94462d75b1136cd1b5` | [44236792987](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/44236792987) |
+| 4 | A2 — Private Documents D05 & `HasPrivateDocumentAccess` | #932 | `6285073fc53dded9b54d286f51737954bccbf23f` | `218f2af5f999d8175456799e1ca436f1bfc76f77` | [44238435237](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/44238435237) |
+| 5 | A4 — Visits & Support D03/D04 (`HasSupportManagementAccess`) | #933 | `b341775b637c6dfc0be18f8eb0a17836ff7c6913` | `1d920604fe9fa36e747e7db55cffdd5b5d1ab094` | [44239946995](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/44239946995) |
+| 6 | A5 — Report Categories & Commercial Settings D02 (`HasCommercialTermsSettingsAccess`) | #934 | `af6270adf83978101177bb1fc67d83ad6e3025ff` | `b6a0d1f38fc7131e2d65b256695dd21fb86d03e1` | [44241134135](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/44241134135) |
+| 7 | A6 — Dedicated Multi-Role API & Real HTTP Session Recette | #939 | `c4db4d445f1713f9087c3ee9be87808eb24d0b88` | `bdc4aede4ef2c2f5521642b69a295c0e88d679c4` | [44465842613](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/44465842613) |
+| 8 | B1 — Authoritative Frontend Session Capabilities & `reportCategories` | #935 | `65e321f9c7d510240bcafcafac74988f694a7504` | `b45a3a578e77dcee3ef687fd1ec98ee0f4e18128` | [44933989144](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/44933989144) |
+| 9 | B2 — Page Visibility, Commercial Preservation & Financial Write Boundaries | #936 | `6b0fd1a9f6b63a3bfdffc96306920806ecfc8a34` | `c04dbc2fdd7e9a12af66072aad1d445b5aff5676` | [44935476100](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/44935476100) |
+| 10 | B3 — Plain-Language Rights, Cumulative Roles & Manager vs Technical Admin | #937 | `c9158d156bf1a49803fce8ecd3cb7b3f163f6c6f` | `dfc2002b341586f0cb910dc9de8588324144e65d` | [44936680327](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/44936680327) |
+| 11 | B4 — Capability-Aligned Tutorials & Multi-Role Frontend Presentation | #938 | `34f17ac97c8760e978927456ba005e6958ec2ada` | `766300ff309c3cd6f87bc7a41c2d0ee5f493fa81` | [44937497927](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/44937497927) |
+
+### Post-merge Phase Integration Checkpoint (`766300f`)
+
+- **Tree equivalence:** `git diff integration/access-lots-a0-b4-review..main` is empty (0 bytes), proving every reviewed conflict resolution and test landed identically on `main`.
+- **No schema migrations:** `manage.py check` (0 issues) and `manage.py makemigrations --check --dry-run` (`No changes detected`).
+- **Backend quality & tests:** `ruff check backend tests` and `ruff format --check backend tests` (469 files) passed; all 140 tests across the 8 access/session/recette suites (`test_finance_payments_access_lot_a1.py`, `test_documents_access_lot_a2.py`, `test_visits_support_access_lot_a4.py`, `test_reports_settings_access_lot_a5.py`, `test_auth_session_api.py`, `test_cashbox_auth_guard.py`, `test_inventory_storage_location_auth.py`, `test_multi_role_api_recette.py`) passed on `main` (138/138 + 2/2 attachment tests with isolated `DJANGO_MEDIA_ROOT`), backed by full 4-shard GitHub Actions backend CI green in run `44935476100` (`c04dbc2`).
+- **Frontend quality & tests:** 9/9 targeted access/admin/tutorial/recette test files (96/96 tests) and `tsc --noEmit && vite build` passed locally on `766300f`, backed by full GitHub Actions frontend CI green in run `44937497927` (`766300f`).
+- **Worktree hygiene:** All 11 task worktrees and the temporary integration review worktree (`integration/access-lots-a0-b4-review`) were verified clean and removed along with their local branches; remote branches remain preserved.
+
+### Remaining Limitations & Explicit Boundaries
+
+- **No Raspberry Pi deployment performed:** No code has been deployed to the client Raspberry Pi server; version verification and backup/rollback remain prerequisites prior to cutover.
+- **No production user role mutations performed:** No live database user accounts, roles, passwords, or sessions were altered; an explicit non-sensitive inventory and per-user assignment plan remain required before any production role change.
+- **Real browser & multi-terminal LAN acceptance still pending:** While `test_multi_role_api_recette.py` proves real HTTP session cookies, CSRF rotation, DB-backed suspension/revocation, logout, and account switching against Django/PostgreSQL, interactive physical-browser multi-terminal walkthroughs and Lot 8 hardware validation (Xprinter 80×104mm thermal printing + Raspberry Pi LAN) remain open acceptance gates.
+- **Frontend multi-role tests use mocked session fixtures:** `MultiRoleRecetteIntegration.test.tsx` proves conditional UI presentation against contract-conformant session objects, not live backend persistence.
