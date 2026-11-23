@@ -32,3 +32,9 @@ it("keeps the composition read-only without management permission", async () => 
   expect(screen.getByRole("button", { name: "Ajouter un élément" })).toBeDisabled();
   expect(api.updateHahitantsoaCommercialTerms).not.toHaveBeenCalled();
 });
+
+it("does not render a nested main landmark inside AppShell", async () => {
+  const { container } = render(<HahitantsoaCommercialTermsPage canEdit />);
+  expect(await screen.findByDisplayValue("Salle")).toBeInTheDocument();
+  expect(container.querySelector("main")).toBeNull();
+});

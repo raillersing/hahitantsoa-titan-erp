@@ -325,4 +325,23 @@ describe('AppShell', () => {
   ] as const)('résout reservation-new/%s en %s', (param, expected) => {
     expect(resolveBrandScope('reservation-new', param)).toBe(expected);
   });
+
+  it('affiche les libellés français pour bank-settings et hahitantsoa-settings', () => {
+    const { rerender } = render(
+      <AppShell activeScope="bank-settings" onNavigate={mockNavigate}>
+        <div>Content</div>
+      </AppShell>,
+    );
+    const header = screen.getByRole('banner');
+    expect(header).toHaveTextContent('Paramètres bancaires');
+    expect(header).not.toHaveTextContent('Bank-settings');
+
+    rerender(
+      <AppShell activeScope="hahitantsoa-settings" onNavigate={mockNavigate}>
+        <div>Content</div>
+      </AppShell>,
+    );
+    expect(header).toHaveTextContent('Conditions commerciales');
+    expect(header).not.toHaveTextContent('Hahitantsoa-settings');
+  });
 });

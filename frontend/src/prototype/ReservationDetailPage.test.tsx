@@ -333,6 +333,34 @@ describe('ReservationDetailPage', () => {
     expect(screen.getByText('Le contrat reste générable. Complétez ces informations dès que possible.')).toBeInTheDocument();
   });
 
+  it('affiche les avertissements contractuels backend { field, label } sans erreur console React key', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      mockGetReservationDraftDocumentInstances.mockResolvedValue([
+        {
+          id: 'contract-2',
+          template_key: 'titan.material_contract.v1',
+          contract_warnings: [
+            { field: 'customer_address', label: 'Adresse ou siège social' },
+            { field: 'customer_birth_date', label: 'Date de naissance' },
+          ],
+        },
+      ]);
+
+      render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
+      await waitForDraftLoad();
+
+      expect(screen.getByText('Adresse ou siège social')).toBeInTheDocument();
+      expect(screen.getByText('Date de naissance')).toBeInTheDocument();
+      const keyWarnings = consoleErrorSpy.mock.calls.filter((args) =>
+        args.some((arg) => typeof arg === 'string' && arg.includes('unique "key" prop')),
+      );
+      expect(keyWarnings).toHaveLength(0);
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it('4. Loading then draft rendered: customer name and dates visible', async () => {
     render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
 

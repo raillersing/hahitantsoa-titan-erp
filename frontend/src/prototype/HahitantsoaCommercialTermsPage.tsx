@@ -148,7 +148,7 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
   ];
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-6">
+    <div className="mx-auto max-w-5xl space-y-6 p-6">
       {/* Navigation Hub */}
       <div className="flex border-b border-slate-200 bg-white px-2 pt-2 rounded-t-xl">
         <a
@@ -362,6 +362,6 @@ export default function HahitantsoaCommercialTermsPage({ canEdit }: { canEdit: b
           </div>
         </aside>
       </section>
-    </main>
+    </div>
   );
 }

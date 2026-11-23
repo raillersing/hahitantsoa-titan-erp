@@ -134,6 +134,8 @@ export default function AppShell({
     "user-manual": "Manuel utilisateur",
     "reservation-new": "Nouvelle réservation",
     profile: "Profil utilisateur",
+    "bank-settings": "Paramètres bancaires",
+    "hahitantsoa-settings": "Conditions commerciales",
   };
 
   const [darkMode, setDarkMode] = React.useState(() => {
