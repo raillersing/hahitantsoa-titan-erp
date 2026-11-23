@@ -752,8 +752,10 @@ export type DocumentTemplateVersionCreatePayload = {
 };
 
 export type DocumentInstanceContractWarning = {
-  code: string;
-  message: string;
+  field?: string;
+  label?: string;
+  code?: string;
+  message?: string;
 };
 
 export type DocumentInstanceCustomerContactPointSnapshot = {

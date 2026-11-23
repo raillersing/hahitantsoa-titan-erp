@@ -3102,8 +3102,10 @@ export default function ReservationDetailPage({
                       Le contrat reste générable. Complétez ces informations dès que possible.
                     </p>
                     <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
-                      {contractWarnings.map((warning) => (
-                        <li key={warning.code}>{warning.message}</li>
+                      {contractWarnings.map((warning, index) => (
+                        <li key={warning.field || warning.code || `warning-${index}`}>
+                          {warning.label || warning.message || warning.field || warning.code}
+                        </li>
                       ))}
                     </ul>
                   </div>

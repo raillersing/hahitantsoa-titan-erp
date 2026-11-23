@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { getReportCategory, downloadTabularExport } from "../api";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { ApiError, getReportCategory, downloadTabularExport } from "../api";
 import type { ReportCategory, ReportCategoryResponse, ReportKpi } from "../types";
 import { LoadingSpinner } from "../components";
 import { useOptionalAuth } from "../AuthContext";
@@ -78,29 +78,88 @@ function trendIcon(trend?: number): string {
   return "fa-minus";
 }
 
+function formatReportErrorMessage(err: unknown): string {
+  const status = err instanceof ApiError ? err.status : (err as { status?: number } | null)?.status;
+  const rawMessage = err instanceof Error ? err.message : typeof err === "string" ? err : "";
+  if (
+    status === 403 ||
+    /do not have permission|forbidden|permission denied/i.test(rawMessage)
+  ) {
+    return "Vous n'avez pas l'autorisation de consulter cette catégorie de rapport.";
+  }
+  if (
+    status === 401 ||
+    /authentication credentials were not provided|unauthorized/i.test(rawMessage)
+  ) {
+    return "Votre session a expiré. Veuillez vous reconnecter pour consulter les rapports.";
+  }
+  if (/failed to fetch|networkerror|load failed/i.test(rawMessage)) {
+    return "Impossible de joindre le serveur pour charger les rapports. Vérifiez votre connexion et réessayez.";
+  }
+  if (
+    (status !== undefined && status >= 500) ||
+    /the requested data could not be loaded|internal server error|bad gateway|service unavailable/i.test(
+      rawMessage,
+    )
+  ) {
+    return "Erreur serveur lors du chargement des rapports. Veuillez réessayer.";
+  }
+  return rawMessage || "Erreur lors du chargement des rapports.";
+}
+
+function formatExportErrorMessage(err: unknown): string {
+  const status = err instanceof ApiError ? err.status : (err as { status?: number } | null)?.status;
+  const rawMessage = err instanceof Error ? err.message : typeof err === "string" ? err : "";
+  if (
+    status === 401 ||
+    status === 403 ||
+    /do not have permission|forbidden|permission denied|unauthorized/i.test(rawMessage)
+  ) {
+    return "Vous n'avez pas l'autorisation d'exporter ce document.";
+  }
+  if (/failed to fetch|networkerror|load failed/i.test(rawMessage)) {
+    return "Impossible de joindre le serveur pour télécharger l'export. Vérifiez votre connexion et réessayez.";
+  }
+  if (
+    (status !== undefined && status >= 500) ||
+    /the requested data could not be loaded|internal server error|bad gateway|service unavailable/i.test(
+      rawMessage,
+    )
+  ) {
+    return "Erreur serveur lors du téléchargement de l'export. Veuillez réessayer.";
+  }
+  return rawMessage || "Erreur lors du téléchargement de l'export.";
+}
+
 export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) {
   const auth = useOptionalAuth();
-  const userCategories = useMemo(() => {
-    if (!auth || auth.state.status !== "authenticated") return [];
-    return reportCategoriesForUser(auth.state.user);
-  }, [auth]);
+  const sessionUser = auth?.state.status === "authenticated" ? auth.state.user : null;
+  const sessionKey = auth
+    ? sessionUser
+      ? `${sessionUser.id}:${sessionUser.roles.join(",")}:${Array.isArray(sessionUser.reportCategories) ? sessionUser.reportCategories.join(",") : "legacy"}`
+      : `status:${auth.state.status}`
+    : "standalone";
 
   const availableCategories = useMemo(() => {
-    if (userCategories.length === 0) return CATEGORIES;
-    return CATEGORIES.filter((cat) => userCategories.includes(cat.key));
-  }, [userCategories]);
-
-  const [activeCategory, setActiveCategory] = useState<ReportCategory>("reservations");
-
-  useEffect(() => {
-    if (userCategories.length > 0 && !userCategories.includes(activeCategory)) {
-      setActiveCategory(userCategories[0]);
+    if (!auth) return CATEGORIES;
+    if (auth.state.status !== "authenticated") return [];
+    const user = auth.state.user;
+    if (Array.isArray(user.reportCategories)) {
+      const allowed = reportCategoriesForUser(user);
+      return CATEGORIES.filter((cat) => allowed.includes(cat.key));
     }
-  }, [userCategories, activeCategory]);
+    if (user.is_staff || user.capabilities?.canSensitiveWrite) {
+      return CATEGORIES;
+    }
+    return [];
+  }, [auth]);
+
+  const [selection, setSelection] = useState<{ sessionKey: string; category: ReportCategory } | null>(null);
   const [period, setPeriod] = useState<PeriodKey>("month");
   const [data, setData] = useState<ReportCategoryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   // Tabular accounting & operational exports state
   const [exportScope, setExportScope] = useState<string>("all");
@@ -111,7 +170,34 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportSuccess, setExportSuccess] = useState<string | null>(null);
 
+  const requestSeqRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const exportSeqRef = useRef(0);
+
+  // Derive the effective category synchronously so no unauthorized default category
+  // (such as "reservations") is ever requested on initial mount or account switch.
+  const selectedCategory = selection?.sessionKey === sessionKey ? selection.category : null;
+  const effectiveCategory: ReportCategory | null = useMemo(() => {
+    if (availableCategories.length === 0) return null;
+    if (selectedCategory && availableCategories.some((cat) => cat.key === selectedCategory)) {
+      return selectedCategory;
+    }
+    return availableCategories[0].key;
+  }, [availableCategories, selectedCategory]);
+
+  // Invalidate any in-flight tabular export and reset export banners on session change or unmount.
+  useEffect(() => {
+    exportSeqRef.current += 1;
+    setDownloadingType(null);
+    setExportError(null);
+    setExportSuccess(null);
+    return () => {
+      exportSeqRef.current += 1;
+    };
+  }, [sessionKey]);
+
   const handleTabularExport = async (type: "sales" | "payments" | "cautions" | "breakage") => {
+    const exportId = ++exportSeqRef.current;
     setDownloadingType(type);
     setExportError(null);
     setExportSuccess(null);
@@ -122,33 +208,65 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
         end_date: exportEndDate || undefined,
         method: type === "payments" ? exportPaymentMethod : undefined,
       });
+      if (exportSeqRef.current !== exportId) return;
       setExportSuccess("Export téléchargé avec succès.");
-    } catch (err: any) {
-      setExportError(err.message || "Erreur lors du téléchargement de l'export.");
+    } catch (err: unknown) {
+      if (exportSeqRef.current !== exportId) return;
+      setExportError(formatExportErrorMessage(err));
     } finally {
-      setDownloadingType(null);
+      if (exportSeqRef.current === exportId) {
+        setDownloadingType(null);
+      }
     }
   };
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await getReportCategory(activeCategory, period);
-      setData(response);
-    } catch (err: any) {
-      if (err.name !== "AbortError") {
-        setData(null);
-        setError(err.message || "Erreur lors du chargement des rapports.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [activeCategory, period]);
+  const retryLoad = useCallback(() => {
+    setReloadNonce((n) => n + 1);
+  }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    const requestId = ++requestSeqRef.current;
+    abortControllerRef.current?.abort();
+
+    if (!effectiveCategory) {
+      abortControllerRef.current = null;
+      setData(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    setData(null);
+    setLoading(true);
+    setError(null);
+
+    getReportCategory(effectiveCategory, period, controller.signal)
+      .then((response) => {
+        if (controller.signal.aborted || requestSeqRef.current !== requestId) return;
+        setData(response);
+        setError(null);
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (
+          controller.signal.aborted ||
+          requestSeqRef.current !== requestId ||
+          (err instanceof Error && err.name === "AbortError")
+        ) {
+          return;
+        }
+        setData(null);
+        setError(formatReportErrorMessage(err));
+        setLoading(false);
+      });
+
+    return () => {
+      requestSeqRef.current += 1;
+      controller.abort();
+    };
+  }, [effectiveCategory, period, sessionKey, reloadNonce]);
 
   return (
     <div className="page active space-y-6">
@@ -190,9 +308,9 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
         {availableCategories.map((cat) => (
           <button
             key={cat.key}
-            onClick={() => setActiveCategory(cat.key)}
+            onClick={() => setSelection({ sessionKey, category: cat.key })}
             className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition ${
-              activeCategory === cat.key
+              effectiveCategory === cat.key
                 ? "bg-indigo-600 text-white shadow-sm"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
             }`}
@@ -202,6 +320,13 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
           </button>
         ))}
       </div>
+
+      {/* No authorized category */}
+      {!loading && !error && !effectiveCategory && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center text-sm text-amber-900" role="status">
+          Aucune catégorie de rapport n'est autorisée pour votre session actuelle.
+        </div>
+      )}
 
       {/* Loading */}
       {loading && (
@@ -213,11 +338,11 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
 
       {/* Error */}
       {!loading && error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center" role="alert">
           <i className="fas fa-exclamation-triangle text-red-500 text-lg mb-2"></i>
           <p className="text-red-700 text-sm mb-3">{error}</p>
           <button
-            onClick={loadData}
+            onClick={retryLoad}
             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition"
           >
             <i className="fas fa-redo mr-2"></i>Réessayer
@@ -281,7 +406,10 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
 
         {/* Bannières de notification */}
         {exportError && (
-          <div className="flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          <div
+            role="alert"
+            className="flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"
+          >
             <div className="flex items-center gap-2">
               <i className="fas fa-exclamation-circle text-rose-500"></i>
               <span>{exportError}</span>
@@ -298,7 +426,10 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
         )}
 
         {exportSuccess && (
-          <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+          <div
+            role="status"
+            className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700"
+          >
             <div className="flex items-center gap-2">
               <i className="fas fa-check-circle text-emerald-500"></i>
               <span>{exportSuccess}</span>
